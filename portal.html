@@ -180,13 +180,24 @@
                         <tbody id="usersTableBody"></tbody>
                     </table>
                 </div>
-                <!-- Tab: Invita -->
+                        <!-- Tab: Invita -->
                 <div class="admin-section" id="tab-invite">
                     <div class="admin-msg" id="inviteMsg"></div>
                     <p style="font-size:0.85rem;color:#5ABBC8;margin-bottom:1rem;">Inserisci l'email dell'utente da invitare. Verrà generato un link di registrazione valido per 7 giorni.</p>
                     <div class="invite-form">
                         <input type="email" id="inviteEmail" placeholder="email@dominio.com">
                         <button class="btn-invite" onclick="sendInvite()">Genera link</button>
+                    </div>
+                    <div id="inviteRoleGroup" style="margin-bottom:1rem;display:none;">
+                        <span style="font-size:0.8rem;color:#7ACCE0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Ruolo da assegnare</span>
+                        <div style="display:flex;gap:1.2rem;margin-top:0.5rem;">
+                            <label style="display:flex;align-items:center;gap:0.45rem;font-size:0.88rem;color:#C8F0E8;cursor:pointer;">
+                                <input type="radio" name="inviteRole" value="user" checked style="accent-color:#00C8FF;"> Utente
+                            </label>
+                            <label style="display:flex;align-items:center;gap:0.45rem;font-size:0.88rem;color:#C8F0E8;cursor:pointer;">
+                                <input type="radio" name="inviteRole" value="admin" style="accent-color:#00C8FF;"> Amministratore
+                            </label>
+                        </div>
                     </div>
                     <div class="invite-result" id="inviteResult">
                         <div class="link-label">Link di registrazione:</div>
@@ -215,7 +226,7 @@
             _currentUser = await res.json();
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.email;
-            if (_currentUser.role === 'superadmin') {
+            if (_currentUser.role === 'superadmin' || _currentUser.role === 'admin') {
                 document.getElementById('navAdminBtn').style.display = '';
             }
         } catch {
@@ -236,6 +247,9 @@
     // ── Admin panel ───────────────────────────────────────────────────────────
     function openAdminPanel() {
         document.getElementById('adminModalBg').style.display = 'flex';
+        // Mostra selettore ruolo solo al superadmin
+        document.getElementById('inviteRoleGroup').style.display =
+            _currentUser.role === 'superadmin' ? 'block' : 'none';
         loadUsers();
     }
     function closeAdminPanel() {
@@ -274,9 +288,10 @@
             tbody.innerHTML = users.map(u => `
                 <tr>
                     <td>${u.email}</td>
-                    <td><span class="badge ${u.role === 'superadmin' ? 'badge-admin' : 'badge-user'}">${u.role}</span></td>
+                    <td><span class="badge ${u.role === 'superadmin' ? 'badge-admin' : u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span></td>
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
-                    <td>${u.role !== 'superadmin' ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}</td>
+                    <td>${(u.role !== 'superadmin' && (_currentUser.role === 'superadmin' || u.role === 'user'))
+                        ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}</td>
                 </tr>`).join('');
         } catch {
             tbody.innerHTML = '<tr><td colspan="4" style="color:#FF6B7A">Errore caricamento.</td></tr>';
@@ -292,12 +307,13 @@
 
     async function sendInvite() {
         const email  = document.getElementById('inviteEmail').value.trim();
+        const role   = (document.querySelector('input[name="inviteRole"]:checked') || { value: 'user' }).value;
         const result = document.getElementById('inviteResult');
         result.style.display = 'none';
         if (!email) { showMsg('inviteMsg', 'Inserisci un\'email.', 'error'); return; }
         const res  = await fetch('/api/auth/invite', {
             method: 'POST', headers: authHeader(),
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, role })
         });
         const data = await res.json();
         if (!res.ok) { showMsg('inviteMsg', data.error || 'Errore.', 'error'); return; }
@@ -305,7 +321,9 @@
         document.getElementById('inviteLink').textContent = fullLink;
         result.style.display = 'block';
         document.getElementById('inviteEmail').value = '';
-        showMsg('inviteMsg', 'Invito generato con successo.', 'success');
+        const roleLabel = data.role === 'admin' ? 'Amministratore' : 'Utente';
+        const emailNote = data.emailSent ? ' — email inviata automaticamente.' : ' — copia e invia il link manualmente (SMTP non configurato).';
+        showMsg('inviteMsg', `Invito ${roleLabel} generato${emailNote}`, data.emailSent ? 'success' : 'success');
     }
 
     function copyInviteLink() {
