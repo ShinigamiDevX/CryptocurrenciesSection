@@ -239,6 +239,33 @@ app.get('/api/auth/invitations', authenticate, requireAdmin, (req, res) => {
     res.json(readJSON(INVITATIONS_FILE).filter(i => !i.used && new Date() < new Date(i.expiresAt)));
 });
 
+// ── PATCH /api/auth/users/:id  — cambia ruolo (superadmin o admin) ────────────
+app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
+    const { role: newRole } = req.body || {};
+    if (!['admin', 'user'].includes(newRole)) return res.status(400).json({ error: 'Ruolo non valido.' });
+    const users = readJSON(USERS_FILE);
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user)                             return res.status(404).json({ error: 'Utente non trovato.' });
+    if (user.email === SUPERADMIN_EMAIL)   return res.status(403).json({ error: 'Impossibile modificare il superadmin.' });
+    if (req.user.id === user.id)           return res.status(403).json({ error: 'Non puoi modificare il tuo stesso ruolo.' });
+    // admin può cambiare solo utenti normali; superadmin può cambiare tutti (tranne se stesso)
+    if (req.user.role === 'admin' && user.role !== 'user')
+        return res.status(403).json({ error: 'Gli admin possono modificare solo utenti normali.' });
+    user.role = newRole;
+    writeJSON(USERS_FILE, users);
+    res.json({ success: true, role: newRole });
+});
+
+// ── DELETE /api/auth/invitations/:token  — annulla invito (superadmin o admin) ─
+app.delete('/api/auth/invitations/:token', authenticate, requireAdmin, (req, res) => {
+    const invitations = readJSON(INVITATIONS_FILE);
+    const inv = invitations.find(i => i.token === req.params.token && !i.used);
+    if (!inv) return res.status(404).json({ error: 'Invito non trovato o già utilizzato.' });
+    inv.used = true;
+    writeJSON(INVITATIONS_FILE, invitations);
+    res.json({ success: true });
+});
+
 // ── POST /api/auth/change-password ───────────────────────────────────────────
 app.post('/api/auth/change-password', authenticate, async (req, res) => {
     const { currentPassword, newPassword } = req.body || {};

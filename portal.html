@@ -58,6 +58,8 @@
         .badge-user  { background: rgba(0,230,118,0.12); color: #00E676; }
         .btn-del { background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; font-size: 0.78rem; padding: 0.3rem 0.7rem; border-radius: 5px; cursor: pointer; }
         .btn-del:hover { background: rgba(255,71,87,0.28); }
+        .btn-role { background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3); color: #00C8FF; font-size: 0.78rem; padding: 0.3rem 0.7rem; border-radius: 5px; cursor: pointer; margin-left: 0.35rem; }
+        .btn-role:hover { background: rgba(0,200,255,0.22); }
 
         /* Form invito */
         .invite-form { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
@@ -92,6 +94,7 @@
         }
         .inv-email { color: #C8F0E8; }
         .inv-exp   { color: #5ABBC8; font-size: 0.75rem; white-space: nowrap; }
+        .inv-role  { font-size: 0.75rem; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; }
 
         .admin-msg { font-size: 0.82rem; border-radius: 7px; padding: 0.6rem 0.9rem; margin-bottom: 0.8rem; display: none; }
         .admin-msg.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
@@ -176,7 +179,7 @@
                 <div class="admin-section active" id="tab-users">
                     <div class="admin-msg" id="usersMsg"></div>
                     <table class="users-table">
-                        <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato</th><th></th></tr></thead>
+                        <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato</th><th>Azioni</th></tr></thead>
                         <tbody id="usersTableBody"></tbody>
                     </table>
                 </div>
@@ -285,14 +288,28 @@
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nessun utente.</td></tr>';
                 return;
             }
-            tbody.innerHTML = users.map(u => `
+            tbody.innerHTML = users.map(u => {
+                const canEdit = u.role !== 'superadmin' &&
+                    (_currentUser.role === 'superadmin' || u.role === 'user') &&
+                    u.id !== _currentUser.id;
+                const toggleRole  = u.role === 'admin' ? 'user' : 'admin';
+                const toggleLabel = u.role === 'admin' ? '\u2192 utente' : '\u2192 admin';
+                // admin può promuovere/retrocedere solo utenti normali;
+                // superadmin può anche toccare gli admin
+                const canChangeRole = canEdit &&
+                    (_currentUser.role === 'superadmin' ||
+                    (_currentUser.role === 'admin' && u.role === 'user'));
+                return `
                 <tr>
                     <td>${u.email}</td>
-                    <td><span class="badge ${u.role === 'superadmin' ? 'badge-admin' : u.role === 'admin' ? 'badge-admin' : 'badge-user'}">${u.role}</span></td>
+                    <td><span class="badge ${u.role === 'user' ? 'badge-user' : 'badge-admin'}">${u.role}</span></td>
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
-                    <td>${(u.role !== 'superadmin' && (_currentUser.role === 'superadmin' || u.role === 'user'))
-                        ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}</td>
-                </tr>`).join('');
+                    <td style="white-space:nowrap;">
+                        ${canEdit ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
+                        ${canChangeRole ? `<button class="btn-role" onclick="changeRole('${u.id}','${u.email}','${toggleRole}','${u.role}')">&#x27A1; ${toggleLabel.replace('\u2192 ','')}</button>` : ''}
+                    </td>
+                </tr>`;
+            }).join('');
         } catch {
             tbody.innerHTML = '<tr><td colspan="4" style="color:#FF6B7A">Errore caricamento.</td></tr>';
         }
@@ -302,6 +319,17 @@
         if (!confirm(`Revocare l'accesso a ${email}?`)) return;
         const res = await fetch('/api/auth/users/' + id, { method: 'DELETE', headers: authHeader() });
         if (res.ok) { showMsg('usersMsg', 'Utente rimosso.', 'success'); loadUsers(); }
+        else        { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); }
+    }
+
+    async function changeRole(id, email, newRole, currentRole) {
+        const label = newRole === 'admin' ? 'Amministratore' : 'Utente';
+        if (!confirm(`Cambiare il ruolo di ${email} in ${label}?`)) return;
+        const res = await fetch('/api/auth/users/' + id, {
+            method: 'PATCH', headers: authHeader(),
+            body: JSON.stringify({ role: newRole })
+        });
+        if (res.ok) { showMsg('usersMsg', `Ruolo aggiornato a ${label}.`, 'success'); loadUsers(); }
         else        { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); }
     }
 
@@ -341,14 +369,27 @@
             const res  = await fetch('/api/auth/invitations', { headers: authHeader() });
             const data = await res.json();
             if (!data.length) { list.innerHTML = '<div class="empty-state">Nessun invito in sospeso.</div>'; return; }
-            list.innerHTML = data.map(i => `
+            list.innerHTML = data.map(i => {
+                const roleLabel = i.role === 'admin' ? 'admin' : 'utente';
+                const badgeCls  = i.role === 'admin' ? 'badge-admin' : 'badge-user';
+                return `
                 <div class="inv-item">
                     <span class="inv-email">${i.email}</span>
+                    <span class="badge ${badgeCls} inv-role">${roleLabel}</span>
                     <span class="inv-exp">Scade: ${new Date(i.expiresAt).toLocaleDateString('it-IT')}</span>
-                </div>`).join('');
+                    <button class="btn-del" style="white-space:nowrap;" onclick="cancelInvitation('${i.token}','${i.email}')">Annulla</button>
+                </div>`;
+            }).join('');
         } catch {
             list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>';
         }
+    }
+
+    async function cancelInvitation(token, email) {
+        if (!confirm(`Annullare l'invito per ${email}? Il link non sarà più valido.`)) return;
+        const res = await fetch('/api/auth/invitations/' + token, { method: 'DELETE', headers: authHeader() });
+        if (res.ok) { showMsg('invitationsMsg', 'Invito annullato.', 'success'); loadInvitations(); }
+        else        { const d = await res.json(); showMsg('invitationsMsg', d.error || 'Errore.', 'error'); }
     }
     </script>
 </body>
