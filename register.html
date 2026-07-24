@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrazione — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #030E1C;
+            color: #C8F0E8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .card {
+            background: rgba(3, 12, 28, 0.97);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 16px;
+            padding: 2.8rem 2.4rem 2.4rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.7);
+        }
+        .logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+        .logo img { height: 2.8rem; }
+        .logo-text { font-size: 1.1rem; font-weight: 700; color: #C8F0E8; }
+        .logo-text span { color: #00C8FF; }
+        h2 { font-size: 1.45rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.4rem; }
+        .subtitle { font-size: 0.85rem; color: #5ABBC8; margin-bottom: 2rem; }
+        .invited-email {
+            background: rgba(0,200,255,0.08);
+            border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 8px;
+            padding: 0.7rem 1rem;
+            font-size: 0.9rem;
+            color: #00C8FF;
+            margin-bottom: 1.4rem;
+            word-break: break-all;
+        }
+        .field { margin-bottom: 1.2rem; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: #7ACCE0; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.45rem; }
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.22);
+            border-radius: 8px;
+            color: #C8F0E8;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus { border-color: rgba(0,200,255,0.6); }
+        input::placeholder { color: rgba(90,187,200,0.45); }
+        .hint { font-size: 0.75rem; color: #5ABBC8; margin-top: 0.35rem; }
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            margin-top: 0.6rem;
+            background: linear-gradient(135deg, #00C8FF 0%, #00E676 100%);
+            border: none;
+            border-radius: 8px;
+            color: #030E1C;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.88; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .msg { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin-bottom: 1.2rem; display: none; }
+        .msg.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
+        .msg.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
+        footer { margin-top: 2rem; font-size: 0.75rem; color: rgba(90,187,200,0.45); text-align: center; }
+        #loadingState { text-align: center; color: #5ABBC8; font-size: 0.95rem; padding: 1rem 0; }
+        #invalidState { text-align: center; }
+        #invalidState p { color: #FF6B7A; margin-bottom: 1rem; }
+        #invalidState a { color: #00C8FF; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <img src="immagini/logo.png" alt="Logo">
+            <div class="logo-text">Cryptocurrencies<span>Section</span></div>
+        </div>
+        <div id="loadingState">Verifica invito in corso...</div>
+        <div id="invalidState" style="display:none;">
+            <p id="invalidMsg">Invito non valido o scaduto.</p>
+            <a href="/login">← Torna al login</a>
+        </div>
+        <div id="formState" style="display:none;">
+            <h2>Crea il tuo account</h2>
+            <p class="subtitle">Sei stato invitato ad accedere al portale operativo.</p>
+            <div class="msg error" id="errorMsg"></div>
+            <div class="msg success" id="successMsg"></div>
+            <div class="invited-email" id="invitedEmail"></div>
+            <form id="registerForm" autocomplete="off">
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Minimo 8 caratteri" autocomplete="new-password" required>
+                    <div class="hint">Almeno 8 caratteri.</div>
+                </div>
+                <div class="field">
+                    <label for="confirmPassword">Conferma Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Ripeti la password" autocomplete="new-password" required>
+                </div>
+                <button type="submit" class="btn" id="submitBtn">Registrati</button>
+            </form>
+        </div>
+    </div>
+    <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const token  = params.get('token');
+
+        if (!token) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('invalidState').style.display = 'block';
+        } else {
+            fetch('/api/auth/invite-info?token=' + encodeURIComponent(token))
+                .then(async r => {
+                    document.getElementById('loadingState').style.display = 'none';
+                    if (!r.ok) {
+                        const d = await r.json().catch(() => ({}));
+                        document.getElementById('invalidMsg').textContent = d.error || 'Invito non valido o scaduto.';
+                        document.getElementById('invalidState').style.display = 'block';
+                    } else {
+                        const d = await r.json();
+                        document.getElementById('invitedEmail').textContent = '📧 ' + d.email;
+                        document.getElementById('formState').style.display = 'block';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('invalidState').style.display = 'block';
+                });
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const errorMsg   = document.getElementById('errorMsg');
+            const successMsg = document.getElementById('successMsg');
+            const submitBtn  = document.getElementById('submitBtn');
+            errorMsg.style.display   = 'none';
+            successMsg.style.display = 'none';
+
+            const pwd     = document.getElementById('password').value;
+            const confirm = document.getElementById('confirmPassword').value;
+            if (pwd !== confirm) {
+                errorMsg.textContent = 'Le password non coincidono.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Registrazione in corso...';
+            try {
+                const res  = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, password: pwd })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errorMsg.textContent = data.error || 'Errore durante la registrazione.';
+                    errorMsg.style.display = 'block';
+                } else {
+                    document.getElementById('registerForm').style.display = 'none';
+                    successMsg.textContent = 'Account creato con successo! Reindirizzamento al login...';
+                    successMsg.style.display = 'block';
+                    setTimeout(() => window.location.replace('/login'), 2000);
+                }
+            } catch {
+                errorMsg.textContent = 'Errore di rete. Riprovare.';
+                errorMsg.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Registrati';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptocurrenciesSection — Portale Operativo Interno</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Auth overlay ─────────────────────────────────────── */
+        #authOverlay {
+            position: fixed; inset: 0; background: #030E1C; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #authOverlay span { color: #00C8FF; font-size: 1rem; font-family: Inter, sans-serif; }
+
+        /* ── Admin modal ──────────────────────────────────────── */
+        .admin-modal-bg {
+            position: fixed; inset: 0; background: rgba(3,14,28,0.88); z-index: 8000;
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .admin-modal {
+            background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28);
+            border-radius: 16px;
+            width: 100%; max-width: 700px;
+            max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.8);
+        }
+        .admin-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1.4rem 1.6rem 1rem;
+            border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        .admin-modal-header h3 { color: #00C8FF; font-size: 1.1rem; }
+        .admin-modal-close {
+            background: none; border: none; color: #5ABBC8; font-size: 1.4rem;
+            cursor: pointer; line-height: 1;
+        }
+        .admin-tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(0,200,255,0.12); }
+        .admin-tab {
+            padding: 0.8rem 1.4rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            color: #5ABBC8; border: none; background: none; border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .admin-tab.active { color: #00C8FF; border-bottom-color: #00C8FF; }
+        .admin-body { padding: 1.4rem 1.6rem; }
+        .admin-section { display: none; }
+        .admin-section.active { display: block; }
+
+        /* Tabella utenti */
+        .users-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .users-table th { text-align: left; color: #7ACCE0; font-weight: 600; padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(0,200,255,0.12); }
+        .users-table td { padding: 0.6rem 0.75rem; color: #C8F0E8; border-bottom: 1px solid rgba(0,200,255,0.06); vertical-align: middle; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-admin { background: rgba(0,200,255,0.15); color: #00C8FF; }
+        .badge-user  { background: rgba(0,230,118,0.12); color: #00E676; }
+        .btn-del { background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; font-size: 0.78rem; padding: 0.3rem 0.7rem; border-radius: 5px; cursor: pointer; }
+        .btn-del:hover { background: rgba(255,71,87,0.28); }
+
+        /* Form invito */
+        .invite-form { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+        .invite-form input {
+            flex: 1; padding: 0.65rem 0.9rem;
+            background: rgba(0,200,255,0.06); border: 1px solid rgba(0,200,255,0.22);
+            border-radius: 8px; color: #C8F0E8; font-size: 0.9rem; font-family: inherit; outline: none;
+        }
+        .invite-form input:focus { border-color: rgba(0,200,255,0.6); }
+        .btn-invite {
+            padding: 0.65rem 1.2rem; background: linear-gradient(135deg, #00C8FF, #00E676);
+            border: none; border-radius: 8px; color: #030E1C; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+        }
+        .invite-result {
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 8px; padding: 0.8rem 1rem; font-size: 0.82rem; color: #00C8FF;
+            word-break: break-all; display: none; margin-top: 0.75rem;
+        }
+        .invite-result .link-label { color: #7ACCE0; font-size: 0.78rem; margin-bottom: 0.3rem; }
+        .copy-btn {
+            margin-top: 0.5rem; padding: 0.35rem 0.8rem; font-size: 0.78rem;
+            background: rgba(0,200,255,0.14); border: 1px solid rgba(0,200,255,0.35);
+            border-radius: 5px; color: #00C8FF; cursor: pointer;
+        }
+
+        /* Inviti in sospeso */
+        .inv-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .inv-item {
+            background: rgba(0,200,255,0.05); border: 1px solid rgba(0,200,255,0.12);
+            border-radius: 8px; padding: 0.65rem 0.9rem; font-size: 0.85rem;
+            display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;
+        }
+        .inv-email { color: #C8F0E8; }
+        .inv-exp   { color: #5ABBC8; font-size: 0.75rem; white-space: nowrap; }
+
+        .admin-msg { font-size: 0.82rem; border-radius: 7px; padding: 0.6rem 0.9rem; margin-bottom: 0.8rem; display: none; }
+        .admin-msg.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
+        .admin-msg.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
+        .empty-state { color: #5ABBC8; font-size: 0.85rem; padding: 0.5rem 0; }
+    </style>
+</head>
+<body>
+    <!-- Auth overlay — nascosto dopo verifica -->
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1><img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">Cryptocurrencies<span>Section</span> <small>Portale Interno</small></h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li id="navAdminBtn" style="display:none;"><a href="#" onclick="openAdminPanel();return false;">Gestione Utenti</a></li>
+                    <li><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section style="padding: 2.5rem 1rem; text-align: left;">
+            <h2 style="font-size: 1.6rem; text-align: left;">Benvenuto nel portale operativo</h2>
+            <p style="text-align: left; margin: 0;">Accesso riservato al personale autorizzato. Seleziona un'area di lavoro.</p>
+        </section>
+        <div class="cards">
+            <div class="card">
+                <div class="icon">🔗</div>
+                <h3>Tracciamento Blockchain</h3>
+                <p>Analisi del flusso di transazioni su blockchain. Visualizzazione grafica dei percorsi wallet.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card">
+                <div class="icon">🕵️</div>
+                <h3>OSINT & Intelligence</h3>
+                <p>Ricerca e correlazione di identità, exchange, indirizzi IP e metadati associati a wallet e transazioni sospette.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card">
+                <div class="icon">🔒</div>
+                <h3>Chainholder</h3>
+                <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
+                <a href="http://192.168.1.73:3000/login?callbackUrl=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card">
+                <div class="icon">🎓</div>
+                <h3>Corsi</h3>
+                <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card">
+                <div class="icon">🧩</div>
+                <h3>Cluster</h3>
+                <p>Clusterizzazione dei report forniti dagli Exchange.</p>
+                <a href="/cluster/" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p>
+    </footer>
+
+    <!-- ── Pannello Admin ───────────────────────────────────────────────── -->
+    <div class="admin-modal-bg" id="adminModalBg" style="display:none;" onclick="if(event.target===this)closeAdminPanel()">
+        <div class="admin-modal">
+            <div class="admin-modal-header">
+                <h3>⚙️ Gestione Utenti</h3>
+                <button class="admin-modal-close" onclick="closeAdminPanel()">✕</button>
+            </div>
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="switchTab('users')">Utenti</button>
+                <button class="admin-tab" onclick="switchTab('invite')">Invita</button>
+                <button class="admin-tab" onclick="switchTab('invitations')">Inviti in sospeso</button>
+            </div>
+            <div class="admin-body">
+                <!-- Tab: Utenti -->
+                <div class="admin-section active" id="tab-users">
+                    <div class="admin-msg" id="usersMsg"></div>
+                    <table class="users-table">
+                        <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato</th><th></th></tr></thead>
+                        <tbody id="usersTableBody"></tbody>
+                    </table>
+                </div>
+                <!-- Tab: Invita -->
+                <div class="admin-section" id="tab-invite">
+                    <div class="admin-msg" id="inviteMsg"></div>
+                    <p style="font-size:0.85rem;color:#5ABBC8;margin-bottom:1rem;">Inserisci l'email dell'utente da invitare. Verrà generato un link di registrazione valido per 7 giorni.</p>
+                    <div class="invite-form">
+                        <input type="email" id="inviteEmail" placeholder="email@dominio.com">
+                        <button class="btn-invite" onclick="sendInvite()">Genera link</button>
+                    </div>
+                    <div class="invite-result" id="inviteResult">
+                        <div class="link-label">Link di registrazione:</div>
+                        <div id="inviteLink"></div>
+                        <button class="copy-btn" onclick="copyInviteLink()">Copia link</button>
+                    </div>
+                </div>
+                <!-- Tab: Inviti in sospeso -->
+                <div class="admin-section" id="tab-invitations">
+                    <div class="admin-msg" id="invitationsMsg"></div>
+                    <div class="inv-list" id="invList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── Auth check ────────────────────────────────────────────────────────────
+    let _currentUser = null;
+    (async function() {
+        const token = localStorage.getItem('authToken');
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            _currentUser = await res.json();
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('navUserEmail').textContent = _currentUser.email;
+            if (_currentUser.role === 'superadmin') {
+                document.getElementById('navAdminBtn').style.display = '';
+            }
+        } catch {
+            localStorage.removeItem('authToken');
+            window.location.replace('/login');
+        }
+    })();
+
+    function logout() {
+        localStorage.removeItem('authToken');
+        window.location.replace('/login');
+    }
+
+    function authHeader() {
+        return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' };
+    }
+
+    // ── Admin panel ───────────────────────────────────────────────────────────
+    function openAdminPanel() {
+        document.getElementById('adminModalBg').style.display = 'flex';
+        loadUsers();
+    }
+    function closeAdminPanel() {
+        document.getElementById('adminModalBg').style.display = 'none';
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.admin-tab').forEach((t, i) => {
+            const ids = ['users', 'invite', 'invitations'];
+            t.classList.toggle('active', ids[i] === tab);
+        });
+        document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        if (tab === 'users')       loadUsers();
+        if (tab === 'invitations') loadInvitations();
+    }
+
+    function showMsg(id, text, type) {
+        const el = document.getElementById(id);
+        el.className = 'admin-msg ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+    }
+
+    async function loadUsers() {
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#5ABBC8;padding:0.5rem">Caricamento...</td></tr>';
+        try {
+            const res   = await fetch('/api/auth/users', { headers: authHeader() });
+            const users = await res.json();
+            if (!users.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nessun utente.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.email}</td>
+                    <td><span class="badge ${u.role === 'superadmin' ? 'badge-admin' : 'badge-user'}">${u.role}</span></td>
+                    <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
+                    <td>${u.role !== 'superadmin' ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}</td>
+                </tr>`).join('');
+        } catch {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:#FF6B7A">Errore caricamento.</td></tr>';
+        }
+    }
+
+    async function deleteUser(id, email) {
+        if (!confirm(`Revocare l'accesso a ${email}?`)) return;
+        const res = await fetch('/api/auth/users/' + id, { method: 'DELETE', headers: authHeader() });
+        if (res.ok) { showMsg('usersMsg', 'Utente rimosso.', 'success'); loadUsers(); }
+        else        { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); }
+    }
+
+    async function sendInvite() {
+        const email  = document.getElementById('inviteEmail').value.trim();
+        const result = document.getElementById('inviteResult');
+        result.style.display = 'none';
+        if (!email) { showMsg('inviteMsg', 'Inserisci un\'email.', 'error'); return; }
+        const res  = await fetch('/api/auth/invite', {
+            method: 'POST', headers: authHeader(),
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (!res.ok) { showMsg('inviteMsg', data.error || 'Errore.', 'error'); return; }
+        const fullLink = window.location.origin + data.link;
+        document.getElementById('inviteLink').textContent = fullLink;
+        result.style.display = 'block';
+        document.getElementById('inviteEmail').value = '';
+        showMsg('inviteMsg', 'Invito generato con successo.', 'success');
+    }
+
+    function copyInviteLink() {
+        const link = document.getElementById('inviteLink').textContent;
+        navigator.clipboard.writeText(link).then(() => {
+            document.querySelector('.copy-btn').textContent = '✓ Copiato!';
+            setTimeout(() => { document.querySelector('.copy-btn').textContent = 'Copia link'; }, 2000);
+        });
+    }
+
+    async function loadInvitations() {
+        const list = document.getElementById('invList');
+        list.innerHTML = '<div class="empty-state">Caricamento...</div>';
+        try {
+            const res  = await fetch('/api/auth/invitations', { headers: authHeader() });
+            const data = await res.json();
+            if (!data.length) { list.innerHTML = '<div class="empty-state">Nessun invito in sospeso.</div>'; return; }
+            list.innerHTML = data.map(i => `
+                <div class="inv-item">
+                    <span class="inv-email">${i.email}</span>
+                    <span class="inv-exp">Scade: ${new Date(i.expiresAt).toLocaleDateString('it-IT')}</span>
+                </div>`).join('');
+        } catch {
+            list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>';
+        }
+    }
+    </script>
+</body>
+</html>

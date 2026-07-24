@@ -14,5 +14,8 @@ cluster/dashboard/uploads/*.txt
 # Certificati locali
 cluster/dashboard/cert/
 
+# Auth — dati sensibili (non committare nel repo)
+auth/data/
+
 # Environment
 .env

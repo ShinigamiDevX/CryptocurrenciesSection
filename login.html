@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accesso — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #030E1C;
+            color: #C8F0E8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .login-card {
+            background: rgba(3, 12, 28, 0.97);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 16px;
+            padding: 2.8rem 2.4rem 2.4rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.7);
+        }
+        .login-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .login-logo img { height: 2.8rem; }
+        .login-logo-text { font-size: 1.1rem; font-weight: 700; color: #C8F0E8; }
+        .login-logo-text span { color: #00C8FF; }
+        h2 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #00C8FF;
+            margin-bottom: 0.4rem;
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: #5ABBC8;
+            margin-bottom: 2rem;
+        }
+        .field { margin-bottom: 1.2rem; }
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #7ACCE0;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.45rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.22);
+            border-radius: 8px;
+            color: #C8F0E8;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus { border-color: rgba(0,200,255,0.6); }
+        input::placeholder { color: rgba(90,187,200,0.45); }
+        .btn-login {
+            width: 100%;
+            padding: 0.85rem;
+            margin-top: 0.6rem;
+            background: linear-gradient(135deg, #00C8FF 0%, #00E676 100%);
+            border: none;
+            border-radius: 8px;
+            color: #030E1C;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-login:hover { opacity: 0.88; }
+        .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg {
+            background: rgba(255,71,87,0.12);
+            border: 1px solid rgba(255,71,87,0.35);
+            border-radius: 8px;
+            color: #FF6B7A;
+            font-size: 0.85rem;
+            padding: 0.7rem 1rem;
+            margin-bottom: 1.2rem;
+            display: none;
+        }
+        footer {
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: rgba(90,187,200,0.45);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="immagini/logo.png" alt="Logo">
+            <div class="login-logo-text">Cryptocurrencies<span>Section</span></div>
+        </div>
+        <h2>Accesso al portale</h2>
+        <p class="subtitle">Portale operativo interno — accesso riservato</p>
+        <div class="error-msg" id="errorMsg"></div>
+        <form id="loginForm" autocomplete="on">
+            <div class="field">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="nome@dominio.com" autocomplete="email" required>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn-login" id="submitBtn">Accedi</button>
+        </form>
+    </div>
+    <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
+
+    <script>
+        // Se già autenticato, vai al portale
+        (async function() {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+            try {
+                const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (res.ok) window.location.replace('/portal');
+            } catch {}
+        })();
+
+        const form      = document.getElementById('loginForm');
+        const errorMsg  = document.getElementById('errorMsg');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            errorMsg.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Accesso in corso...';
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('email').value.trim(),
+                        password: document.getElementById('password').value
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errorMsg.textContent = data.error || 'Credenziali non valide.';
+                    errorMsg.style.display = 'block';
+                } else {
+                    localStorage.setItem('authToken', data.token);
+                    window.location.replace('/portal');
+                }
+            } catch {
+                errorMsg.textContent = 'Errore di rete. Riprovare.';
+                errorMsg.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Accedi';
+            }
+        });
+    </script>
+</body>
+</html>
