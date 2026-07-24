@@ -1,0 +1,24 @@
+# Node
+dashboard/node_modules/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# File temporanei e output
+*.tmp
+*.log
+
+# Certificati SSL
+dashboard/cert/
+
+# Upload files (CSV di utenti)
+dashboard/uploads/
+
+# File immagini (se non necessarie)
+immagini/

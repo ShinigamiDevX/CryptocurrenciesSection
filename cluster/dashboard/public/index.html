@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cluster reactor.chainalysis</title>
+    <base href="/cluster/">
+    <link rel="icon" type="image/png" href="immagini/icon.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <a href="/" class="form-btn" style="position:fixed;top:18px;left:18px;z-index:2000;width:auto;padding:8px 18px;min-width:unset;text-decoration:none;">← Portale</a>
+    <button id="themeToggleBtn" class="form-btn" style="position:fixed;top:18px;right:18px;z-index:2000;width:auto;padding:8px 18px;min-width:unset;">☀️ Tema chiaro</button>
+    <div class="upload-card">
+        <div class="upload-header">
+            <h1>Genera il file CSV per il cluster</h1>
+        </div>
+        <form id="uploadForm" action="upload" method="post" enctype="multipart/form-data">
+            <div class="form-group" style="text-align:center;">
+                <div class="step-label">1. Seleziona il servizio</div>
+                <div class="service-grid" id="serviceGrid">
+                    <div class="service-tile" data-value="reactor">
+                        <img src="immagini/chainalysis.png" alt="Reactor Chainalysis" class="service-tile-img">
+                        <div class="service-tile-name">Reactor Chainalysis</div>
+                    </div>
+                    <div class="service-tile" data-value="trm">
+                        <img src="immagini/trm.jpg" alt="TRM" class="service-tile-img">
+                        <div class="service-tile-name">TRM</div>
+                    </div>
+                </div>
+                <input type="hidden" name="service" id="service" value="">
+            </div>
+            <div class="form-group" style="text-align:center;">
+                <div class="step-label">2. Seleziona l'Exchange</div>
+                <div class="exchange-grid" id="exchangeGrid">
+                    <div class="exchange-tile" data-value="Binance" data-img="immagini/binance.jpg"><img src="immagini/binance.jpg" alt="Binance"></div>
+                    <div class="exchange-tile" data-value="Bitget" data-img="immagini/bitget.jpg"><img src="immagini/bitget.jpg" alt="Bitget"></div>
+                    <div class="exchange-tile" data-value="Bybit" data-img="immagini/bybit.png"><img src="immagini/bybit.png" alt="Bybit"></div>
+                    <div class="exchange-tile" data-value="Coinbase" data-img="immagini/coinbase.png"><img src="immagini/coinbase.png" alt="Coinbase"></div>
+                    <div class="exchange-tile exchange-tile--soon" data-img="immagini/kraken.png"><img src="immagini/kraken.png" alt="Kraken"><span class="exchange-tile-soon-label">coming soon...</span></div>
+                    <div class="exchange-tile" data-value="Kucoin" data-img="immagini/kucoin.png"><img src="immagini/kucoin.png" alt="Kucoin"></div>
+                    <div class="exchange-tile" data-value="OKX" data-img="immagini/OKX.png"><img src="immagini/OKX.png" alt="OKX"></div>
+                </div>
+                <input type="hidden" name="exchange" id="exchange" value="">
+            </div>
+            <div class="form-group file-group" style="text-align:center;">
+                <div class="step-label">3. Carica il file</div>
+                <label for="xlsxfile" class="file-label" style="justify-content:center;cursor:pointer;">
+                    <input type="file" id="xlsxfile" name="xlsxfile" class="form-file" accept=".xlsx" style="display:none;" />
+                    <span id="fileLabelText">Carica o trascina il report</span>
+                </label>
+            </div>
+            <button type="submit" class="form-btn">Scarica</button>
+        </form>
+        <div id="message"></div>
+    </div>
+    <div id="modalWarning" class="modal-warning" style="display:none;">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModal">&times;</span>
+            <button id="downloadCsvBtn" class="form-btn" style="margin-bottom:18px;">Scarica CSV</button>
+            <h2>Attenzione</h2>
+            <div id="warningText"></div>
+        </div>
+    </div>
+    <!-- Modal password file cifrato -->
+    <div id="modalPassword" class="modal-warning" style="display:none;">
+        <div class="modal-content" style="max-width:420px;">
+            <span class="close-btn" id="closePasswordModal">&times;</span>
+            <h2>File protetto da password</h2>
+            <p style="margin:12px 0;">Inserire la password per aprire il file Excel:</p>
+            <input type="password" id="passwordInput" placeholder="Password..." autocomplete="current-password"
+                style="width:100%;padding:10px;margin:8px 0 4px;box-sizing:border-box;border-radius:6px;border:1px solid #555;background:#1e1e1e;color:#fff;font-size:1rem;" />
+            <div id="passwordErrorMsg" style="color:#e05;font-size:0.9rem;min-height:1.2em;margin-bottom:6px;display:none;">Password errata. Riprovare.</div>
+            <button id="submitPasswordBtn" class="form-btn" style="width:100%;">Conferma</button>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;" aria-live="polite" aria-busy="true">
+        <div class="loading-box">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <div class="loading-percent" id="loadingPercent">0%</div>
+            <div class="loading-title">Generazione CSV in corso</div>
+            <div class="loading-progress-track">
+                <div class="loading-progress-fill" id="loadingProgressFill"></div>
+            </div>
+            <div class="loading-eta" id="loadingEta">Avvio elaborazione...</div>
+            <div class="phase-timeline" id="phaseTimeline">
+                <div class="phase-step pending" id="pstep-python">
+                    <div class="pstep-dot"></div>
+                    <div class="pstep-body">
+                        <div class="pstep-label">Script Python</div>
+                    </div>
+                </div>
+                <div class="phase-step pending" id="pstep-csv">
+                    <div class="pstep-dot"></div>
+                    <div class="pstep-body">
+                        <div class="pstep-label">Analisi CSV</div>
+                        <div class="pstep-sub" id="pstep-csv-sub"></div>
+                    </div>
+                </div>
+                <div class="phase-step pending" id="pstep-cluster">
+                    <div class="pstep-dot"></div>
+                    <div class="pstep-body">
+                        <div class="pstep-label">Verifica Cluster</div>
+                        <div class="pstep-sub" id="pstep-cluster-sub"></div>
+                        <div class="pstep-minibar-track" id="pstep-cluster-track" style="display:none;">
+                            <div class="pstep-minibar-fill" id="pstep-cluster-fill"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phase-step pending" id="pstep-response">
+                    <div class="pstep-dot"></div>
+                    <div class="pstep-body">
+                        <div class="pstep-label">Preparazione risposta</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+                // Tema chiaro/scuro
+                const themeToggleBtn = document.getElementById('themeToggleBtn');
+                function setTheme(dark) {
+                    if (dark) {
+                        document.body.classList.remove('light-theme');
+                        themeToggleBtn.textContent = '☀️ Tema chiaro';
+                    } else {
+                        document.body.classList.add('light-theme');
+                        themeToggleBtn.textContent = '🌙 Tema scuro';
+                    }
+                    localStorage.setItem('theme', dark ? 'dark' : 'light');
+                }
+                themeToggleBtn.onclick = function() {
+                    setTheme(document.body.classList.contains('light-theme'));
+                };
+                // Applica tema salvato
+                if (localStorage.getItem('theme') === 'light') setTheme(false);
+        const form = document.getElementById('uploadForm');
+        const message = document.getElementById('message');
+        const fileInput = document.getElementById('xlsxfile');
+        const fileLabelText = document.getElementById('fileLabelText');
+        const modal = document.getElementById('modalWarning');
+        const warningText = document.getElementById('warningText');
+        const closeModal = document.getElementById('closeModal');
+        const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        let csvContent = null;
+        let csvFilename = null;
+
+        // ── Motore animazione progress analogica (RAF) ───────────────────────────
+        var _progCurrent = 0, _progTarget = 0, _progPhaseMax = 38;
+        var _progRaf = null, _progLastTs = 0;
+        var _cluCurrent = 0, _cluTarget = 0;
+        var _cluRaf = null, _cluLastTs = 0;
+
+        var PHASE_AMBIENT_MAX = { python: 39.8, csv: 41, cluster: 89, response: 97 };
+        var PHASE_ORDER = ['python','csv','cluster','response'];
+
+        function _updateProgUI(v) {
+            var fill = document.getElementById('loadingProgressFill');
+            var pct  = document.getElementById('loadingPercent');
+            if (fill) fill.style.width = v.toFixed(2) + '%';
+            if (pct)  pct.textContent  = v.toFixed(2) + '%';
+        }
+
+        function _tickProg(ts) {
+            var dt = _progLastTs ? Math.min((ts - _progLastTs) / 1000, 0.05) : 0.016;
+            _progLastTs = ts;
+            var diff = _progTarget - _progCurrent;
+            if (diff > 0.05) {
+                // Inseguimento fluido: velocità proporzionale alla distanza, min 2%/s
+                _progCurrent = Math.min(_progCurrent + Math.max(diff * 0.5, 2) * dt, _progTarget);
+            } else {
+                // Deriva ambientale asintotica: si avvicina al tetto senza mai raggiungerlo
+                var gap = _progPhaseMax - _progCurrent;
+                if (gap > 0.001) _progCurrent += gap * 0.004 * dt;
+            }
+            _updateProgUI(_progCurrent);
+            _progRaf = requestAnimationFrame(_tickProg);
+        }
+
+        function _tickClu(ts) {
+            var dt = _cluLastTs ? Math.min((ts - _cluLastTs) / 1000, 0.05) : 0.016;
+            _cluLastTs = ts;
+            var diff = _cluTarget - _cluCurrent;
+            if (diff > 0.05) {
+                _cluCurrent = Math.min(_cluCurrent + Math.max(diff * 0.5, 2) * dt, _cluTarget);
+            }
+            var fill = document.getElementById('pstep-cluster-fill');
+            if (fill) fill.style.width = _cluCurrent.toFixed(2) + '%';
+            _cluRaf = requestAnimationFrame(_tickClu);
+        }
+
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            fileInput.disabled = isLoading;
+            document.getElementById('exchange').disabled = isLoading;
+            submitBtn.textContent = isLoading ? 'Generazione...' : 'Scarica';
+            if (isLoading) {
+                if (_progRaf) { cancelAnimationFrame(_progRaf); _progRaf = null; }
+                if (_cluRaf)  { cancelAnimationFrame(_cluRaf);  _cluRaf  = null; }
+                _progCurrent = 0; _progTarget = 0; _progPhaseMax = 38;
+                _cluCurrent  = 0; _cluTarget  = 0;
+                _progLastTs  = 0; _cluLastTs  = 0;
+                _updateProgUI(0);
+                document.getElementById('loadingEta').textContent = 'Avvio elaborazione...';
+                loadingOverlay.style.display = 'flex';
+                _progRaf = requestAnimationFrame(_tickProg);
+                _cluRaf  = requestAnimationFrame(_tickClu);
+                PHASE_ORDER.forEach(function(p) {
+                    var el = document.getElementById('pstep-' + p);
+                    if (el) { el.classList.remove('active','done'); el.classList.add('pending'); }
+                });
+                var sub   = document.getElementById('pstep-csv-sub');      if (sub)    sub.textContent = '';
+                var csub  = document.getElementById('pstep-cluster-sub');  if (csub)   csub.textContent = '';
+                var cfill = document.getElementById('pstep-cluster-fill'); if (cfill)  cfill.style.width = '0%';
+                var ctrack= document.getElementById('pstep-cluster-track');if (ctrack) ctrack.style.display = 'none';
+            } else {
+                document.getElementById('loadingEta').textContent = 'Completato!';
+                setTimeout(function() {
+                    if (_progRaf) { cancelAnimationFrame(_progRaf); _progRaf = null; }
+                    if (_cluRaf)  { cancelAnimationFrame(_cluRaf);  _cluRaf  = null; }
+                    loadingOverlay.style.display = 'none';
+                }, 900);
+            }
+        }
+
+        function setRealProgress(p, msg) {
+            _progTarget = p;
+            var eta = document.getElementById('loadingEta');
+            if (msg && eta) eta.textContent = msg;
+        }
+
+        function updatePhaseTimeline(phase, data) {
+            if (!phase) return;
+            var idx = PHASE_ORDER.indexOf(phase);
+            if (idx < 0) return;
+            _progPhaseMax = PHASE_AMBIENT_MAX[phase] || 95;
+            PHASE_ORDER.forEach(function(p, i) {
+                var el = document.getElementById('pstep-' + p);
+                if (!el) return;
+                el.classList.remove('pending','active','done');
+                if (i < idx)      el.classList.add('done');
+                else if (i === idx) el.classList.add('active');
+                else              el.classList.add('pending');
+            });
+            if (phase === 'csv' && data.totalRows !== undefined) {
+                var sub = document.getElementById('pstep-csv-sub');
+                if (sub) sub.textContent = data.totalRows + ' righe';
+            }
+            if (phase === 'cluster') {
+                var csub   = document.getElementById('pstep-cluster-sub');
+                var ctrack = document.getElementById('pstep-cluster-track');
+                if (data.clusterTotal === 0) {
+                    if (csub) csub.textContent = 'Nessun indirizzo deposit';
+                } else if (data.clusterTotal > 0) {
+                    var proc = data.clusterProcessed || 0;
+                    if (csub)   csub.textContent = proc + ' / ' + data.clusterTotal + ' indirizzi';
+                    if (ctrack) ctrack.style.display = '';
+                    _cluTarget = (proc / data.clusterTotal) * 100;
+                }
+            }
+        }
+
+        function markAllPhasesDone() {
+            _progPhaseMax = 0;    // blocca deriva ambientale
+            _progTarget   = 100;  // insegui fino a 100%
+            _cluTarget    = 100;
+            PHASE_ORDER.forEach(function(p) {
+                var el = document.getElementById('pstep-' + p);
+                if (el) { el.classList.remove('pending','active'); el.classList.add('done'); }
+            });
+        }
+
+        function rgbaFromPixel(data) {
+            return `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${Math.max(data[3] / 255, 0.92)})`;
+        }
+
+        function readBottomRightPixel(imageSrc) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    ctx.drawImage(img, 0, 0);
+                    const pixel = ctx.getImageData(canvas.width - 1, canvas.height - 1, 1, 1).data;
+                    resolve(rgbaFromPixel(pixel));
+                };
+                img.onerror = function() {
+                    resolve('#ffffff');
+                };
+                img.src = imageSrc;
+            });
+        }
+
+
+
+        function updateFileLabel() {
+            if (fileInput.files.length > 0) {
+                fileLabelText.textContent = fileInput.files[0].name;
+            } else {
+                fileLabelText.textContent = 'Scegli il file .xlsx';
+            }
+        }
+        fileInput.addEventListener('change', updateFileLabel);
+
+        // Supporto drag&drop sulla label
+        const fileLabel = document.querySelector('.file-label');
+        fileLabel.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            fileLabel.classList.add('dragover');
+        });
+        fileLabel.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            fileLabel.classList.remove('dragover');
+        });
+        fileLabel.addEventListener('drop', function(e) {
+            e.preventDefault();
+            fileLabel.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileLabel();
+            }
+        });
+
+        // Griglia selezione servizio
+        document.addEventListener('DOMContentLoaded', function() {
+            const serviceGrid = document.getElementById('serviceGrid');
+            const serviceInput = document.getElementById('service');
+            const serviceTiles = [...serviceGrid.querySelectorAll('.service-tile')];
+            serviceTiles.forEach(function(tile) {
+                tile.addEventListener('click', function() {
+                    if (this.classList.contains('selected')) {
+                        this.classList.remove('selected');
+                        serviceInput.value = '';
+                    } else {
+                        serviceTiles.forEach(function(t) { t.classList.remove('selected'); });
+                        this.classList.add('selected');
+                        serviceInput.value = this.dataset.value;
+                    }
+                });
+            });
+        });
+
+        // Griglia selezione exchange
+        document.addEventListener('DOMContentLoaded', function() {
+            const grid = document.getElementById('exchangeGrid');
+            const hiddenInput = document.getElementById('exchange');
+            const tiles = [...grid.querySelectorAll('.exchange-tile')];
+            // Adatta automaticamente le colonne: 3x3 fino a 9, 4x4 fino a 16, 5x5 fino a 25
+            const n = tiles.length;
+            const cols = n <= 9 ? 3 : n <= 16 ? 4 : 5;
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            // Colora ogni tile con il colore estratto dall'immagine
+            tiles.forEach(async function(tile) {
+                const bgColor = await readBottomRightPixel(tile.dataset.img);
+                tile.style.setProperty('--tile-bg', bgColor);
+            });
+            // Gestione selezione
+            tiles.forEach(function(tile) {
+                tile.addEventListener('click', function() {
+                    if (this.classList.contains('selected')) {
+                        this.classList.remove('selected');
+                        hiddenInput.value = '';
+                    } else {
+                        tiles.forEach(function(t) { t.classList.remove('selected'); });
+                        this.classList.add('selected');
+                        hiddenInput.value = this.dataset.value;
+                    }
+                });
+            });
+        });
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            message.textContent = '';
+            const service = document.getElementById('service').value;
+            if (!service) {
+                message.textContent = 'Seleziona il servizio prima di procedere.';
+                return;
+            }
+            const exchange = document.getElementById('exchange').value;
+            if (!exchange) {
+                message.textContent = 'Seleziona l\'exchange prima di procedere.';
+                return;
+            }
+            if (!document.getElementById('xlsxfile').files.length) {
+                message.textContent = 'Carica il file prima di procedere.';
+                return;
+            }
+            const formData = new FormData(form);
+            setLoading(true);
+            let downloadName = 'output.csv';
+            if (exchange === 'Kucoin') downloadName = 'cluster_kucoin.csv';
+            else if (exchange === 'Binance') downloadName = 'cluster_binance.csv';
+            else if (exchange === 'Bitget') downloadName = 'cluster_bitget.csv';
+            else if (exchange === 'OKX') downloadName = 'cluster_okx.csv';
+            else if (exchange === 'Bybit') downloadName = 'cluster_bybit.csv';
+            else if (exchange === 'Coinbase') downloadName = 'cluster_coinbase.csv';
+            fetch('upload', { method: 'POST', body: formData })
+            .then(async response => {
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => '');
+                    setLoading(false);
+                    message.innerHTML = '<b>Errore:</b> ' + errText.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+                    return;
+                }
+                const { jobId } = await response.json();
+                const evtSource = new EventSource('progress/' + jobId);
+                evtSource.onmessage = function(e) {
+                    let data;
+                    try { data = JSON.parse(e.data); } catch { return; }
+                    if (data.progress !== undefined) setRealProgress(data.progress, data.message);
+                    if (data.phase) updatePhaseTimeline(data.phase, data);
+                    if (!data.done) return;
+                    markAllPhasesDone();
+                    evtSource.close();
+                    setLoading(false);
+                    if (data.error) {
+                        message.innerHTML = '<b>Errore:</b> ' + data.error.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+                    } else if (data.requiresPassword) {
+                        showPasswordModal(data.uploadedFile, data.exchange, false);
+                    } else if (data.passwordError) {
+                        showPasswordModal(data.uploadedFile, data.exchange, true);
+                    } else if (data.warning) {
+                        warningText.innerHTML = data.warning.replace(/\n/g, '<br>');
+                        csvContent = data.csv;
+                        csvFilename = data.filename || downloadName;
+                        modal.style.display = 'flex';
+                    } else if (data.csv) {
+                        const blob = new Blob([data.csv], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = data.filename || downloadName;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                    }
+                };
+                evtSource.onerror = function() {
+                    evtSource.close();
+                    setLoading(false);
+                    message.textContent = 'Errore di connessione durante l\'elaborazione.';
+                };
+            })
+            .catch(() => {
+                setLoading(false);
+                message.textContent = 'Errore di rete o server non raggiungibile.';
+            });
+        });
+
+        closeModal.onclick = function() {
+            modal.style.display = 'none';
+        };
+        window.onclick = function(event) {
+            if (event.target == modal) modal.style.display = 'none';
+            if (event.target == document.getElementById('modalPassword')) document.getElementById('modalPassword').style.display = 'none';
+        };
+
+        // --- Gestione modal password ---
+        let _pendingUploadedFile = null;
+        let _pendingExchange = null;
+
+        function showPasswordModal(uploadedFile, exchange, showError) {
+            _pendingUploadedFile = uploadedFile;
+            _pendingExchange = exchange;
+            const errMsg = document.getElementById('passwordErrorMsg');
+            errMsg.style.display = showError ? 'block' : 'none';
+            if (!showError) document.getElementById('passwordInput').value = '';
+            document.getElementById('modalPassword').style.display = 'flex';
+            setTimeout(() => document.getElementById('passwordInput').focus(), 100);
+        }
+
+        document.getElementById('closePasswordModal').onclick = function() {
+            document.getElementById('modalPassword').style.display = 'none';
+        };
+
+        document.getElementById('passwordInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') document.getElementById('submitPasswordBtn').click();
+        });
+
+        document.getElementById('submitPasswordBtn').onclick = function() {
+            const password = document.getElementById('passwordInput').value;
+            if (!password) return;
+            document.getElementById('modalPassword').style.display = 'none';
+            setLoading(true);
+            const exchg = _pendingExchange;
+            let dlName = 'output.csv';
+            if (exchg === 'Kucoin') dlName = 'cluster_kucoin.csv';
+            else if (exchg === 'Binance') dlName = 'cluster_binance.csv';
+            else if (exchg === 'Bitget') dlName = 'cluster_bitget.csv';
+            else if (exchg === 'OKX') dlName = 'cluster_okx.csv';
+            else if (exchg === 'Bybit') dlName = 'cluster_bybit.csv';
+            else if (exchg === 'Coinbase') dlName = 'cluster_coinbase.csv';
+            fetch('reprocess-with-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadedFile: _pendingUploadedFile, exchange: exchg, password, service: document.getElementById('service').value })
+            })
+            .then(async response => {
+                const ct = response.headers.get('content-type');
+                if (ct && ct.includes('application/json')) {
+                    const data = await response.json();
+                    if (data.passwordError) {
+                        showPasswordModal(data.uploadedFile, data.exchange, true);
+                    } else if (data.requiresPassword) {
+                        showPasswordModal(data.uploadedFile, data.exchange, false);
+                    } else if (data.warning) {
+                        warningText.innerHTML = data.warning.replace(/\n/g, '<br>');
+                        csvContent = data.csv;
+                        csvFilename = data.filename || dlName;
+                        modal.style.display = 'flex';
+                    }
+                } else if (response.ok) {
+                    response.blob().then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = dlName;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        window.URL.revokeObjectURL(url);
+                    });
+                } else {
+                    response.text().then(t => {
+                        message.innerHTML = '<b>Errore:</b> ' + t.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+                    });
+                }
+            })
+            .catch(() => { message.textContent = 'Errore di rete o server non raggiungibile.'; })
+            .finally(() => { setLoading(false); });
+        };
+
+        // Mostra modal password dalla risposta /upload
+        const _origFetchHandler = form.onsubmit;
+        downloadCsvBtn.onclick = function() {
+            if (csvContent) {
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = csvFilename || 'output.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }
+        };
+    </script>
+
+</body>
+</html>

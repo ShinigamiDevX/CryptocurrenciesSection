@@ -1,0 +1,21 @@
+services:
+  web:
+    build: .
+    container_name: cryptovault-web
+    ports:
+      - "5200:443"
+      - "5201:80"
+    restart: unless-stopped
+    depends_on:
+      - cluster
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+
+  cluster:
+    build:
+      context: ./cluster
+      dockerfile: Dockerfile
+    container_name: cryptovault-cluster
+    restart: unless-stopped
+    volumes:
+      - ./cluster/dashboard/uploads:/app/dashboard/uploads

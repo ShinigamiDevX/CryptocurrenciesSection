@@ -1,0 +1,18 @@
+# Node
+cluster/dashboard/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+cluster/**/__pycache__/
+
+# Upload temporanei (i file generati, non la cartella)
+cluster/dashboard/uploads/*.csv
+cluster/dashboard/uploads/*.txt
+
+# Certificati locali
+cluster/dashboard/cert/
+
+# Environment
+.env
