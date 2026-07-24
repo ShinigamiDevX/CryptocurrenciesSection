@@ -41,17 +41,10 @@ const writeJSON = (f, d) => fs.writeFileSync(f, JSON.stringify(d, null, 2));
 (async () => {
     const users = readJSON(USERS_FILE);
     if (!users.find(u => u.email === SUPERADMIN_EMAIL)) {
-        const pwd  = crypto.randomBytes(12).toString('base64url');
-        const hash = await bcrypt.hash(pwd, 12);
-        users.push({ id: uuidv4(), email: SUPERADMIN_EMAIL, passwordHash: hash, role: 'superadmin', createdAt: new Date().toISOString() });
+        const hash = await bcrypt.hash('1234', 12);
+        users.push({ id: uuidv4(), email: SUPERADMIN_EMAIL, passwordHash: hash, role: 'superadmin', mustChangePassword: true, createdAt: new Date().toISOString() });
         writeJSON(USERS_FILE, users);
-        console.log('\n╔══════════════════════════════════════════════╗');
-        console.log('║   SUPERADMIN CREATO — PRIMA CONFIGURAZIONE   ║');
-        console.log('╠══════════════════════════════════════════════╣');
-        console.log(`║  Email:    ${SUPERADMIN_EMAIL}  ║`);
-        console.log(`║  Password: ${pwd.padEnd(32)}  ║`);
-        console.log('║  Cambia la password dal pannello admin!       ║');
-        console.log('╚══════════════════════════════════════════════╝\n');
+        console.log('\n[AUTH] Superadmin creato con password iniziale: 1234 (da cambiare al primo accesso)\n');
     }
 })();
 
@@ -84,11 +77,11 @@ app.post('/api/auth/login', async (req, res) => {
         return res.status(401).json({ error: 'Credenziali non valide.' });
     }
     const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role, mustChangePassword: !!user.mustChangePassword },
         JWT_SECRET,
         { expiresIn: '12h' }
     );
-    res.json({ token, role: user.role });
+    res.json({ token, role: user.role, mustChangePassword: !!user.mustChangePassword });
 });
 
 // ── GET /api/auth/verify ─────────────────────────────────────────────────────
@@ -177,9 +170,16 @@ app.post('/api/auth/change-password', authenticate, async (req, res) => {
     const user  = users.find(u => u.id === req.user.id);
     if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash)))
         return res.status(401).json({ error: 'Password attuale non corretta.' });
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    user.passwordHash        = await bcrypt.hash(newPassword, 12);
+    user.mustChangePassword  = false;
     writeJSON(USERS_FILE, users);
-    res.json({ success: true });
+    // Emetti nuovo token senza il flag mustChangePassword
+    const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, mustChangePassword: false },
+        JWT_SECRET,
+        { expiresIn: '12h' }
+    );
+    res.json({ success: true, token });
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Auth service in ascolto su http://0.0.0.0:${PORT}`));

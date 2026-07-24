@@ -103,6 +103,18 @@
             color: rgba(90,187,200,0.45);
             text-align: center;
         }
+        /* ── Modale cambio password obbligatorio ── */
+        .modal-bg {
+            position: fixed; inset: 0; background: rgba(3,14,28,0.92); z-index: 9000;
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal-box {
+            background: #030E1C; border: 1px solid rgba(0,200,255,0.28); border-radius: 16px;
+            padding: 2.2rem 2rem; width: 100%; max-width: 400px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.8);
+        }
+        .modal-box h3 { color: #00C8FF; font-size: 1.15rem; margin-bottom: 0.4rem; }
+        .modal-box p  { color: #5ABBC8; font-size: 0.85rem; margin-bottom: 1.4rem; }
     </style>
 </head>
 <body>
@@ -128,6 +140,24 @@
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
 
+    <!-- Modale cambio password obbligatorio -->
+    <div class="modal-bg" id="changePwdModal" style="display:none;">
+        <div class="modal-box">
+            <h3>🔒 Cambio password obbligatorio</h3>
+            <p>Per continuare devi impostare una nuova password personale.</p>
+            <div class="error-msg" id="changePwdError" style="margin-bottom:1rem;"></div>
+            <div class="field">
+                <label for="newPwd">Nuova password</label>
+                <input type="password" id="newPwd" placeholder="Minimo 8 caratteri" autocomplete="new-password">
+            </div>
+            <div class="field">
+                <label for="confirmPwd">Conferma password</label>
+                <input type="password" id="confirmPwd" placeholder="Ripeti la password" autocomplete="new-password">
+            </div>
+            <button class="btn-login" id="changePwdBtn" onclick="submitPasswordChange()">Salva e accedi</button>
+        </div>
+    </div>
+
     <script>
         // Se già autenticato, vai al portale
         (async function() {
@@ -142,6 +172,8 @@
         const form      = document.getElementById('loginForm');
         const errorMsg  = document.getElementById('errorMsg');
         const submitBtn = document.getElementById('submitBtn');
+        let _pendingToken    = null;
+        let _pendingPassword = null;
 
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -161,6 +193,13 @@
                 if (!res.ok) {
                     errorMsg.textContent = data.error || 'Credenziali non valide.';
                     errorMsg.style.display = 'block';
+                } else if (data.mustChangePassword) {
+                    // Salva token temporaneo e mostra la modale di cambio password
+                    _pendingToken    = data.token;
+                    _pendingPassword = document.getElementById('password').value;
+                    localStorage.setItem('authToken', data.token);
+                    document.getElementById('changePwdModal').style.display = 'flex';
+                    setTimeout(() => document.getElementById('newPwd').focus(), 100);
                 } else {
                     localStorage.setItem('authToken', data.token);
                     window.location.replace('/portal');
@@ -171,6 +210,52 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Accedi';
+            }
+        });
+
+        async function submitPasswordChange() {
+            const errEl  = document.getElementById('changePwdError');
+            const btn    = document.getElementById('changePwdBtn');
+            const newPwd = document.getElementById('newPwd').value;
+            const cfmPwd = document.getElementById('confirmPwd').value;
+            errEl.style.display = 'none';
+            if (newPwd.length < 8) {
+                errEl.textContent = 'La password deve essere di almeno 8 caratteri.';
+                errEl.style.display = 'block'; return;
+            }
+            if (newPwd !== cfmPwd) {
+                errEl.textContent = 'Le password non coincidono.';
+                errEl.style.display = 'block'; return;
+            }
+            btn.disabled = true;
+            btn.textContent = 'Salvataggio...';
+            try {
+                const res = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _pendingToken },
+                    body: JSON.stringify({ currentPassword: _pendingPassword, newPassword: newPwd })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errEl.textContent = data.error || 'Errore. Riprovare.';
+                    errEl.style.display = 'block';
+                } else {
+                    localStorage.setItem('authToken', data.token);
+                    window.location.replace('/portal');
+                }
+            } catch {
+                errEl.textContent = 'Errore di rete. Riprovare.';
+                errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Salva e accedi';
+            }
+        }
+
+        // Invio con Enter dalla modale
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.getElementById('changePwdModal').style.display !== 'none') {
+                submitPasswordChange();
             }
         });
     </script>
