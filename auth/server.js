@@ -7,7 +7,7 @@ const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { Users, Invitations } = require('./db');
+const { Users, Invitations, ProfileChangeRequests } = require('./db');
 
 const app  = express();
 app.use(express.json());
@@ -176,6 +176,56 @@ app.post('/api/auth/change-password', authenticate, async(req,res)=>{
     Users.changePassword(user.id,await bcrypt.hash(newPassword,12));
     const token=jwt.sign({id:user.id,email:user.email,role:user.role,mustChangePassword:false},JWT_SECRET,{expiresIn:'12h'});
     res.json({success:true,token});
+});
+
+// ── PATCH /api/auth/users/:id/profile  (admin/superadmin — modifica diretta) ─
+app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
+    const {nome,cognome,grado}=req.body||{};
+    if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado obbligatori.'});
+    const user=Users.findById(req.params.id);
+    if (!user) return res.status(404).json({error:'Utente non trovato.'});
+    Users.updateProfile(user.id,nome.trim(),cognome.trim(),grado);
+    res.json({success:true});
+});
+
+// ── GET /api/auth/my-profile  (qualsiasi utente autenticato) ─────────────────
+app.get('/api/auth/my-profile', authenticate,(req,res)=>{
+    const user=Users.findById(req.user.id);
+    if (!user) return res.status(404).json({error:'Utente non trovato.'});
+    res.json({email:user.email,role:user.role,nome:user.nome,cognome:user.cognome,grado:user.grado});
+});
+
+// ── POST /api/auth/profile-change-request  (user: richiesta modifica profilo) ─
+app.post('/api/auth/profile-change-request', authenticate,(req,res)=>{
+    const {nome,cognome,grado}=req.body||{};
+    if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado obbligatori.'});
+    // Blocca se c'è già una richiesta pendente
+    const existing=ProfileChangeRequests.findPendingByUser(req.user.id);
+    if (existing) return res.status(409).json({error:'Hai già una richiesta di modifica profilo in attesa di approvazione.'});
+    ProfileChangeRequests.insert({id:uuidv4(),userId:req.user.id,userEmail:req.user.email,nome:nome.trim(),cognome:cognome.trim(),grado,requestedAt:new Date().toISOString()});
+    res.json({success:true});
+});
+
+// ── GET /api/auth/profile-change-requests  (admin/superadmin) ────────────────
+app.get('/api/auth/profile-change-requests', authenticate, requireAdmin,(req,res)=>{
+    res.json(ProfileChangeRequests.findPending());
+});
+
+// ── POST /api/auth/profile-change-requests/:id/approve ───────────────────────
+app.post('/api/auth/profile-change-requests/:id/approve', authenticate, requireAdmin,(req,res)=>{
+    const pcr=ProfileChangeRequests.findById(req.params.id);
+    if (!pcr||pcr.status!=='pending') return res.status(404).json({error:'Richiesta non trovata.'});
+    Users.updateProfile(pcr.userId,pcr.nome,pcr.cognome,pcr.grado);
+    ProfileChangeRequests.approve(req.params.id,req.user.email);
+    res.json({success:true});
+});
+
+// ── DELETE /api/auth/profile-change-requests/:id  (rifiuta) ──────────────────
+app.delete('/api/auth/profile-change-requests/:id', authenticate, requireAdmin,(req,res)=>{
+    const pcr=ProfileChangeRequests.findById(req.params.id);
+    if (!pcr||pcr.status!=='pending') return res.status(404).json({error:'Richiesta non trovata.'});
+    ProfileChangeRequests.reject(req.params.id,req.user.email);
+    res.json({success:true});
 });
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`Auth service in ascolto su http://0.0.0.0:${PORT}`));

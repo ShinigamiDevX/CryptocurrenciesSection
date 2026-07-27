@@ -53,6 +53,18 @@ db.exec(`
         approvedAt       TEXT,
         cancelledAt      TEXT
     );
+    CREATE TABLE IF NOT EXISTS profile_change_requests (
+        id          TEXT PRIMARY KEY,
+        userId      TEXT NOT NULL,
+        userEmail   TEXT NOT NULL,
+        nome        TEXT NOT NULL,
+        cognome     TEXT NOT NULL,
+        grado       TEXT NOT NULL,
+        requestedAt TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        reviewedBy  TEXT,
+        reviewedAt  TEXT
+    );
 `);
 
 // ── Migrazione da JSON (eseguita una sola volta) ──────────────────────────────
@@ -113,8 +125,19 @@ const Users = {
         'INSERT INTO users (id,email,passwordHash,role,createdAt,mustChangePassword,nome,cognome,grado) VALUES (@id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,@nome,@cognome,@grado)'
     ).run({ ...u, mustChangePassword: u.mustChangePassword ? 1 : 0, nome: u.nome||'', cognome: u.cognome||'', grado: u.grado||'' }),
     updateRole:    (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
+    updateProfile: (id, nome, cognome, grado) => db.prepare('UPDATE users SET nome=?,cognome=?,grado=? WHERE id=?').run(nome,cognome,grado,id),
     revoke:        id  => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
     changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?').run(hash, id),
+};
+
+// ── Profile Change Requests ─────────────────────────────────────────────────
+const ProfileChangeRequests = {
+    findPending: () => db.prepare("SELECT * FROM profile_change_requests WHERE status='pending' ORDER BY requestedAt DESC").all(),
+    findById:    id  => db.prepare('SELECT * FROM profile_change_requests WHERE id=?').get(id),
+    findPendingByUser: userId => db.prepare("SELECT * FROM profile_change_requests WHERE userId=? AND status='pending'").get(userId),
+    insert: r => db.prepare('INSERT INTO profile_change_requests (id,userId,userEmail,nome,cognome,grado,requestedAt) VALUES (@id,@userId,@userEmail,@nome,@cognome,@grado,@requestedAt)').run(r),
+    approve: (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='approved',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
+    reject:  (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='rejected',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
 };
 
 // ── Invitations ───────────────────────────────────────────────────────────────
@@ -131,4 +154,4 @@ const Invitations = {
     cancel:  token => db.prepare('UPDATE invitations SET used=1 WHERE token=?').run(token),
 };
 
-module.exports = { Users, Invitations };
+module.exports = { Users, Invitations, ProfileChangeRequests };
