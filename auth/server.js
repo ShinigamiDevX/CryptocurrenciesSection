@@ -19,6 +19,10 @@ const SECRET_FILE      = path.join(DATA_DIR, 'secret.key');
 const SUPERADMIN_EMAIL = 'portalecrypto@proton.me';
 const PORTAL_URL       = (process.env.PORTAL_URL || 'https://192.168.4.77:5200').replace(/\/$/, '');
 
+// Livelli ruolo — usati per validare inviti e modifiche
+const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
+const ALL_ROLES  = ['reader', 'user', 'admin', 'superadmin'];
+
 // ── SMTP setup ──────────────────────────────────────────────────────────────
 const SMTP_HOST   = process.env.SMTP_HOST;
 const SMTP_PORT   = parseInt(process.env.SMTP_PORT  || '587', 10);
@@ -221,15 +225,25 @@ app.get('/api/auth/users', authenticate, requireAdmin, (req, res) => {
     res.json(readJSON(USERS_FILE).map(({ passwordHash, ...u }) => u));
 });
 
-// ── DELETE /api/auth/users/:id  (superadmin o admin) ─────────────────────────
+// ── DELETE /api/auth/users/:id  (superadmin o admin, + auto-eliminazione superadmin) ──
 app.delete('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
-    const users     = readJSON(USERS_FILE);
-    const user      = users.find(u => u.id === req.params.id);
-    if (!user)                           return res.status(404).json({ error: 'Utente non trovato.' });
-    if (user.email === SUPERADMIN_EMAIL) return res.status(403).json({ error: 'Impossibile eliminare il superadmin.' });
-    // Gli admin non possono revocare altri admin o superadmin
-    if (req.user.role === 'admin' && user.role !== 'user')
-        return res.status(403).json({ error: 'Gli admin possono revocare solo utenti normali.' });
+    const users = readJSON(USERS_FILE);
+    const user  = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'Utente non trovato.' });
+
+    const myLevel     = ROLE_LEVEL[req.user.role] ?? 0;
+    const targetLevel = ROLE_LEVEL[user.role]     ?? 0;
+
+    // Auto-eliminazione: solo il superadmin può eliminare se stesso
+    if (req.user.id === user.id) {
+        if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Non puoi eliminare il tuo profilo.' });
+        writeJSON(USERS_FILE, users.filter(u => u.id !== req.params.id));
+        return res.json({ success: true, selfDeleted: true });
+    }
+    // Non si può eliminare un altro superadmin
+    if (user.role === 'superadmin') return res.status(403).json({ error: 'Impossibile eliminare un superadmin.' });
+    // Il target deve avere livello STRETTAMENTE inferiore a chi agisce
+    if (targetLevel >= myLevel) return res.status(403).json({ error: 'Permessi insufficienti per eliminare questo utente.' });
     writeJSON(USERS_FILE, users.filter(u => u.id !== req.params.id));
     res.json({ success: true });
 });
@@ -242,15 +256,19 @@ app.get('/api/auth/invitations', authenticate, requireAdmin, (req, res) => {
 // ── PATCH /api/auth/users/:id  — cambia ruolo (superadmin o admin) ────────────
 app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
     const { role: newRole } = req.body || {};
-    if (!['admin', 'user'].includes(newRole)) return res.status(400).json({ error: 'Ruolo non valido.' });
+    if (!ALL_ROLES.includes(newRole)) return res.status(400).json({ error: 'Ruolo non valido.' });
     const users = readJSON(USERS_FILE);
     const user  = users.find(u => u.id === req.params.id);
-    if (!user)                             return res.status(404).json({ error: 'Utente non trovato.' });
-    if (user.email === SUPERADMIN_EMAIL)   return res.status(403).json({ error: 'Impossibile modificare il superadmin.' });
-    if (req.user.id === user.id)           return res.status(403).json({ error: 'Non puoi modificare il tuo stesso ruolo.' });
-    // admin può cambiare solo utenti normali; superadmin può cambiare tutti (tranne se stesso)
-    if (req.user.role === 'admin' && user.role !== 'user')
-        return res.status(403).json({ error: 'Gli admin possono modificare solo utenti normali.' });
+    if (!user)                   return res.status(404).json({ error: 'Utente non trovato.' });
+    if (req.user.id === user.id) return res.status(403).json({ error: 'Non puoi modificare il tuo stesso ruolo.' });
+    // Non si può toccare un altro superadmin
+    if (user.role === 'superadmin') return res.status(403).json({ error: 'Impossibile modificare un superadmin.' });
+    // Il nuovo ruolo non può superare il livello di chi agisce
+    if (ROLE_LEVEL[newRole] > ROLE_LEVEL[req.user.role])
+        return res.status(403).json({ error: 'Non puoi assegnare un ruolo superiore al tuo.' });
+    // L'utente target deve avere livello strettamente inferiore a chi agisce
+    if (ROLE_LEVEL[user.role] >= ROLE_LEVEL[req.user.role])
+        return res.status(403).json({ error: 'Permessi insufficienti per modificare questo utente.' });
     user.role = newRole;
     writeJSON(USERS_FILE, users);
     res.json({ success: true, role: newRole });
