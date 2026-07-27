@@ -113,7 +113,17 @@
                     <label for="confirmPassword">Conferma Password</label>
                     <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Ripeti la password" autocomplete="new-password" required>
                 </div>
-                <button type="submit" class="btn" id="submitBtn">Registrati</button>
+                <!-- Step OTP -->
+                <div id="otpStep" style="display:none;">
+                    <div class="field">
+                        <label for="otpInput">Codice di verifica</label>
+                        <input type="text" id="otpInput" name="otp" placeholder="Inserisci il codice a 6 cifre" autocomplete="one-time-code" inputmode="numeric" maxlength="6">
+                        <div class="hint" id="otpHint">Codice inviato alla tua email. Valido 10 minuti.</div>
+                    </div>
+                    <button type="button" class="btn" id="resendBtn" style="background:transparent;border:1px solid rgba(0,200,255,0.35);color:#00C8FF;margin-top:0;margin-bottom:0.8rem;">Invia di nuovo il codice</button>
+                </div>
+                <button type="button" class="btn" id="sendOtpBtn">Invia codice di verifica</button>
+                <button type="submit" class="btn" id="submitBtn" style="display:none;margin-top:0.6rem;">Completa registrazione</button>
             </form>
         </div>
     </div>
@@ -156,8 +166,10 @@
 
             const pwd     = document.getElementById('password').value;
             const confirm = document.getElementById('confirmPassword').value;
-            if (pwd !== confirm) {
-                errorMsg.textContent = 'Le password non coincidono.';
+            const otp     = document.getElementById('otpInput').value.trim();
+
+            if (!otp) {
+                errorMsg.textContent = 'Inserisci il codice di verifica.';
                 errorMsg.style.display = 'block';
                 return;
             }
@@ -167,7 +179,7 @@
                 const res  = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, password: pwd })
+                    body: JSON.stringify({ token, password: pwd, otp })
                 });
                 const data = await res.json();
                 if (!res.ok) {
@@ -184,9 +196,53 @@
                 errorMsg.style.display = 'block';
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Registrati';
+                submitBtn.textContent = 'Completa registrazione';
             }
         });
+
+        async function sendOtp() {
+            const errorMsg = document.getElementById('errorMsg');
+            const pwd      = document.getElementById('password').value;
+            const confirm  = document.getElementById('confirmPassword').value;
+            errorMsg.style.display = 'none';
+            if (pwd.length < 8) {
+                errorMsg.textContent = 'La password deve essere di almeno 8 caratteri.';
+                errorMsg.style.display = 'block'; return;
+            }
+            if (pwd !== confirm) {
+                errorMsg.textContent = 'Le password non coincidono.';
+                errorMsg.style.display = 'block'; return;
+            }
+            const btn = document.getElementById('sendOtpBtn');
+            btn.disabled = true; btn.textContent = 'Invio in corso...';
+            try {
+                const res  = await fetch('/api/auth/send-otp', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errorMsg.textContent = data.error || 'Errore invio codice.';
+                    errorMsg.style.display = 'block';
+                } else {
+                    document.getElementById('otpStep').style.display = 'block';
+                    document.getElementById('submitBtn').style.display = 'block';
+                    btn.style.display = 'none';
+                    document.getElementById('otpHint').textContent = data.smtpConfigured
+                        ? 'Codice inviato alla tua email. Valido 10 minuti.'
+                        : 'SMTP non configurato: il codice è visibile nei log del server.';
+                    document.getElementById('otpInput').focus();
+                }
+            } catch {
+                errorMsg.textContent = 'Errore di rete.';
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false; btn.textContent = 'Invia codice di verifica';
+            }
+        }
+
+        document.getElementById('sendOtpBtn').onclick  = sendOtp;
+        document.getElementById('resendBtn').onclick   = sendOtp;
     </script>
 </body>
 </html>

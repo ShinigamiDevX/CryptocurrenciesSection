@@ -198,6 +198,38 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async (req, res) => {
     res.json({ token, link: `/register?token=${token}`, role: assignedRole, emailSent: !!transporter });
 });
 
+// ── POST /api/auth/send-otp  — invia codice verifica all'email invitata (pubblica) ──
+app.post('/api/auth/send-otp', async (req, res) => {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ error: 'Token mancante.' });
+    const invitations = readJSON(INVITATIONS_FILE);
+    const inv = invitations.find(i => i.token === token && !i.used);
+    if (!inv || new Date() > new Date(inv.expiresAt))
+        return res.status(400).json({ error: 'Invito non valido o scaduto.' });
+    const otp    = Math.floor(100000 + Math.random() * 900000).toString();
+    inv.otp       = await bcrypt.hash(otp, 10);
+    inv.otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    inv.otpUsed   = false;
+    writeJSON(INVITATIONS_FILE, invitations);
+    const html = `<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;">
+<tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr>
+<tr><td style="padding:32px;">
+<h2 style="color:#1a2a3a;margin:0 0 12px;">Codice di verifica</h2>
+<p style="color:#4a5568;line-height:1.6;margin:0 0 20px;">Usa questo codice per completare la registrazione. Valido per <strong>10 minuti</strong>.</p>
+<div style="background:#f0f9ff;border:2px solid #00C8FF;border-radius:10px;padding:20px 32px;text-align:center;letter-spacing:0.3rem;font-size:2.2rem;font-weight:700;color:#030E1C;">${otp}</div>
+<p style="color:#a0aec0;font-size:0.8rem;margin-top:20px;">Se non hai richiesto tu questa registrazione, ignora questa email.</p>
+</td></tr></table></td></tr></table></body></html>`;
+    if (transporter) {
+        transporter.sendMail({ from: SMTP_FROM, to: inv.email, subject: '[CryptocurrenciesSection] Codice di verifica', html })
+            .catch(err => console.error('[AUTH] Errore invio OTP:', err.message));
+    } else {
+        console.log(`[AUTH] OTP per ${inv.email}: ${otp}  (SMTP non configurato)`);
+    }
+    res.json({ sent: true, smtpConfigured: !!transporter });
+});
+
 // ── GET /api/auth/invite-info?token=...  (pubblica, per la pagina register) ──
 app.get('/api/auth/invite-info', (req, res) => {
     const { token } = req.query;
@@ -210,19 +242,24 @@ app.get('/api/auth/invite-info', (req, res) => {
 
 // ── POST /api/auth/register ──────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
-    const { token, password } = req.body || {};
-    if (!token || !password)      return res.status(400).json({ error: 'Token e password obbligatori.' });
-    if (password.length < 8)      return res.status(400).json({ error: 'Password di almeno 8 caratteri.' });
+    const { token, password, otp } = req.body || {};
+    if (!token || !password || !otp)  return res.status(400).json({ error: 'Token, password e codice OTP obbligatori.' });
+    if (password.length < 8)          return res.status(400).json({ error: 'Password di almeno 8 caratteri.' });
     const invitations = readJSON(INVITATIONS_FILE);
     const inv = invitations.find(i => i.token === token && !i.used);
-    if (!inv)                              return res.status(400).json({ error: 'Invito non valido o già utilizzato.' });
+    if (!inv)                                 return res.status(400).json({ error: 'Invito non valido o già utilizzato.' });
     if (new Date() > new Date(inv.expiresAt)) return res.status(400).json({ error: 'Invito scaduto.' });
+    if (!inv.otp || inv.otpUsed)              return res.status(400).json({ error: 'Codice non richiesto o già utilizzato. Richiedi un nuovo codice.' });
+    if (new Date() > new Date(inv.otpExpiry)) return res.status(400).json({ error: 'Codice scaduto. Richiedi un nuovo codice.' });
+    const otpValid = await bcrypt.compare(otp.trim(), inv.otp);
+    if (!otpValid) return res.status(400).json({ error: 'Codice non corretto.' });
     const users = readJSON(USERS_FILE);
-    if (users.find(u => u.email.toLowerCase() === inv.email.toLowerCase()))
+    if (users.find(u => u.email.toLowerCase() === inv.email.toLowerCase() && !u.revokedAt))
         return res.status(409).json({ error: 'Utente già registrato.' });
     users.push({ id: uuidv4(), email: inv.email, passwordHash: await bcrypt.hash(password, 12), role: inv.role || 'user', createdAt: new Date().toISOString() });
     writeJSON(USERS_FILE, users);
-    inv.used = true;
+    inv.used    = true;
+    inv.otpUsed = true;
     writeJSON(INVITATIONS_FILE, invitations);
     res.json({ success: true, email: inv.email });
 });
