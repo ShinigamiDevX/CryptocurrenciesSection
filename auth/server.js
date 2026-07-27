@@ -160,7 +160,11 @@ app.post('/api/auth/login', async (req, res) => {
 
 // ── GET /api/auth/verify ─────────────────────────────────────────────────────
 app.get('/api/auth/verify', authenticate, (req, res) => {
-    res.json({ valid: true, email: req.user.email, role: req.user.role });
+    // Legge il ruolo aggiornato dal DB (non dal JWT che potrebbe essere obsoleto)
+    const users = readJSON(USERS_FILE);
+    const user  = users.find(u => u.id === req.user.id);
+    if (!user || user.revokedAt) return res.status(401).json({ error: 'Sessione non valida.' });
+    res.json({ valid: true, email: user.email, role: user.role });
 });
 
 // ── POST /api/auth/invite  (superadmin o admin) ─────────────────────────────
@@ -278,7 +282,10 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
 
     // Target è superadmin (o modifica del proprio ruolo da superadmin) → richiede consenso
     if (isSuperadminTarget || isSelfChange) {
-        if (req.user.role !== 'superadmin')
+        // Riverifica il ruolo dal DB (il JWT potrebbe essere obsoleto dopo un cambio ruolo)
+        const allUsers    = readJSON(USERS_FILE);
+        const currentUser = allUsers.find(u => u.id === req.user.id);
+        if (!currentUser || currentUser.revokedAt || currentUser.role !== 'superadmin')
             return res.status(403).json({ error: 'Solo un superadmin può richiedere questo cambio.' });
         if (ROLE_LEVEL[newRole] > ROLE_LEVEL['superadmin'])
             return res.status(400).json({ error: 'Ruolo non valido.' });
