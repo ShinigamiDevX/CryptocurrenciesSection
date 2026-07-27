@@ -14,7 +14,7 @@
         #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
 
         /* ── Layout pagina ── */
-        main { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+        main { max-width: 100%; padding: 1.5rem 2rem; }
         .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; }
         .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin-bottom: 2rem; }
 
@@ -30,10 +30,17 @@
         .tab-panel.active { display: block; }
 
         /* ── Tabella utenti ── */
-        .users-table { width:100%; border-collapse:collapse; font-size:0.88rem; }
-        .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.6rem 0.9rem; border-bottom:1px solid rgba(0,200,255,0.15); }
-        .users-table td { padding:0.7rem 0.9rem; color:#C8F0E8; border-bottom:1px solid rgba(0,200,255,0.06); vertical-align:middle; }
+        .users-table { width:100%; border-collapse:collapse; font-size:0.88rem; table-layout:fixed; }
+        .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.6rem 0.9rem; border-bottom:1px solid rgba(0,200,255,0.15); white-space:nowrap; }
+        .users-table td { padding:0.55rem 0.9rem; color:#C8F0E8; border-bottom:1px solid rgba(0,200,255,0.06); vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .users-table tr:last-child td { border-bottom: none; }
+        /* Larghezze colonne */
+        .users-table th:nth-child(1), .users-table td:nth-child(1) { width:14%; } /* Grado */
+        .users-table th:nth-child(2), .users-table td:nth-child(2) { width:16%; } /* Nome */
+        .users-table th:nth-child(3), .users-table td:nth-child(3) { width:22%; } /* Email */
+        .users-table th:nth-child(4), .users-table td:nth-child(4) { width:9%;  } /* Ruolo */
+        .users-table th:nth-child(5), .users-table td:nth-child(5) { width:10%; } /* Registrato */
+        .users-table th:nth-child(6), .users-table td:nth-child(6) { width:29%; } /* Azioni */
         .grado-badge { font-size:0.75rem; color:#5ABBC8; font-style:italic; }
         .btn-edit { background:rgba(0,200,255,0.1); border:1px solid rgba(0,200,255,0.3); color:#00C8FF; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin-left:0.35rem; }
         .btn-edit:hover { background:rgba(0,200,255,0.22); }

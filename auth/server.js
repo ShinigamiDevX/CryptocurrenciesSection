@@ -128,7 +128,9 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async(req,res)=>{
 });
 
 app.get('/api/auth/users', authenticate, requireAdmin,(req,res)=>{
-    res.json(Users.findActive().map(({passwordHash,...u})=>({...u,role:ALL_ROLES.includes(u.role)?u.role:'user'})));
+    res.json(Users.findActive()
+        .filter(u => u.email !== SUPERADMIN_EMAIL)  // il fondatore non compare nella lista
+        .map(({passwordHash,...u})=>({...u,role:ALL_ROLES.includes(u.role)?u.role:'user'})));
 });
 
 app.delete('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
