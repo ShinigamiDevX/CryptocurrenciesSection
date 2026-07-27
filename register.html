@@ -61,6 +61,15 @@
         input:focus { border-color: rgba(0,200,255,0.6); }
         input::placeholder { color: rgba(90,187,200,0.45); }
         .hint { font-size: 0.75rem; color: #5ABBC8; margin-top: 0.35rem; }
+        select.grade-select {
+            width: 100%; padding: 0.75rem 1rem;
+            background: rgba(0,200,255,0.06); border: 1px solid rgba(0,200,255,0.22);
+            border-radius: 8px; color: #C8F0E8; font-size: 0.95rem;
+            font-family: inherit; outline: none; cursor: pointer;
+        }
+        select.grade-select:focus { border-color: rgba(0,200,255,0.6); }
+        select.grade-select option  { background: #0d1f35; color: #C8F0E8; }
+        select.grade-select optgroup { background: #0a1628; color: #7ACCE0; font-weight: 700; }
         .btn {
             width: 100%;
             padding: 0.85rem;
@@ -104,6 +113,58 @@
             <div class="msg success" id="successMsg"></div>
             <div class="invited-email" id="invitedEmail"></div>
             <form id="registerForm" autocomplete="off">
+                <div class="field">
+                    <label for="grado">Grado</label>
+                    <select id="grado" name="grado" class="grade-select" required>
+                        <option value="" disabled selected>— Seleziona il grado —</option>
+                        <optgroup label="Ufficiali Generali">
+                            <option>Generale di Corpo d'Armata</option>
+                            <option>Generale di Divisione</option>
+                            <option>Generale di Brigata</option>
+                        </optgroup>
+                        <optgroup label="Ufficiali Superiori">
+                            <option>Colonnello</option>
+                            <option>Tenente Colonnello</option>
+                            <option>Maggiore</option>
+                        </optgroup>
+                        <optgroup label="Ufficiali Inferiori">
+                            <option>Capitano</option>
+                            <option>Tenente</option>
+                            <option>Sottotenente</option>
+                        </optgroup>
+                        <optgroup label="Ispettori">
+                            <option>Luogotenente "Carica Speciale"</option>
+                            <option>Luogotenente</option>
+                            <option>Maresciallo Maggiore</option>
+                            <option>Maresciallo Capo</option>
+                            <option>Maresciallo Ordinario</option>
+                            <option>Maresciallo</option>
+                        </optgroup>
+                        <optgroup label="Sovrintendenti – Brigadieri">
+                            <option>Brigadiere Capo "Qualifica Speciale"</option>
+                            <option>Brigadiere Capo</option>
+                            <option>Brigadiere</option>
+                            <option>Vicebrigadiere</option>
+                        </optgroup>
+                        <optgroup label="Appuntati e Carabinieri">
+                            <option>Appuntato Scelto "Qualifica Speciale"</option>
+                            <option>Appuntato Scelto</option>
+                            <option>Appuntato</option>
+                            <option>Carabiniere Scelto</option>
+                            <option>Carabiniere</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div style="display:flex;gap:0.75rem;">
+                    <div class="field" style="flex:1;">
+                        <label for="nome">Nome</label>
+                        <input type="text" id="nome" name="nome" placeholder="Nome" autocomplete="given-name" required>
+                    </div>
+                    <div class="field" style="flex:1;">
+                        <label for="cognome">Cognome</label>
+                        <input type="text" id="cognome" name="cognome" placeholder="Cognome" autocomplete="family-name" required>
+                    </div>
+                </div>
                 <div class="field">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" placeholder="Minimo 8 caratteri" autocomplete="new-password" required>
@@ -167,7 +228,14 @@
             const pwd     = document.getElementById('password').value;
             const confirm = document.getElementById('confirmPassword').value;
             const otp     = document.getElementById('otpInput').value.trim();
+            const nome    = document.getElementById('nome').value.trim();
+            const cognome = document.getElementById('cognome').value.trim();
+            const grado   = document.getElementById('grado').value;
 
+            if (!nome || !cognome || !grado) {
+                errorMsg.textContent = 'Compila grado, nome e cognome.';
+                errorMsg.style.display = 'block'; return;
+            }
             if (!otp) {
                 errorMsg.textContent = 'Inserisci il codice di verifica.';
                 errorMsg.style.display = 'block';
@@ -179,7 +247,7 @@
                 const res  = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, password: pwd, otp })
+                    body: JSON.stringify({ token, password: pwd, otp, nome, cognome, grado })
                 });
                 const data = await res.json();
                 if (!res.ok) {

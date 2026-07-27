@@ -33,6 +33,7 @@
         .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.6rem 0.9rem; border-bottom:1px solid rgba(0,200,255,0.15); }
         .users-table td { padding:0.7rem 0.9rem; color:#C8F0E8; border-bottom:1px solid rgba(0,200,255,0.06); vertical-align:middle; }
         .users-table tr:last-child td { border-bottom: none; }
+        .grado-badge { font-size:0.75rem; color:#5ABBC8; font-style:italic; }
         .badge { display:inline-block; padding:0.2rem 0.55rem; border-radius:5px; font-size:0.76rem; font-weight:600; }
         .badge-admin { background:rgba(0,200,255,0.15); color:#00C8FF; }
         .badge-user  { background:rgba(0,230,118,0.12); color:#00E676; }
@@ -115,7 +116,7 @@
         <div class="tab-panel active" id="tab-users">
             <div class="feedback" id="usersMsg"></div>
             <table class="users-table">
-                <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato</th><th>Azioni</th></tr></thead>
+                <thead><tr><th>Grado</th><th>Nome</th><th>Email</th><th>Ruolo</th><th>Registrato</th><th>Azioni</th></tr></thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
         </div>
@@ -251,6 +252,8 @@
                     : '';
                 const badgeCls = (isSuperadmin || u.role==='admin') ? 'badge-admin' : 'badge-user';
                 return `<tr>
+                    <td class="grado-badge">${u.grado||'—'}</td>
+                    <td>${u.cognome ? u.cognome.toUpperCase()+' '+u.nome : '—'}</td>
                     <td>${u.email}${isSelf?' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>':''}</td>
                     <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role]||u.role}</span></td>
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>

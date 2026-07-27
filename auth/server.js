@@ -96,8 +96,9 @@ app.get('/api/auth/invite-info',(req,res)=>{
 });
 
 app.post('/api/auth/register', async(req,res)=>{
-    const {token,password,otp}=req.body||{};
+    const { token, password, otp, nome, cognome, grado } = req.body || {};
     if (!token||!password||!otp) return res.status(400).json({error:'Token, password e codice OTP obbligatori.'});
+    if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado sono obbligatori.'});
     if (password.length<8) return res.status(400).json({error:'Password di almeno 8 caratteri.'});
     const inv=Invitations.findByToken(token);
     if (!inv||inv.used) return res.status(400).json({error:'Invito non valido o già utilizzato.'});
@@ -107,7 +108,7 @@ app.post('/api/auth/register', async(req,res)=>{
     if (!(await bcrypt.compare(otp.trim(),inv.otp))) return res.status(400).json({error:'Codice non corretto.'});
     const ex=Users.findByEmail(inv.email);
     if (ex&&!ex.revokedAt) return res.status(409).json({error:'Utente già registrato.'});
-    Users.insert({id:uuidv4(),email:inv.email,passwordHash:await bcrypt.hash(password,12),role:inv.role||'user',createdAt:new Date().toISOString(),mustChangePassword:false});
+    Users.insert({id:uuidv4(),email:inv.email,passwordHash:await bcrypt.hash(password,12),role:inv.role||'user',createdAt:new Date().toISOString(),mustChangePassword:false,nome:nome.trim(),cognome:cognome.trim(),grado});
     Invitations.markUsed(token);
     res.json({success:true,email:inv.email});
 });

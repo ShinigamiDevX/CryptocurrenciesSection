@@ -20,7 +20,10 @@ db.exec(`
         role               TEXT NOT NULL DEFAULT 'user',
         createdAt          TEXT NOT NULL,
         revokedAt          TEXT,
-        mustChangePassword INTEGER NOT NULL DEFAULT 0
+        mustChangePassword INTEGER NOT NULL DEFAULT 0,
+        nome               TEXT NOT NULL DEFAULT '',
+        cognome            TEXT NOT NULL DEFAULT '',
+        grado              TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS invitations (
         token     TEXT PRIMARY KEY,
@@ -91,6 +94,12 @@ function migrateFromJson() {
 }
 migrateFromJson();
 
+// Migrazione colonne opzionali (aggiunta su DB esistenti)
+['nome','cognome','grado'].forEach(col => {
+    try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`); }
+    catch { /* colonna già presente */ }
+});
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 const toBool = v => !!v;
 const fromRow = (r) => r ? { ...r, mustChangePassword: toBool(r.mustChangePassword) } : null;
@@ -101,8 +110,8 @@ const Users = {
     findByEmail: email => fromRow(db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').get(email)),
     findActive:  ()    => db.prepare('SELECT * FROM users WHERE revokedAt IS NULL').all().map(fromRow),
     insert: u => db.prepare(
-        'INSERT INTO users (id,email,passwordHash,role,createdAt,mustChangePassword) VALUES (@id,@email,@passwordHash,@role,@createdAt,@mustChangePassword)'
-    ).run({ ...u, mustChangePassword: u.mustChangePassword ? 1 : 0 }),
+        'INSERT INTO users (id,email,passwordHash,role,createdAt,mustChangePassword,nome,cognome,grado) VALUES (@id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,@nome,@cognome,@grado)'
+    ).run({ ...u, mustChangePassword: u.mustChangePassword ? 1 : 0, nome: u.nome||'', cognome: u.cognome||'', grado: u.grado||'' }),
     updateRole:    (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
     revoke:        id  => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
     changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?').run(hash, id),
