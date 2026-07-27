@@ -275,27 +275,24 @@ app.get('/api/auth/users', authenticate, requireAdmin, (req, res) => {
         })));
 });
 
-// ── DELETE /api/auth/users/:id  (superadmin o admin, + auto-eliminazione superadmin) ──
+// ── DELETE /api/auth/users/:id  (superadmin o admin) ────────────────────────
 app.delete('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
     const users = readJSON(USERS_FILE);
     const user  = users.find(u => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: 'Utente non trovato.' });
 
+    // I superadmin non possono essere eliminati — regola assoluta
+    if (user.role === 'superadmin')
+        return res.status(403).json({ error: 'I superadmin non possono essere eliminati.' });
+
     const myLevel     = ROLE_LEVEL[req.user.role] ?? 0;
     const targetLevel = ROLE_LEVEL[user.role]     ?? 0;
 
-    // Auto-eliminazione: solo il superadmin può eliminare se stesso
-    if (req.user.id === user.id) {
-        if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Non puoi eliminare il tuo profilo.' });
-        user.revokedAt    = new Date().toISOString();
-        user.passwordHash = '';
-        writeJSON(USERS_FILE, users);
-        return res.json({ success: true, selfDeleted: true });
-    }
-    // Non si può eliminare un altro superadmin
-    if (user.role === 'superadmin') return res.status(403).json({ error: 'Impossibile eliminare un superadmin.' });
-    // Il target deve avere livello STRETTAMENTE inferiore a chi agisce
-    if (targetLevel >= myLevel) return res.status(403).json({ error: 'Permessi insufficienti per eliminare questo utente.' });
+    // Il target deve avere livello strettamente inferiore a chi agisce
+    if (req.user.id === user.id)
+        return res.status(403).json({ error: 'Non puoi eliminare il tuo stesso profilo.' });
+    if (targetLevel >= myLevel)
+        return res.status(403).json({ error: 'Permessi insufficienti per eliminare questo utente.' });
     // Soft delete: conserva storico e dati, impedisce solo l'accesso
     user.revokedAt    = new Date().toISOString();
     user.passwordHash = '';

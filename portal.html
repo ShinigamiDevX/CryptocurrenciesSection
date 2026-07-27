@@ -187,7 +187,6 @@
                 <button class="admin-tab active" onclick="switchTab('users')">Utenti</button>
                 <button class="admin-tab" onclick="switchTab('invite')">Invita</button>
                 <button class="admin-tab" onclick="switchTab('invitations')">Inviti in sospeso</button>
-                <button class="admin-tab" id="tabBtnRequests" style="display:none;" onclick="switchTab('requests')">Richieste <span id="reqBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.25rem;display:none;">0</span></button>
             </div>
             <div class="admin-body">
                                 <!-- Tab: Utenti -->
@@ -197,10 +196,6 @@
                         <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato</th><th>Azioni</th></tr></thead>
                         <tbody id="usersTableBody"></tbody>
                     </table>
-                    <div id="selfDeleteSection" style="display:none;border-top:1px solid rgba(255,71,87,0.2);margin-top:1.2rem;padding-top:1rem;">
-                        <button class="btn-del" onclick="selfDelete()">&#x26A0; Elimina il mio profilo</button>
-                        <span style="font-size:0.78rem;color:#5ABBC8;margin-left:0.6rem;">Azione irreversibile.</span>
-                    </div>
                 </div>
                                 <!-- Tab: Invita -->
                 <div class="admin-section" id="tab-invite">
@@ -226,12 +221,6 @@
                 <div class="admin-section" id="tab-invitations">
                     <div class="admin-msg" id="invitationsMsg"></div>
                     <div class="inv-list" id="invList"></div>
-                </div>
-                <!-- Tab: Richieste cambio ruolo (solo superadmin) -->
-                <div class="admin-section" id="tab-requests">
-                    <div class="admin-msg" id="requestsMsg"></div>
-                    <p style="font-size:0.85rem;color:#5ABBC8;margin-bottom:1rem;">Richieste di cambio ruolo per account superadmin. Richiedono il consenso di un altro superadmin.</p>
-                    <div class="inv-list" id="reqList"></div>
                 </div>
             </div>
         </div>
@@ -283,7 +272,6 @@
         document.getElementById('adminModalBg').style.display = 'flex';
 
         // Reimposta sempre il tab "Utenti" come attivo all'apertura
-        const tabIds = ['users', 'invite', 'invitations', 'requests'];
         document.querySelectorAll('.admin-tab').forEach((t, i) =>
             t.classList.toggle('active', i === 0));
         document.querySelectorAll('.admin-section').forEach(s =>
@@ -301,11 +289,6 @@
             sel.value = 'user';
         }
 
-        // Self-delete e tab Richieste solo per superadmin
-        const isSA = _currentUser.role === 'superadmin';
-        document.getElementById('selfDeleteSection').style.display = isSA ? 'block' : 'none';
-        document.getElementById('tabBtnRequests').style.display    = isSA ? ''      : 'none';
-
         loadUsers();
     }
     function closeAdminPanel() {
@@ -313,7 +296,7 @@
     }
 
     function switchTab(tab) {
-        const ids = ['users', 'invite', 'invitations', 'requests'];
+        const ids = ['users', 'invite', 'invitations'];
         document.querySelectorAll('.admin-tab').forEach((t, i) => {
             t.classList.toggle('active', ids[i] === tab);
         });
@@ -321,7 +304,6 @@
         document.getElementById('tab-' + tab).classList.add('active');
         if (tab === 'users')       loadUsers();
         if (tab === 'invitations') loadInvitations();
-        if (tab === 'requests')    loadRoleChangeRequests();
     }
 
     function showMsg(id, text, type) {
@@ -348,11 +330,10 @@
             tbody.innerHTML = users.map(u => {
                 const targetLevel = ROLE_LEVEL[u.role] ?? 0;
                 const isSelf      = u.id === _currentUser.id;
-                const isFounder   = u.email === 'portalecrypto@proton.me'; // account fondatore — ruolo immutabile
+                const isFounder   = u.email === 'portalecrypto@proton.me';
+                // I superadmin non possono mai essere modificati o eliminati
                 const canDelete   = !isSelf && !isFounder && u.role !== 'superadmin' && targetLevel < myLevel;
-                const canEdit     = !isFounder && (u.role === 'superadmin'
-                    ? _currentUser.role === 'superadmin'
-                    : (!isSelf && targetLevel < myLevel));
+                const canEdit     = !isFounder && u.role !== 'superadmin' && !isSelf && targetLevel < myLevel;
                 const roleOpts    = canEdit
                     ? ['reader','user','admin','superadmin']
                         .filter(r => ROLE_LEVEL[r] <= myLevel)
@@ -360,12 +341,8 @@
                         .join('')
                     : '';
                 const badgeCls = (u.role === 'superadmin' || u.role === 'admin') ? 'badge-admin' : 'badge-user';
-                const editHint = (canEdit && u.role === 'superadmin')
-                    ? ' title="Richiede consenso di un altro superadmin"' : '';
-                // Nota per righe superadmin senza azioni dirette disponibili
-                const noActionNote = (!canDelete && !canEdit && !isSelf && u.role === 'superadmin' && !isFounder)
-                    ? '<span style="color:#5ABBC8;font-size:0.75rem;" title="Usa \'Richieste\' per cambiare ruolo prima di revocare">Usa tab Richieste</span>'
-                    : '';
+                const editHint = '';
+                const noActionNote = '';
                 return `
                 <tr>
                     <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
