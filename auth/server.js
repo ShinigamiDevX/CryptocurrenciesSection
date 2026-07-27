@@ -16,6 +16,7 @@ const DATA_DIR         = path.join(__dirname, 'data');
 const USERS_FILE       = path.join(DATA_DIR, 'users.json');
 const INVITATIONS_FILE = path.join(DATA_DIR, 'invitations.json');
 const SECRET_FILE      = path.join(DATA_DIR, 'secret.key');
+const REQUESTS_FILE    = path.join(DATA_DIR, 'role_change_requests.json');
 const SUPERADMIN_EMAIL = 'portalecrypto@proton.me';
 const PORTAL_URL       = (process.env.PORTAL_URL || 'https://192.168.4.77:5200').replace(/\/$/, '');
 
@@ -86,6 +87,7 @@ async function sendInviteEmail(toEmail, inviteToken, assignedRole) {
 if (!fs.existsSync(DATA_DIR))         fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(USERS_FILE))       fs.writeFileSync(USERS_FILE,       '[]');
 if (!fs.existsSync(INVITATIONS_FILE)) fs.writeFileSync(INVITATIONS_FILE, '[]');
+if (!fs.existsSync(REQUESTS_FILE))    fs.writeFileSync(REQUESTS_FILE,    '[]');
 
 // JWT secret persistente (sopravvive ai restart del container)
 let JWT_SECRET = process.env.JWT_SECRET;
@@ -262,26 +264,100 @@ app.get('/api/auth/invitations', authenticate, requireAdmin, (req, res) => {
     res.json(readJSON(INVITATIONS_FILE).filter(i => !i.used && new Date() < new Date(i.expiresAt)));
 });
 
-// ── PATCH /api/auth/users/:id  — cambia ruolo (superadmin o admin) ────────────
+// ── PATCH /api/auth/users/:id  — cambia ruolo (è richiesta per i superadmin) ───────
 app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
     const { role: newRole } = req.body || {};
     if (!ALL_ROLES.includes(newRole)) return res.status(400).json({ error: 'Ruolo non valido.' });
     const users = readJSON(USERS_FILE);
     const user  = users.find(u => u.id === req.params.id);
-    if (!user)                   return res.status(404).json({ error: 'Utente non trovato.' });
-    if (req.user.id === user.id) return res.status(403).json({ error: 'Non puoi modificare il tuo stesso ruolo.' });
-    // Non si può toccare un altro superadmin o un utente revocato
-    if (user.role === 'superadmin') return res.status(403).json({ error: 'Impossibile modificare un superadmin.' });
-    if (user.revokedAt)             return res.status(403).json({ error: 'Impossibile modificare un utente revocato.' });
-    // Il nuovo ruolo non può superare il livello di chi agisce
+    if (!user)          return res.status(404).json({ error: 'Utente non trovato.' });
+    if (user.revokedAt) return res.status(403).json({ error: 'Impossibile modificare un utente revocato.' });
+
+    const isSuperadminTarget = user.role === 'superadmin';
+    const isSelfChange       = req.user.id === user.id;
+
+    // Target è superadmin (o modifica del proprio ruolo da superadmin) → richiede consenso
+    if (isSuperadminTarget || isSelfChange) {
+        if (req.user.role !== 'superadmin')
+            return res.status(403).json({ error: 'Solo un superadmin può richiedere questo cambio.' });
+        if (ROLE_LEVEL[newRole] > ROLE_LEVEL['superadmin'])
+            return res.status(400).json({ error: 'Ruolo non valido.' });
+        // Controlla che non esista già una richiesta pendente per questo target
+        const requests = readJSON(REQUESTS_FILE);
+        const existing = requests.find(r =>
+            r.targetId === user.id && r.status === 'pending' && new Date() < new Date(r.expiresAt));
+        if (existing) return res.status(409).json({
+            error: 'Esiste già una richiesta pendente per questo utente.',
+            requestId: existing.id
+        });
+        const newReq = {
+            id:          uuidv4(),
+            requestedBy: { id: req.user.id, email: req.user.email },
+            targetId:    user.id,
+            targetEmail: user.email,
+            currentRole: user.role,
+            newRole,
+            createdAt:   new Date().toISOString(),
+            expiresAt:   new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            status:      'pending'
+        };
+        requests.push(newReq);
+        writeJSON(REQUESTS_FILE, requests);
+        return res.status(202).json({ requestCreated: true, requestId: newReq.id });
+    }
+
+    // Modifica standard (target non è superadmin)
     if (ROLE_LEVEL[newRole] > ROLE_LEVEL[req.user.role])
         return res.status(403).json({ error: 'Non puoi assegnare un ruolo superiore al tuo.' });
-    // L'utente target deve avere livello strettamente inferiore a chi agisce
     if (ROLE_LEVEL[user.role] >= ROLE_LEVEL[req.user.role])
         return res.status(403).json({ error: 'Permessi insufficienti per modificare questo utente.' });
     user.role = newRole;
     writeJSON(USERS_FILE, users);
     res.json({ success: true, role: newRole });
+});
+
+// ── GET /api/auth/role-change-requests  (solo superadmin) ───────────────────────
+app.get('/api/auth/role-change-requests', authenticate, requireSuperadmin, (req, res) => {
+    res.json(readJSON(REQUESTS_FILE).filter(r =>
+        r.status === 'pending' && new Date() < new Date(r.expiresAt)));
+});
+
+// ── POST /api/auth/role-change-requests/:id/approve  (solo superadmin) ───────────
+app.post('/api/auth/role-change-requests/:id/approve', authenticate, requireSuperadmin, (req, res) => {
+    const requests = readJSON(REQUESTS_FILE);
+    const rcr      = requests.find(r => r.id === req.params.id && r.status === 'pending');
+    if (!rcr) return res.status(404).json({ error: 'Richiesta non trovata o già gestita.' });
+    if (new Date() > new Date(rcr.expiresAt)) {
+        rcr.status = 'expired'; writeJSON(REQUESTS_FILE, requests);
+        return res.status(400).json({ error: 'Richiesta scaduta.' });
+    }
+    // L'approvatore non deve essere il richiedente né il target
+    if (req.user.id === rcr.requestedBy.id)
+        return res.status(403).json({ error: 'Non puoi approvare la tua stessa richiesta.' });
+    if (req.user.id === rcr.targetId)
+        return res.status(403).json({ error: 'Non puoi approvare la modifica del tuo stesso ruolo.' });
+    // Applica il cambio ruolo
+    const users = readJSON(USERS_FILE);
+    const user  = users.find(u => u.id === rcr.targetId);
+    if (!user) return res.status(404).json({ error: 'Utente target non trovato.' });
+    user.role = rcr.newRole;
+    writeJSON(USERS_FILE, users);
+    rcr.status     = 'approved';
+    rcr.approvedBy = { id: req.user.id, email: req.user.email };
+    rcr.approvedAt = new Date().toISOString();
+    writeJSON(REQUESTS_FILE, requests);
+    res.json({ success: true, newRole: rcr.newRole });
+});
+
+// ── DELETE /api/auth/role-change-requests/:id  — annulla richiesta (solo superadmin) ──
+app.delete('/api/auth/role-change-requests/:id', authenticate, requireSuperadmin, (req, res) => {
+    const requests = readJSON(REQUESTS_FILE);
+    const rcr      = requests.find(r => r.id === req.params.id && r.status === 'pending');
+    if (!rcr) return res.status(404).json({ error: 'Richiesta non trovata.' });
+    rcr.status      = 'cancelled';
+    rcr.cancelledAt = new Date().toISOString();
+    writeJSON(REQUESTS_FILE, requests);
+    res.json({ success: true });
 });
 
 // ── DELETE /api/auth/invitations/:token  — annulla invito (superadmin o admin) ─

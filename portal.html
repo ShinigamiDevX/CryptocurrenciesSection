@@ -104,6 +104,16 @@
         .admin-msg.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
         .admin-msg.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
         .empty-state { color: #5ABBC8; font-size: 0.85rem; padding: 0.5rem 0; }
+        /* Richieste cambio ruolo */
+        .req-item {
+            background: rgba(255,200,0,0.05); border: 1px solid rgba(255,200,0,0.2);
+            border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem;
+            display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+        }
+        .req-info  { flex: 1; min-width: 200px; color: #C8F0E8; }
+        .req-info small { display: block; color: #5ABBC8; font-size: 0.75rem; margin-top: 0.2rem; }
+        .btn-approve { background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.4); color: #00E676; font-size: 0.78rem; padding: 0.3rem 0.7rem; border-radius: 5px; cursor: pointer; }
+        .btn-approve:hover { background: rgba(0,230,118,0.28); }
     </style>
 </head>
 <body>
@@ -177,6 +187,7 @@
                 <button class="admin-tab active" onclick="switchTab('users')">Utenti</button>
                 <button class="admin-tab" onclick="switchTab('invite')">Invita</button>
                 <button class="admin-tab" onclick="switchTab('invitations')">Inviti in sospeso</button>
+                <button class="admin-tab" id="tabBtnRequests" style="display:none;" onclick="switchTab('requests')">Richieste</button>
             </div>
             <div class="admin-body">
                                 <!-- Tab: Utenti -->
@@ -211,10 +222,16 @@
                         <button class="copy-btn" onclick="copyInviteLink()">Copia link</button>
                     </div>
                 </div>
-                <!-- Tab: Inviti in sospeso -->
+                                <!-- Tab: Inviti in sospeso -->
                 <div class="admin-section" id="tab-invitations">
                     <div class="admin-msg" id="invitationsMsg"></div>
                     <div class="inv-list" id="invList"></div>
+                </div>
+                <!-- Tab: Richieste cambio ruolo (solo superadmin) -->
+                <div class="admin-section" id="tab-requests">
+                    <div class="admin-msg" id="requestsMsg"></div>
+                    <p style="font-size:0.85rem;color:#5ABBC8;margin-bottom:1rem;">Richieste di cambio ruolo per account superadmin. Richiedono il consenso di un altro superadmin.</p>
+                    <div class="inv-list" id="reqList"></div>
                 </div>
             </div>
         </div>
@@ -262,14 +279,15 @@
     }
 
     function switchTab(tab) {
+        const ids = ['users', 'invite', 'invitations', 'requests'];
         document.querySelectorAll('.admin-tab').forEach((t, i) => {
-            const ids = ['users', 'invite', 'invitations'];
             t.classList.toggle('active', ids[i] === tab);
         });
         document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
         document.getElementById('tab-' + tab).classList.add('active');
         if (tab === 'users')       loadUsers();
         if (tab === 'invitations') loadInvitations();
+        if (tab === 'requests')    loadRoleChangeRequests();
     }
 
     function showMsg(id, text, type) {
@@ -297,7 +315,10 @@
                 const targetLevel = ROLE_LEVEL[u.role] ?? 0;
                 const isSelf      = u.id === _currentUser.id;
                 const canDelete   = !isSelf && u.role !== 'superadmin' && targetLevel < myLevel;
-                const canEdit     = !isSelf && u.role !== 'superadmin' && targetLevel < myLevel;
+                // Superadmin può avviare richiesta anche per superadmin (incl. sé stesso)
+                const canEdit     = u.role === 'superadmin'
+                    ? _currentUser.role === 'superadmin'
+                    : (!isSelf && targetLevel < myLevel);
                 const roleOpts    = canEdit
                     ? ['reader','user','admin','superadmin']
                         .filter(r => ROLE_LEVEL[r] <= myLevel)
@@ -305,6 +326,8 @@
                         .join('')
                     : '';
                 const badgeCls = (u.role === 'superadmin' || u.role === 'admin') ? 'badge-admin' : 'badge-user';
+                const editHint = (canEdit && u.role === 'superadmin')
+                    ? ' title="Richiede consenso di un altro superadmin"' : '';
                 return `
                 <tr>
                     <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
@@ -312,7 +335,7 @@
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
                     <td style="white-space:nowrap;">
                         ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
-                        ${canEdit   ? `<select class="role-select" onchange="changeRole('${u.id}','${u.email}',this.value,this)">${roleOpts}</select>` : ''}
+                        ${canEdit   ? `<select class="role-select"${editHint} onchange="changeRole('${u.id}','${u.email}',this.value,this)">${roleOpts}</select>` : ''}
                     </td>
                 </tr>`;
             }).join('');
@@ -331,14 +354,68 @@
     async function changeRole(id, email, newRole, selectEl) {
         const labels = { reader:'Reader', user:'Utente', admin:'Amministratore', superadmin:'Super Admin' };
         if (!confirm(`Cambiare il ruolo di ${email} in ${labels[newRole] || newRole}?`)) {
-            loadUsers(); return; // ripristina la select
+            loadUsers(); return;
         }
         const res = await fetch('/api/auth/users/' + id, {
             method: 'PATCH', headers: authHeader(),
             body: JSON.stringify({ role: newRole })
         });
-        if (res.ok) { showMsg('usersMsg', `Ruolo aggiornato a ${labels[newRole] || newRole}.`, 'success'); loadUsers(); }
-        else        { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); loadUsers(); }
+        const data = await res.json();
+        if (res.status === 202) {
+            showMsg('usersMsg', 'Richiesta creata. In attesa di consenso da un altro superadmin (tab Richieste).', 'success');
+            loadUsers();
+        } else if (res.ok) {
+            showMsg('usersMsg', `Ruolo aggiornato a ${labels[newRole] || newRole}.`, 'success');
+            loadUsers();
+        } else {
+            showMsg('usersMsg', data.error || 'Errore.', 'error');
+            loadUsers();
+        }
+    }
+
+    async function loadRoleChangeRequests() {
+        const list = document.getElementById('reqList');
+        list.innerHTML = '<div class="empty-state">Caricamento...</div>';
+        const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+        try {
+            const res  = await fetch('/api/auth/role-change-requests', { headers: authHeader() });
+            const data = await res.json();
+            if (!data.length) { list.innerHTML = '<div class="empty-state">Nessuna richiesta in sospeso.</div>'; return; }
+            list.innerHTML = data.map(r => {
+                const isMine    = r.requestedBy.id === _currentUser.id;
+                const isTarget  = r.targetId === _currentUser.id;
+                const canApprove = !isMine && !isTarget;
+                const exp = new Date(r.expiresAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+                return `
+                <div class="req-item">
+                    <div class="req-info">
+                        <strong>${r.targetEmail}</strong>: ${ROLE_LABEL[r.currentRole] || r.currentRole} → ${ROLE_LABEL[r.newRole] || r.newRole}
+                        <small>Richiesta da: ${r.requestedBy.email} &mdash; Scade: ${exp}</small>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;">
+                        ${canApprove ? `<button class="btn-approve" onclick="approveRoleChange('${r.id}')">Approva</button>` : '<span style="color:#5ABBC8;font-size:0.78rem;">In attesa</span>'}
+                        <button class="btn-del" onclick="cancelRoleChange('${r.id}')">Annulla</button>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch {
+            list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>';
+        }
+    }
+
+    async function approveRoleChange(id) {
+        if (!confirm('Approvare questa richiesta di cambio ruolo?')) return;
+        const res = await fetch(`/api/auth/role-change-requests/${id}/approve`, { method: 'POST', headers: authHeader() });
+        const d   = await res.json();
+        if (res.ok) { showMsg('requestsMsg', 'Cambio ruolo approvato e applicato.', 'success'); loadRoleChangeRequests(); loadUsers(); }
+        else        { showMsg('requestsMsg', d.error || 'Errore.', 'error'); }
+    }
+
+    async function cancelRoleChange(id) {
+        if (!confirm('Annullare questa richiesta?')) return;
+        const res = await fetch(`/api/auth/role-change-requests/${id}`, { method: 'DELETE', headers: authHeader() });
+        if (res.ok) { showMsg('requestsMsg', 'Richiesta annullata.', 'success'); loadRoleChangeRequests(); }
+        else        { const d = await res.json(); showMsg('requestsMsg', d.error || 'Errore.', 'error'); }
     }
 
     async function selfDelete() {
