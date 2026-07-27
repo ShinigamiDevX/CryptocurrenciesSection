@@ -145,7 +145,7 @@ app.post('/api/auth/login', async (req, res) => {
     const users = readJSON(USERS_FILE);
     const user  = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     // Risposta generica per non rivelare se l'email esiste
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || user.revokedAt || !(await bcrypt.compare(password, user.passwordHash))) {
         return res.status(401).json({ error: 'Credenziali non valide.' });
     }
     const token = jwt.sign(
@@ -170,7 +170,8 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async (req, res) => {
     const allowedRoles = ['user', 'admin'];
     const assignedRole = allowedRoles.includes(requestedRole) ? requestedRole : 'user';
     const users = readJSON(USERS_FILE);
-    if (users.find(u => u.email.toLowerCase() === email.toLowerCase()))
+    // Solo utenti attivi (non revocati)
+    if (users.find(u => u.email.toLowerCase() === email.toLowerCase() && !u.revokedAt))
         return res.status(409).json({ error: 'Utente già registrato.' });
     const invitations = readJSON(INVITATIONS_FILE);
     // Invalida inviti precedenti per la stessa email
@@ -222,7 +223,10 @@ app.post('/api/auth/register', async (req, res) => {
 
 // ── GET /api/auth/users  (superadmin o admin) ───────────────────────────────
 app.get('/api/auth/users', authenticate, requireAdmin, (req, res) => {
-    res.json(readJSON(USERS_FILE).map(({ passwordHash, ...u }) => u));
+    // Restituisce solo gli utenti attivi; quelli revocati restano nel DB
+    res.json(readJSON(USERS_FILE)
+        .filter(u => !u.revokedAt)
+        .map(({ passwordHash, revokedAt, ...u }) => u));
 });
 
 // ── DELETE /api/auth/users/:id  (superadmin o admin, + auto-eliminazione superadmin) ──
@@ -237,14 +241,19 @@ app.delete('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
     // Auto-eliminazione: solo il superadmin può eliminare se stesso
     if (req.user.id === user.id) {
         if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Non puoi eliminare il tuo profilo.' });
-        writeJSON(USERS_FILE, users.filter(u => u.id !== req.params.id));
+        user.revokedAt    = new Date().toISOString();
+        user.passwordHash = '';
+        writeJSON(USERS_FILE, users);
         return res.json({ success: true, selfDeleted: true });
     }
     // Non si può eliminare un altro superadmin
     if (user.role === 'superadmin') return res.status(403).json({ error: 'Impossibile eliminare un superadmin.' });
     // Il target deve avere livello STRETTAMENTE inferiore a chi agisce
     if (targetLevel >= myLevel) return res.status(403).json({ error: 'Permessi insufficienti per eliminare questo utente.' });
-    writeJSON(USERS_FILE, users.filter(u => u.id !== req.params.id));
+    // Soft delete: conserva storico e dati, impedisce solo l'accesso
+    user.revokedAt    = new Date().toISOString();
+    user.passwordHash = '';
+    writeJSON(USERS_FILE, users);
     res.json({ success: true });
 });
 
@@ -261,8 +270,9 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
     const user  = users.find(u => u.id === req.params.id);
     if (!user)                   return res.status(404).json({ error: 'Utente non trovato.' });
     if (req.user.id === user.id) return res.status(403).json({ error: 'Non puoi modificare il tuo stesso ruolo.' });
-    // Non si può toccare un altro superadmin
+    // Non si può toccare un altro superadmin o un utente revocato
     if (user.role === 'superadmin') return res.status(403).json({ error: 'Impossibile modificare un superadmin.' });
+    if (user.revokedAt)             return res.status(403).json({ error: 'Impossibile modificare un utente revocato.' });
     // Il nuovo ruolo non può superare il livello di chi agisce
     if (ROLE_LEVEL[newRole] > ROLE_LEVEL[req.user.role])
         return res.status(403).json({ error: 'Non puoi assegnare un ruolo superiore al tuo.' });
