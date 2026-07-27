@@ -266,10 +266,13 @@ app.post('/api/auth/register', async (req, res) => {
 
 // ── GET /api/auth/users  (superadmin o admin) ───────────────────────────────
 app.get('/api/auth/users', authenticate, requireAdmin, (req, res) => {
-    // Restituisce solo gli utenti attivi; quelli revocati restano nel DB
+    // Restituisce solo gli utenti attivi; normalizza ruoli non validi a 'user'
     res.json(readJSON(USERS_FILE)
         .filter(u => !u.revokedAt)
-        .map(({ passwordHash, revokedAt, ...u }) => u));
+        .map(({ passwordHash, revokedAt, ...u }) => ({
+            ...u,
+            role: ALL_ROLES.includes(u.role) ? u.role : 'user'
+        })));
 });
 
 // ── DELETE /api/auth/users/:id  (superadmin o admin, + auto-eliminazione superadmin) ──
