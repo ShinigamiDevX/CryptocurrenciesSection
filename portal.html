@@ -186,7 +186,7 @@
                         <!-- Tab: Invita -->
                 <div class="admin-section" id="tab-invite">
                     <div class="admin-msg" id="inviteMsg"></div>
-                    <p style="font-size:0.85rem;color:#5ABBC8;margin-bottom:1rem;">Inserisci l'email dell'utente da invitare. Verrà generato un link di registrazione valido per 7 giorni.</p>
+                    <p style="font-size:0.85rem;color:#5ABBC8;margin-bottom:1rem;">Inserisci l'email dell'utente da invitare. Verrà generato un link di registrazione valido per <strong>15 minuti</strong>.</p>
                     <div class="invite-form">
                         <input type="email" id="inviteEmail" placeholder="email@dominio.com">
                         <button class="btn-invite" onclick="sendInvite()">Genera link</button>
@@ -250,9 +250,8 @@
     // ── Admin panel ───────────────────────────────────────────────────────────
     function openAdminPanel() {
         document.getElementById('adminModalBg').style.display = 'flex';
-        // Mostra selettore ruolo solo al superadmin
-        document.getElementById('inviteRoleGroup').style.display =
-            _currentUser.role === 'superadmin' ? 'block' : 'none';
+        // Admin e superadmin possono scegliere il ruolo dell'invitato
+        document.getElementById('inviteRoleGroup').style.display = 'block';
         loadUsers();
     }
     function closeAdminPanel() {

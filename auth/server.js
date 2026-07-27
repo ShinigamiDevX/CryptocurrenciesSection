@@ -58,7 +58,7 @@ async function sendInviteEmail(toEmail, inviteToken, assignedRole) {
           <tr><td style="padding:32px;">
             <h2 style="color:#1a2a3a;margin:0 0 12px;">Sei stato invitato</h2>
             <p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Hai ricevuto un invito per accedere al portale operativo interno come <strong>${roleLabel}</strong>.</p>
-            <p style="color:#4a5568;line-height:1.6;margin:0 0 28px;">Clicca sul pulsante qui sotto per completare la registrazione. Il link è valido per <strong>7 giorni</strong>.</p>
+            <p style="color:#4a5568;line-height:1.6;margin:0 0 28px;">Clicca sul pulsante qui sotto per completare la registrazione. Il link è valido per <strong>15 minuti</strong>.</p>
             <a href="${link}" style="display:inline-block;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Completa la registrazione</a>
             <p style="color:#a0aec0;font-size:0.8rem;margin:24px 0 0;">Se il pulsante non funziona, copia questo link nel browser:<br><span style="color:#00C8FF;word-break:break-all;">${link}</span></p>
           </td></tr>
@@ -162,8 +162,8 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async (req, res) => {
     const { email, role: requestedRole } = req.body || {};
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
         return res.status(400).json({ error: 'Email non valida.' });
-    // Gli admin possono invitare solo utenti; solo il superadmin può creare admin
-    const allowedRoles = req.user.role === 'superadmin' ? ['user', 'admin'] : ['user'];
+    // Admin e superadmin possono scegliere il ruolo dell'invitato (user o admin)
+    const allowedRoles = ['user', 'admin'];
     const assignedRole = allowedRoles.includes(requestedRole) ? requestedRole : 'user';
     const users = readJSON(USERS_FILE);
     if (users.find(u => u.email.toLowerCase() === email.toLowerCase()))
@@ -178,7 +178,7 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async (req, res) => {
         role:      assignedRole,
         invitedBy: req.user.email,
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         used: false
     });
     writeJSON(INVITATIONS_FILE, invitations);
