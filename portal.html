@@ -281,8 +281,31 @@
     // ── Admin panel ───────────────────────────────────────────────────────────
     function openAdminPanel() {
         document.getElementById('adminModalBg').style.display = 'flex';
-        // Admin e superadmin possono scegliere il ruolo dell'invitato
-        document.getElementById('inviteRoleGroup').style.display = 'block';
+
+        // Reimposta sempre il tab "Utenti" come attivo all'apertura
+        const tabIds = ['users', 'invite', 'invitations', 'requests'];
+        document.querySelectorAll('.admin-tab').forEach((t, i) =>
+            t.classList.toggle('active', i === 0));
+        document.querySelectorAll('.admin-section').forEach(s =>
+            s.classList.remove('active'));
+        document.getElementById('tab-users').classList.add('active');
+
+        // Popola il select ruolo invito in base al livello corrente
+        const myLevel  = { reader: 0, user: 1, admin: 2, superadmin: 3 }[_currentUser.role] || 0;
+        const allRoles = [{v:'reader',label:'Reader'},{v:'user',label:'Utente'},{v:'admin',label:'Amministratore'},{v:'superadmin',label:'Super Admin'}];
+        const sel = document.getElementById('inviteRoleSelect');
+        if (sel) {
+            sel.innerHTML = allRoles
+                .filter(r => ({ reader:0,user:1,admin:2,superadmin:3 }[r.v] <= myLevel))
+                .map(r => `<option value="${r.v}">${r.label}</option>`).join('');
+            sel.value = 'user';
+        }
+
+        // Self-delete e tab Richieste solo per superadmin
+        const isSA = _currentUser.role === 'superadmin';
+        document.getElementById('selfDeleteSection').style.display = isSA ? 'block' : 'none';
+        document.getElementById('tabBtnRequests').style.display    = isSA ? ''      : 'none';
+
         loadUsers();
     }
     function closeAdminPanel() {
@@ -339,6 +362,10 @@
                 const badgeCls = (u.role === 'superadmin' || u.role === 'admin') ? 'badge-admin' : 'badge-user';
                 const editHint = (canEdit && u.role === 'superadmin')
                     ? ' title="Richiede consenso di un altro superadmin"' : '';
+                // Nota per righe superadmin senza azioni dirette disponibili
+                const noActionNote = (!canDelete && !canEdit && !isSelf && u.role === 'superadmin')
+                    ? '<span style="color:#5ABBC8;font-size:0.75rem;" title="Usa \'Richieste\' per cambiare ruolo prima di revocare">Usa tab Richieste</span>'
+                    : '';
                 return `
                 <tr>
                     <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
@@ -347,6 +374,7 @@
                     <td style="white-space:nowrap;">
                         ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
                         ${canEdit   ? `<select class="role-select"${editHint} onchange="changeRole('${u.id}','${u.email}',this.value,this)">${roleOpts}</select>` : ''}
+                        ${noActionNote}
                     </td>
                 </tr>`;
             }).join('');
