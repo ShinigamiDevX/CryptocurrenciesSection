@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Utenti — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Auth overlay ── */
+        #authOverlay { position:fixed;inset:0;background:#030E1C;z-index:9999;display:flex;align-items:center;justify-content:center; }
+        #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
+
+        /* ── Layout pagina ── */
+        main { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; }
+        .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin-bottom: 2rem; }
+
+        /* ── Tabs ── */
+        .tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(0,200,255,0.15); margin-bottom: 1.8rem; }
+        .tab-btn {
+            padding: 0.75rem 1.6rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            color: #5ABBC8; border: none; background: none; border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab-btn.active { color: #00C8FF; border-bottom-color: #00C8FF; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Tabella utenti ── */
+        .users-table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+        .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.6rem 0.9rem; border-bottom:1px solid rgba(0,200,255,0.15); }
+        .users-table td { padding:0.7rem 0.9rem; color:#C8F0E8; border-bottom:1px solid rgba(0,200,255,0.06); vertical-align:middle; }
+        .users-table tr:last-child td { border-bottom: none; }
+        .badge { display:inline-block; padding:0.2rem 0.55rem; border-radius:5px; font-size:0.76rem; font-weight:600; }
+        .badge-admin { background:rgba(0,200,255,0.15); color:#00C8FF; }
+        .badge-user  { background:rgba(0,230,118,0.12); color:#00E676; }
+        .btn-del { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; }
+        .btn-del:hover { background:rgba(255,71,87,0.28); }
+        .role-select { background:rgba(0,200,255,0.08); border:1px solid rgba(0,200,255,0.25); color:#00C8FF; border-radius:5px; font-size:0.78rem; padding:0.28rem 0.45rem; margin-left:0.4rem; cursor:pointer; font-family:inherit; outline:none; }
+        .empty-state { color:#5ABBC8; font-size:0.88rem; padding:1rem 0; }
+
+        /* ── Form invito ── */
+        .invite-row { display:flex; gap:0.75rem; align-items:flex-end; margin-bottom:1.2rem; flex-wrap:wrap; }
+        .invite-row .field-group { display:flex; flex-direction:column; gap:0.35rem; flex:1; min-width:220px; }
+        .invite-row label { font-size:0.78rem; font-weight:600; color:#7ACCE0; text-transform:uppercase; letter-spacing:0.05em; }
+        .invite-row input, .invite-row select {
+            padding:0.65rem 0.9rem; background:rgba(0,200,255,0.06);
+            border:1px solid rgba(0,200,255,0.22); border-radius:8px;
+            color:#C8F0E8; font-size:0.9rem; font-family:inherit; outline:none;
+        }
+        .invite-row input:focus, .invite-row select:focus { border-color:rgba(0,200,255,0.6); }
+        .invite-row select { cursor:pointer; }
+        .btn-invite { padding:0.68rem 1.4rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:8px; color:#030E1C; font-weight:700; font-size:0.88rem; cursor:pointer; white-space:nowrap; align-self:flex-end; }
+        .invite-result { background:rgba(0,200,255,0.08); border:1px solid rgba(0,200,255,0.25); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#00C8FF; word-break:break-all; display:none; margin-top:0.5rem; }
+        .copy-btn { margin-top:0.5rem; display:inline-block; padding:0.35rem 0.85rem; font-size:0.78rem; background:rgba(0,200,255,0.14); border:1px solid rgba(0,200,255,0.35); border-radius:5px; color:#00C8FF; cursor:pointer; }
+
+        /* ── Inviti in sospeso ── */
+        .inv-list { display:flex; flex-direction:column; gap:0.55rem; }
+        .inv-item { background:rgba(0,200,255,0.05); border:1px solid rgba(0,200,255,0.12); border-radius:8px; padding:0.75rem 1rem; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center; gap:0.6rem; flex-wrap:wrap; }
+        .inv-email { color:#C8F0E8; font-weight:500; }
+        .inv-exp   { color:#5ABBC8; font-size:0.75rem; white-space:nowrap; }
+        .inv-role  { font-size:0.75rem; padding:0.15rem 0.45rem; border-radius:4px; font-weight:600; }
+
+        /* ── Messaggi feedback ── */
+        .feedback { border-radius:8px; font-size:0.85rem; padding:0.7rem 1rem; margin-bottom:1rem; display:none; }
+        .feedback.error   { background:rgba(255,71,87,0.12); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; }
+        .feedback.success { background:rgba(0,230,118,0.12); border:1px solid rgba(0,230,118,0.35); color:#00E676; }
+
+        /* ── Modale di conferma ── */
+        .confirm-bg { position:fixed;inset:0;background:rgba(3,14,28,0.85);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem; }
+        .confirm-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:380px;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
+        .confirm-box p { color:#C8F0E8;font-size:0.95rem;line-height:1.5;margin:0 0 1.4rem; }
+        .confirm-btns { display:flex;gap:0.7rem;justify-content:flex-end; }
+        .confirm-btns .btn-ok { padding:0.6rem 1.4rem;background:linear-gradient(135deg,#00C8FF,#00E676);border:none;border-radius:7px;color:#030E1C;font-weight:700;font-size:0.88rem;cursor:pointer; }
+        .confirm-btns .btn-cancel { padding:0.6rem 1.2rem;background:transparent;border:1px solid rgba(0,200,255,0.3);border-radius:7px;color:#5ABBC8;font-size:0.88rem;cursor:pointer; }
+        .confirm-btns .btn-cancel:hover { background:rgba(0,200,255,0.07); }
+    </style>
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Gestione Utenti</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/portal">← Portale</a></li>
+                    <li><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-title">⚙️ Gestione Utenti</div>
+        <p class="page-sub">Amministrazione degli accessi al portale operativo.</p>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('users')">Utenti</button>
+            <button class="tab-btn" onclick="switchTab('invite')">Invita</button>
+            <button class="tab-btn" onclick="switchTab('invitations')">Inviti in sospeso</button>
+        </div>
+
+        <!-- Tab: Utenti -->
+        <div class="tab-panel active" id="tab-users">
+            <div class="feedback" id="usersMsg"></div>
+            <table class="users-table">
+                <thead><tr><th>Email</th><th>Ruolo</th><th>Registrato</th><th>Azioni</th></tr></thead>
+                <tbody id="usersTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Tab: Invita -->
+        <div class="tab-panel" id="tab-invite">
+            <div class="feedback" id="inviteMsg"></div>
+            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.4rem;">Genera un link di registrazione valido per <strong>15 minuti</strong>. Il destinatario dovrà verificare l'email con un codice OTP.</p>
+            <div class="invite-row">
+                <div class="field-group">
+                    <label>Email da invitare</label>
+                    <input type="email" id="inviteEmail" placeholder="email@dominio.com">
+                </div>
+                <div class="field-group" style="max-width:200px;">
+                    <label>Ruolo da assegnare</label>
+                    <select id="inviteRoleSelect"></select>
+                </div>
+                <button class="btn-invite" onclick="sendInvite()">Genera link</button>
+            </div>
+            <div class="invite-result" id="inviteResult">
+                <div style="font-size:0.78rem;color:#7ACCE0;margin-bottom:0.3rem;">Link di registrazione:</div>
+                <div id="inviteLink"></div>
+                <button class="copy-btn" onclick="copyInviteLink()">Copia link</button>
+            </div>
+        </div>
+
+        <!-- Tab: Inviti in sospeso -->
+        <div class="tab-panel" id="tab-invitations">
+            <div class="feedback" id="invitationsMsg"></div>
+            <div class="inv-list" id="invList"></div>
+        </div>
+    </main>
+
+    <!-- Modale di conferma -->
+    <div class="confirm-bg" id="confirmModal" style="display:none;">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script>
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    let _currentUser = null;
+    const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
+    const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+
+    (async function() {
+        const token = localStorage.getItem('authToken');
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            _currentUser = await res.json();
+            if (_currentUser.role !== 'superadmin' && _currentUser.role !== 'admin') {
+                window.location.replace('/portal'); return;
+            }
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('navUserEmail').textContent = _currentUser.email;
+            // Popola select ruolo invito
+            const myLevel  = ROLE_LEVEL[_currentUser.role] || 0;
+            const sel = document.getElementById('inviteRoleSelect');
+            sel.innerHTML = ['reader','user','admin','superadmin']
+                .filter(r => ROLE_LEVEL[r] <= myLevel)
+                .map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('');
+            sel.value = 'user';
+            loadUsers();
+        } catch {
+            localStorage.removeItem('authToken');
+            window.location.replace('/login');
+        }
+    })();
+
+    function logout() { localStorage.removeItem('authToken'); window.location.replace('/login'); }
+    function authHeader() { return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' }; }
+
+    // ── Tab ───────────────────────────────────────────────────────────────────
+    function switchTab(tab) {
+        ['users','invite','invitations'].forEach((t, i) => {
+            document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === tab);
+            document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+        });
+        if (tab === 'users')       loadUsers();
+        if (tab === 'invitations') loadInvitations();
+    }
+
+    // ── Feedback ──────────────────────────────────────────────────────────────
+    function showMsg(id, text, type) {
+        const el = document.getElementById(id);
+        el.className = 'feedback ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4500);
+    }
+
+    // ── Modale conferma ───────────────────────────────────────────────────────
+    function showConfirm(message, onOk, onCancel) {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmMsg').textContent = message;
+        modal.style.display = 'flex';
+        const ok = document.getElementById('confirmOk'), cancel = document.getElementById('confirmCancel');
+        function close() { modal.style.display='none'; ok.onclick=null; cancel.onclick=null; }
+        ok.onclick     = () => { close(); if (onOk)     onOk(); };
+        cancel.onclick = () => { close(); if (onCancel) onCancel(); };
+    }
+
+    // ── Utenti ────────────────────────────────────────────────────────────────
+    async function loadUsers() {
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#5ABBC8;padding:0.6rem">Caricamento...</td></tr>';
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        try {
+            const res   = await fetch('/api/auth/users', { headers: authHeader() });
+            const users = await res.json();
+            if (!users.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nessun utente.</td></tr>'; return; }
+            tbody.innerHTML = users.map(u => {
+                const isSelf        = u.id === _currentUser.id;
+                const isSuperadmin  = u.role === 'superadmin';
+                const isFounder     = u.email === 'portalecrypto@proton.me';
+                const targetLevel   = ROLE_LEVEL[u.role] ?? 0;
+                const canDelete     = !isSelf && !isSuperadmin && targetLevel < myLevel;
+                const canEdit       = !isFounder && !isSuperadmin && !isSelf && targetLevel < myLevel;
+                const roleOpts      = canEdit
+                    ? ['reader','user','admin','superadmin']
+                        .filter(r => ROLE_LEVEL[r] <= myLevel)
+                        .map(r => `<option value="${r}" ${r===u.role?'selected':''}>${ROLE_LABEL[r]}</option>`)
+                        .join('')
+                    : '';
+                const badgeCls = (isSuperadmin || u.role==='admin') ? 'badge-admin' : 'badge-user';
+                return `<tr>
+                    <td>${u.email}${isSelf?' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>':''}</td>
+                    <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role]||u.role}</span></td>
+                    <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
+                    <td style="white-space:nowrap;">
+                        ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
+                        ${canEdit   ? `<select class="role-select" onchange="changeRole('${u.id}','${u.email}',this.value,this)">${roleOpts}</select>` : ''}
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch { tbody.innerHTML = '<tr><td colspan="4" style="color:#FF6B7A">Errore caricamento.</td></tr>'; }
+    }
+
+    function deleteUser(id, email) {
+        showConfirm(`Revocare l'accesso a ${email}?`, async () => {
+            const res = await fetch('/api/auth/users/' + id, { method: 'DELETE', headers: authHeader() });
+            if (res.ok) { showMsg('usersMsg', 'Utente rimosso.', 'success'); loadUsers(); }
+            else { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); }
+        });
+    }
+
+    function changeRole(id, email, newRole, sel) {
+        showConfirm(`Cambiare il ruolo di ${email} in ${ROLE_LABEL[newRole]||newRole}?`, async () => {
+            const res = await fetch('/api/auth/users/' + id, { method: 'PATCH', headers: authHeader(), body: JSON.stringify({ role: newRole }) });
+            const d   = await res.json();
+            showMsg('usersMsg', res.ok ? `Ruolo aggiornato a ${ROLE_LABEL[newRole]||newRole}.` : (d.error||'Errore.'), res.ok ? 'success' : 'error');
+            loadUsers();
+        }, () => loadUsers());
+    }
+
+    // ── Invito ────────────────────────────────────────────────────────────────
+    async function sendInvite() {
+        const email = document.getElementById('inviteEmail').value.trim();
+        const role  = document.getElementById('inviteRoleSelect').value || 'user';
+        document.getElementById('inviteResult').style.display = 'none';
+        if (!email) { showMsg('inviteMsg', 'Inserisci un\'email.', 'error'); return; }
+        const res  = await fetch('/api/auth/invite', { method: 'POST', headers: authHeader(), body: JSON.stringify({ email, role }) });
+        const data = await res.json();
+        if (!res.ok) { showMsg('inviteMsg', data.error || 'Errore.', 'error'); return; }
+        const fullLink  = window.location.origin + data.link;
+        const roleLabel = ROLE_LABEL[data.role] || data.role;
+        document.getElementById('inviteLink').textContent = fullLink;
+        document.getElementById('inviteResult').style.display = 'block';
+        document.getElementById('inviteEmail').value = '';
+        const note = data.emailSent ? '— email inviata automaticamente.' : '— copia e invia il link (SMTP non configurato).';
+        showMsg('inviteMsg', `Invito ${roleLabel} generato ${note}`, 'success');
+    }
+
+    function copyInviteLink() {
+        navigator.clipboard.writeText(document.getElementById('inviteLink').textContent).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            btn.textContent = '✓ Copiato!';
+            setTimeout(() => btn.textContent = 'Copia link', 2000);
+        });
+    }
+
+    // ── Inviti in sospeso ─────────────────────────────────────────────────────
+    async function loadInvitations() {
+        const list = document.getElementById('invList');
+        list.innerHTML = '<div class="empty-state">Caricamento...</div>';
+        try {
+            const res  = await fetch('/api/auth/invitations', { headers: authHeader() });
+            const data = await res.json();
+            if (!data.length) { list.innerHTML = '<div class="empty-state">Nessun invito in sospeso.</div>'; return; }
+            list.innerHTML = data.map(i => {
+                const rLabel  = ROLE_LABEL[i.role] || i.role;
+                const bCls    = (i.role==='admin'||i.role==='superadmin') ? 'badge-admin' : 'badge-user';
+                const exp     = new Date(i.expiresAt).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'});
+                return `<div class="inv-item">
+                    <span class="inv-email">${i.email}</span>
+                    <span class="badge ${bCls} inv-role">${rLabel}</span>
+                    <span class="inv-exp">Scade: ${exp}</span>
+                    <button class="btn-del" onclick="cancelInvitation('${i.token}','${i.email}')">Annulla</button>
+                </div>`;
+            }).join('');
+        } catch { list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>'; }
+    }
+
+    function cancelInvitation(token, email) {
+        showConfirm(`Annullare l'invito per ${email}?`, async () => {
+            const res = await fetch('/api/auth/invitations/' + token, { method: 'DELETE', headers: authHeader() });
+            if (res.ok) { showMsg('invitationsMsg', 'Invito annullato.', 'success'); loadInvitations(); }
+            else { const d = await res.json(); showMsg('invitationsMsg', d.error||'Errore.', 'error'); }
+        });
+    }
+    </script>
+</body>
+</html>
