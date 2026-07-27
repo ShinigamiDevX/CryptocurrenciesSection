@@ -18,23 +18,24 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
+            padding: 1.5rem 2rem;
         }
         .card {
             background: rgba(3, 12, 28, 0.97);
             border: 1px solid rgba(0,200,255,0.18);
             border-radius: 16px;
-            padding: 2.8rem 2.4rem 2.4rem;
+            padding: 2.4rem 2.4rem 2.2rem;
             width: 100%;
-            max-width: 420px;
+            max-width: 720px;
+            overflow: visible;
             box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.7);
         }
-        .logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.6rem; }
         .logo img { height: 2.8rem; }
         .logo-text { font-size: 1.1rem; font-weight: 700; color: #C8F0E8; }
         .logo-text span { color: #00C8FF; }
         h2 { font-size: 1.45rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.4rem; }
-        .subtitle { font-size: 0.85rem; color: #5ABBC8; margin-bottom: 2rem; }
+        .subtitle { font-size: 0.85rem; color: #5ABBC8; margin-bottom: 1.6rem; }
         .invited-email {
             background: rgba(0,200,255,0.08);
             border: 1px solid rgba(0,200,255,0.25);
@@ -45,7 +46,14 @@
             margin-bottom: 1.4rem;
             word-break: break-all;
         }
-        .field { margin-bottom: 1.2rem; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 0.9rem;
+        }
+        .form-grid .field-full { grid-column: 1 / -1; }
+        .field { margin-bottom: 1.1rem; position: relative; }
+        .field:has(.csel) { z-index: 5; }
         label { display: block; font-size: 0.8rem; font-weight: 600; color: #7ACCE0; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.45rem; }
         input {
             width: 100%;
@@ -80,14 +88,25 @@
         }
         .btn:hover { opacity: 0.88; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(0,200,255,0.35);
+            color: #00C8FF;
+        }
+        .btn-outline:hover { background: rgba(0,200,255,0.08); opacity: 1; }
         .msg { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin-bottom: 1.2rem; display: none; }
         .msg.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
         .msg.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
-        footer { margin-top: 2rem; font-size: 0.75rem; color: rgba(90,187,200,0.45); text-align: center; }
+        footer { margin-top: 2rem; font-size: 0.75rem; color: rgba(90,187,200,0.45); text-align: center; width: 100%; }
         #loadingState { text-align: center; color: #5ABBC8; font-size: 0.95rem; padding: 1rem 0; }
         #invalidState { text-align: center; }
         #invalidState p { color: #FF6B7A; margin-bottom: 1rem; }
         #invalidState a { color: #00C8FF; }
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            .card { max-width: 100%; padding: 1.6rem 1.2rem; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -108,40 +127,42 @@
             <div class="msg success" id="successMsg"></div>
             <div class="invited-email" id="invitedEmail"></div>
             <form id="registerForm" autocomplete="off">
-                <div class="field">
-                    <label for="grado">Grado</label>
-                    <div id="gradoSelect" class="csel"></div>
-                </div>
-                <div style="display:flex;gap:0.75rem;">
-                    <div class="field" style="flex:1;">
+                <div class="form-grid">
+                    <div class="field field-full">
+                        <label for="grado">Grado</label>
+                        <div id="gradoSelect" class="csel"></div>
+                    </div>
+                    <div class="field">
                         <label for="nome">Nome</label>
                         <input type="text" id="nome" name="nome" placeholder="Nome" autocomplete="given-name" required>
                     </div>
-                    <div class="field" style="flex:1;">
+                    <div class="field">
                         <label for="cognome">Cognome</label>
                         <input type="text" id="cognome" name="cognome" placeholder="Cognome" autocomplete="family-name" required>
                     </div>
-                </div>
-                <div class="field">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Minimo 8 caratteri" autocomplete="new-password" required>
-                    <div class="hint">Almeno 8 caratteri.</div>
-                </div>
-                <div class="field">
-                    <label for="confirmPassword">Conferma Password</label>
-                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Ripeti la password" autocomplete="new-password" required>
-                </div>
-                <!-- Step OTP -->
-                <div id="otpStep" style="display:none;">
                     <div class="field">
-                        <label for="otpInput">Codice di verifica</label>
-                        <input type="text" id="otpInput" name="otp" placeholder="Inserisci il codice a 6 cifre" autocomplete="one-time-code" inputmode="numeric" maxlength="6">
-                        <div class="hint" id="otpHint">Codice inviato alla tua email. Valido 10 minuti.</div>
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder="Minimo 8 caratteri" autocomplete="new-password" required>
+                        <div class="hint">Almeno 8 caratteri.</div>
                     </div>
-                    <button type="button" class="btn" id="resendBtn" style="background:transparent;border:1px solid rgba(0,200,255,0.35);color:#00C8FF;margin-top:0;margin-bottom:0.8rem;">Invia di nuovo il codice</button>
+                    <div class="field">
+                        <label for="confirmPassword">Conferma Password</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Ripeti la password" autocomplete="new-password" required>
+                    </div>
+                    <!-- Step OTP -->
+                    <div id="otpStep" class="field-full" style="display:none;">
+                        <div class="field">
+                            <label for="otpInput">Codice di verifica</label>
+                            <input type="text" id="otpInput" name="otp" placeholder="Inserisci il codice a 6 cifre" autocomplete="one-time-code" inputmode="numeric" maxlength="6">
+                            <div class="hint" id="otpHint">Codice inviato alla tua email. Valido 10 minuti.</div>
+                        </div>
+                        <button type="button" class="btn btn-outline" id="resendBtn" style="margin-top:0;margin-bottom:0.4rem;">Invia di nuovo il codice</button>
+                    </div>
+                    <div class="field-full">
+                        <button type="button" class="btn" id="sendOtpBtn">Invia codice di verifica</button>
+                        <button type="submit" class="btn" id="submitBtn" style="display:none;margin-top:0.6rem;">Completa registrazione</button>
+                    </div>
                 </div>
-                <button type="button" class="btn" id="sendOtpBtn">Invia codice di verifica</button>
-                <button type="submit" class="btn" id="submitBtn" style="display:none;margin-top:0.6rem;">Completa registrazione</button>
             </form>
         </div>
     </div>
@@ -216,9 +237,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token, password: pwd, otp, nome, cognome, grado })
                 });
-                const data = await res.json();
+                let data = {};
+                try { data = await res.json(); } catch { /* risposta non JSON (es. 502) */ }
                 if (!res.ok) {
-                    errorMsg.textContent = data.error || 'Errore durante la registrazione.';
+                    errorMsg.textContent = data.error || (res.status >= 500
+                        ? 'Servizio temporaneamente non disponibile. Riprovare.'
+                        : 'Errore durante la registrazione.');
                     errorMsg.style.display = 'block';
                 } else {
                     document.getElementById('registerForm').style.display = 'none';
@@ -227,7 +251,7 @@
                     setTimeout(() => window.location.replace('/login'), 2000);
                 }
             } catch {
-                errorMsg.textContent = 'Errore di rete. Riprovare.';
+                errorMsg.textContent = 'Errore di rete. Controlla la connessione e riprova.';
                 errorMsg.style.display = 'block';
             } finally {
                 submitBtn.disabled = false;

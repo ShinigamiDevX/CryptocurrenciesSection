@@ -6,9 +6,60 @@
     <title>CryptocurrenciesSection — Portale Operativo Interno</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="custom-select.css">
+    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="custom-select.css?v=2">
     <style>
+        /* Campanella: regole critiche (evita layout rotto se CSS in cache) */
+        .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
+        .nav-bell-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; padding: 0; margin: 0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 9px; color: #7ACCE0; cursor: pointer;
+        }
+        .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
+        .nav-bell-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-badge {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
+            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+        }
+        .nav-bell-badge.visible { display: block; }
+        #navBellPanel {
+            display: none !important; position: fixed; top: 64px; right: 1rem;
+            width: min(360px, calc(100vw - 2rem)); background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
+        }
+        #navBellPanel.open { display: block !important; }
+        #navBellPanel .nav-bell-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
+        #navBellPanel .nav-bell-panel-head a {
+            color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
+            background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+        }
+        #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
+        #navBellPanel .nav-bell-item {
+            display: block; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
+        }
+        #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
+        #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+        #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
+        #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
+        header nav ul { flex-wrap: nowrap !important; align-items: center; }
+        header nav ul li { white-space: nowrap; }
+        li.nav-logout a {
+            background: linear-gradient(135deg, #00d4ff, #7b5ea7) !important;
+            color: #fff !important; padding: 0.45rem 1.2rem !important;
+            border-radius: 8px !important; text-transform: none !important;
+        }
+
         /* ── Auth overlay ─────────────────────────────────────── */
         #authOverlay {
             position: fixed; inset: 0; background: #030E1C; z-index: 9999;
@@ -132,22 +183,6 @@
         }
         .confirm-btns .btn-cancel:hover { background: rgba(0,200,255,0.07); }
         .empty-state { color: #5ABBC8; font-size: 0.85rem; padding: 0.5rem 0; }
-        /* Modale profilo utente */
-        .profile-modal-bg { position:fixed;inset:0;background:rgba(3,14,28,0.88);z-index:8000;display:flex;align-items:center;justify-content:center;padding:1rem; }
-        .profile-modal-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:16px;padding:2rem;width:100%;max-width:460px;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
-        .profile-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 0.3rem; }
-        .profile-modal-box p.sub { color:#5ABBC8;font-size:0.82rem;margin:0 0 1.4rem; }
-        .pf-field { margin-bottom:0.85rem; }
-        .pf-field label { display:block;font-size:0.78rem;font-weight:600;color:#7ACCE0;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem; }
-        .pf-field input, .pf-field select { width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.22);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none; }
-        .pf-field input:focus, .pf-field select:focus { border-color:rgba(0,200,255,0.6); }
-        .pf-field select option  { background:#0d1f35;color:#C8F0E8; }
-        .pf-field select optgroup { background:#0a1628;color:#7ACCE0;font-weight:700; }
-        .pf-row { display:flex;gap:0.6rem; }
-        .pf-row .pf-field { flex:1; }
-        .pf-actions { display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1.2rem; }
-        .btn-pf-submit { padding:0.6rem 1.4rem;background:linear-gradient(135deg,#00C8FF,#00E676);border:none;border-radius:7px;color:#030E1C;font-weight:700;font-size:0.88rem;cursor:pointer; }
-        .pf-grado-img { width:40px;height:40px;object-fit:contain;display:block;margin:0.5rem auto 0; }
         /* Richieste cambio ruolo */
         .req-item {
             background: rgba(255,200,0,0.05); border: 1px solid rgba(255,200,0,0.2);
@@ -171,12 +206,28 @@
                 <ul>
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
                     <li id="navAdminBtn" style="display:none;"><a href="/gestione-utenti">Gestione Utenti</a></li>
-                    <li><a href="#" onclick="openProfileModal();return false;">Il mio profilo</a></li>
-                    <li><a href="#" onclick="logout();return false;">Esci</a></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
                 </ul>
             </nav>
         </div>
     </header>
+
+    <!-- Pannello notifiche fuori dall'header (non rompe il layout) -->
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
 
     <main>
         <section style="padding: 2.5rem 1rem; text-align: left;">
@@ -232,28 +283,6 @@
         </div>
     </div>
 
-    <!-- ── Modale Il mio profilo ─────────────────────────────────────────── -->
-    <div class="profile-modal-bg" id="profileModal" style="display:none;" onclick="if(event.target===this)closeProfileModal()">
-        <div class="profile-modal-box">
-            <h3>👤 Il mio profilo</h3>
-            <p class="sub" id="profileSubtitle"></p>
-            <div class="feedback" id="profileMsg" style="border-radius:8px;font-size:0.85rem;padding:0.7rem 1rem;margin-bottom:1rem;display:none;"></div>
-            <div class="pf-row">
-                <div class="pf-field"><label>Nome</label><input type="text" id="pfNome" placeholder="Nome"></div>
-                <div class="pf-field"><label>Cognome</label><input type="text" id="pfCognome" placeholder="Cognome"></div>
-            </div>
-            <div class="pf-field">
-                <label>Grado</label>
-                <div id="pfGradoSel" class="csel"></div>
-                <img id="pfGradoImg" class="pf-grado-img" src="" style="display:none;">
-            </div>
-            <div class="pf-actions">
-                <button class="confirm-btns" style="background:transparent;border:1px solid rgba(0,200,255,0.3);border-radius:7px;color:#5ABBC8;font-size:0.88rem;padding:0.6rem 1.2rem;cursor:pointer;" onclick="closeProfileModal()">Annulla</button>
-                <button class="btn-pf-submit" id="pfSubmitBtn" onclick="submitProfileChange()">Richiedi modifica</button>
-            </div>
-        </div>
-    </div>
-
     <!-- ── Pannello Admin ───────────────────────────────────────────────── -->
     <div class="admin-modal-bg" id="adminModalBg" style="display:none;" onclick="if(event.target===this)closeAdminPanel()">
         <div class="admin-modal">
@@ -305,6 +334,7 @@
     </div>
 
     <script src="custom-select.js"></script>
+    <script src="nav-notifications.js?v=1"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -320,17 +350,7 @@
             if (_currentUser.role === 'superadmin' || _currentUser.role === 'admin') {
                 document.getElementById('navAdminBtn').style.display = '';
             }
-            // Superadmin: controlla subito se ci sono richieste pendenti
-            if (_currentUser.role === 'superadmin') {
-                fetch('/api/auth/role-change-requests', { headers: { 'Authorization': 'Bearer ' + token } })
-                    .then(r => r.ok ? r.json() : [])
-                    .then(data => {
-                        if (data.length > 0) {
-                            const badge = document.getElementById('reqBadge');
-                            if (badge) { badge.textContent = data.length; badge.style.display = ''; }
-                        }
-                    }).catch(() => {});
-            }
+            initNavBell();
         } catch {
             localStorage.removeItem('authToken');
             window.location.replace('/login');
@@ -344,101 +364,6 @@
 
     function authHeader() {
         return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' };
-    }
-
-    // ── Profilo utente ────────────────────────────────────────────────────────
-    const GRADO_IMG_P = {
-        "Generale di Corpo d'Armata": "generale di corpo d'armata.webp",
-        "Generale di Divisione": "generale di divisione.webp",
-        "Generale di Brigata": "generale di brigata.webp",
-        "Colonnello": "colonnello.webp",
-        "Tenente Colonnello": "tenente colonnello.webp",
-        "Maggiore": "maggiore.webp",
-        "Capitano": "capitano.webp",
-        "Tenente": "tenente.webp",
-        "Sottotenente": "sotto tenente.webp",
-        'Luogotenente "Carica Speciale"': "luogotenente carica speciale.png",
-        "Luogotenente": "Luogotenente.png",
-        "Maresciallo Maggiore": "maresciallo maggiore.webp",
-        "Maresciallo Capo": "maresciallo capo.webp",
-        "Maresciallo Ordinario": "maresciallo ordinario.webp",
-        "Maresciallo": "maresciallo.webp",
-        'Brigadiere Capo "Qualifica Speciale"': "brigadiere capo qualifica speciale.webp",
-        "Brigadiere Capo": "brigadiere capo.webp",
-        "Brigadiere": "brigadiere.webp",
-        "Vicebrigadiere": "vice brigadiere.webp",
-        'Appuntato Scelto "Qualifica Speciale"': "appuntato scelto qualifica speciale.png",
-        "Appuntato Scelto": "appuntato scelto.webp",
-        "Appuntato": "appuntato.webp",
-        "Carabiniere Scelto": "carabiniere scelto.webp",
-        "Carabiniere": "carabiniere.webp",
-    };
-
-    let pfGradoCs = null;
-
-    async function openProfileModal() {
-        const res  = await fetch('/api/auth/my-profile', { headers: authHeader() });
-        const data = await res.json();
-        document.getElementById('pfNome').value    = data.nome    || '';
-        document.getElementById('pfCognome').value = data.cognome || '';
-        // Inizializza il custom select del grado (una sola volta)
-        if (!pfGradoCs) {
-            pfGradoCs = new CustomSelect(
-                document.getElementById('pfGradoSel'),
-                GRADI_OPTIONS,
-                (val) => { updateGradoImg(val); },
-                { placeholder: '— Seleziona il grado —', value: data.grado || '' }
-            );
-        } else {
-            pfGradoCs.setValue(data.grado || '');
-        }
-        updateGradoImg(data.grado || '');
-        document.getElementById('profileMsg').style.display = 'none';
-        const isAdmin = data.role === 'superadmin' || data.role === 'admin';
-        document.getElementById('profileSubtitle').textContent = isAdmin
-            ? 'Modifica il tuo profilo.'
-            : 'Richiesta di modifica — verrà approvata da un admin.';
-        document.getElementById('pfSubmitBtn').textContent = isAdmin ? 'Salva' : 'Richiedi modifica';
-        document.getElementById('pfSubmitBtn').dataset.isAdmin = isAdmin ? '1' : '0';
-        document.getElementById('profileModal').style.display = 'flex';
-    }
-    function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }
-
-    function updateGradoImg(grado) {
-        const img = document.getElementById('pfGradoImg');
-        const f   = GRADO_IMG_MAP[grado];
-        if (f) { img.src = `/immagini/gradi/${encodeURIComponent(f)}`; img.style.display='block'; }
-        else   { img.style.display='none'; }
-    }
-
-    async function submitProfileChange() {
-        const nome    = document.getElementById('pfNome').value.trim();
-        const cognome = document.getElementById('pfCognome').value.trim();
-        const grado   = pfGradoCs ? pfGradoCs.getValue() : '';
-        const msgEl   = document.getElementById('profileMsg');
-        const btn     = document.getElementById('pfSubmitBtn');
-        msgEl.style.display = 'none';
-        if (!nome || !cognome || !grado) {
-            msgEl.className = ''; msgEl.style.cssText = 'display:block;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.35);color:#FF6B7A;border-radius:8px;font-size:0.85rem;padding:0.7rem 1rem;margin-bottom:1rem;';
-            msgEl.textContent = 'Compila tutti i campi.'; return;
-        }
-        btn.disabled = true;
-        const isAdmin = btn.dataset.isAdmin === '1';
-        const url     = isAdmin ? `/api/auth/users/${_currentUser.id}/profile` : '/api/auth/profile-change-request';
-        const method  = isAdmin ? 'PATCH' : 'POST';
-        try {
-            const res  = await fetch(url, { method, headers: authHeader(), body: JSON.stringify({nome,cognome,grado}) });
-            const data = await res.json();
-            if (res.ok) {
-                msgEl.style.cssText = 'display:block;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.35);color:#00E676;border-radius:8px;font-size:0.85rem;padding:0.7rem 1rem;margin-bottom:1rem;';
-                msgEl.textContent = isAdmin ? 'Profilo aggiornato.' : 'Richiesta inviata. In attesa di approvazione.';
-                setTimeout(() => closeProfileModal(), 1800);
-            } else {
-                msgEl.style.cssText = 'display:block;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.35);color:#FF6B7A;border-radius:8px;font-size:0.85rem;padding:0.7rem 1rem;margin-bottom:1rem;';
-                msgEl.textContent = data.error || 'Errore.';
-            }
-        } catch { msgEl.textContent = 'Errore di rete.'; }
-        finally  { btn.disabled = false; }
     }
 
     // ── Modale di conferma custom (sostituisce window.confirm) ───────────────────

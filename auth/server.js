@@ -7,7 +7,7 @@ const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { Users, Invitations, ProfileChangeRequests } = require('./db');
+const { Users, Invitations, ProfileChangeRequests, Notifications } = require('./db');
 
 const app  = express();
 app.use(express.json());
@@ -16,9 +16,36 @@ const PORT             = process.env.PORT || 4000;
 const DATA_DIR         = path.join(__dirname, 'data');
 const SECRET_FILE      = path.join(DATA_DIR, 'secret.key');
 const SUPERADMIN_EMAIL = 'portalecrypto@proton.me';
+const SUPERADMIN_NOME  = 'Portale';
+const SUPERADMIN_COGNOME = 'Crypto';
 const PORTAL_URL       = (process.env.PORTAL_URL || 'https://192.168.4.77:5200').replace(/\/$/, '');
 const ROLE_LEVEL       = { reader: 0, user: 1, admin: 2, superadmin: 3 };
 const ALL_ROLES        = ['reader', 'user', 'admin', 'superadmin'];
+
+function isLockedProfile(email) {
+    return !!(email && email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase());
+}
+
+function notifyUser(userId, type, title, body, link) {
+    if (!userId) return;
+    Notifications.insert({
+        id: uuidv4(),
+        userId,
+        type,
+        title,
+        body: body || '',
+        link: link || '',
+        createdAt: new Date().toISOString(),
+    });
+}
+
+function notifyAdmins(type, title, body, link, exceptUserId) {
+    Users.findActive()
+        .filter(u => (u.role === 'admin' || u.role === 'superadmin') && u.id !== exceptUserId)
+        .forEach(u => notifyUser(u.id, type, title, body, link));
+}
+
+const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
 
 const SMTP_HOST = process.env.SMTP_HOST, SMTP_PORT = parseInt(process.env.SMTP_PORT||'587',10);
 const SMTP_SECURE = process.env.SMTP_SECURE==='true', SMTP_USER = process.env.SMTP_USER;
@@ -37,9 +64,23 @@ if (!JWT_SECRET) {
 }
 
 (async()=>{
-    if (!Users.findByEmail(SUPERADMIN_EMAIL)) {
-        Users.insert({id:uuidv4(),email:SUPERADMIN_EMAIL,passwordHash:await bcrypt.hash('1234',12),role:'superadmin',createdAt:new Date().toISOString(),mustChangePassword:true});
+    const existing = Users.findByEmail(SUPERADMIN_EMAIL);
+    if (!existing) {
+        Users.insert({
+            id: uuidv4(),
+            email: SUPERADMIN_EMAIL,
+            passwordHash: await bcrypt.hash('1234', 12),
+            role: 'superadmin',
+            createdAt: new Date().toISOString(),
+            mustChangePassword: true,
+            nome: SUPERADMIN_NOME,
+            cognome: SUPERADMIN_COGNOME,
+            grado: '',
+        });
         console.log('[AUTH] Superadmin creato con password iniziale: 1234');
+    } else {
+        // Profilo di sistema fisso: Portale Crypto, senza grado
+        Users.updateProfile(existing.id, SUPERADMIN_NOME, SUPERADMIN_COGNOME, '');
     }
 })();
 
@@ -96,21 +137,40 @@ app.get('/api/auth/invite-info',(req,res)=>{
 });
 
 app.post('/api/auth/register', async(req,res)=>{
-    const { token, password, otp, nome, cognome, grado } = req.body || {};
-    if (!token||!password||!otp) return res.status(400).json({error:'Token, password e codice OTP obbligatori.'});
-    if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado sono obbligatori.'});
-    if (password.length<8) return res.status(400).json({error:'Password di almeno 8 caratteri.'});
-    const inv=Invitations.findByToken(token);
-    if (!inv||inv.used) return res.status(400).json({error:'Invito non valido o già utilizzato.'});
-    if (new Date()>new Date(inv.expiresAt)) return res.status(400).json({error:'Invito scaduto.'});
-    if (!inv.otp||inv.otpUsed) return res.status(400).json({error:'Codice non richiesto o già utilizzato.'});
-    if (new Date()>new Date(inv.otpExpiry)) return res.status(400).json({error:'Codice scaduto. Richiedi un nuovo codice.'});
-    if (!(await bcrypt.compare(otp.trim(),inv.otp))) return res.status(400).json({error:'Codice non corretto.'});
-    const ex=Users.findByEmail(inv.email);
-    if (ex&&!ex.revokedAt) return res.status(409).json({error:'Utente già registrato.'});
-    Users.insert({id:uuidv4(),email:inv.email,passwordHash:await bcrypt.hash(password,12),role:inv.role||'user',createdAt:new Date().toISOString(),mustChangePassword:false,nome:nome.trim(),cognome:cognome.trim(),grado});
-    Invitations.markUsed(token);
-    res.json({success:true,email:inv.email});
+    try {
+        const { token, password, otp, nome, cognome, grado } = req.body || {};
+        if (!token||!password||!otp) return res.status(400).json({error:'Token, password e codice OTP obbligatori.'});
+        if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado sono obbligatori.'});
+        if (password.length<8) return res.status(400).json({error:'Password di almeno 8 caratteri.'});
+        const inv=Invitations.findByToken(token);
+        if (!inv||inv.used) return res.status(400).json({error:'Invito non valido o già utilizzato.'});
+        if (new Date()>new Date(inv.expiresAt)) return res.status(400).json({error:'Invito scaduto.'});
+        if (!inv.otp||inv.otpUsed) return res.status(400).json({error:'Codice non richiesto o già utilizzato.'});
+        if (new Date()>new Date(inv.otpExpiry)) return res.status(400).json({error:'Codice scaduto. Richiedi un nuovo codice.'});
+        if (!(await bcrypt.compare(otp.trim(),inv.otp))) return res.status(400).json({error:'Codice non corretto.'});
+        const ex=Users.findByEmail(inv.email);
+        if (ex&&!ex.revokedAt) return res.status(409).json({error:'Utente già registrato. Usa il login.'});
+        const passwordHash=await bcrypt.hash(password,12);
+        const profile={
+            passwordHash,
+            role:inv.role||'user',
+            createdAt:new Date().toISOString(),
+            mustChangePassword:false,
+            nome:nome.trim(),
+            cognome:cognome.trim(),
+            grado,
+        };
+        if (ex&&ex.revokedAt) {
+            Users.reactivate(ex.id, profile);
+        } else {
+            Users.insert({id:uuidv4(),email:inv.email,...profile});
+        }
+        Invitations.markUsed(token);
+        res.json({success:true,email:inv.email});
+    } catch (err) {
+        console.error('[AUTH] register error:', err.message);
+        res.status(500).json({error:'Errore interno durante la registrazione. Riprovare.'});
+    }
 });
 
 app.post('/api/auth/invite', authenticate, requireAdmin, async(req,res)=>{
@@ -154,7 +214,15 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     if (req.user.id===user.id) return res.status(403).json({error:'Non puoi modificare il tuo ruolo.'});
     if (ROLE_LEVEL[newRole]>ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Non puoi assegnare un ruolo superiore al tuo.'});
     if (ROLE_LEVEL[user.role]>=ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Permessi insufficienti.'});
+    const prevRole = user.role;
     Users.updateRole(user.id,newRole);
+    notifyUser(
+        user.id,
+        'role_changed',
+        'Ruolo aggiornato',
+        `Il tuo ruolo è passato da ${ROLE_LABEL[prevRole] || prevRole} a ${ROLE_LABEL[newRole] || newRole}.`,
+        '/profilo'
+    );
     res.json({success:true,role:newRole});
 });
 
@@ -186,7 +254,17 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
     if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado obbligatori.'});
     const user=Users.findById(req.params.id);
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
+    if (isLockedProfile(user.email)) return res.status(403).json({error:'Il profilo di sistema non può essere modificato.'});
     Users.updateProfile(user.id,nome.trim(),cognome.trim(),grado);
+    if (user.id !== req.user.id) {
+        notifyUser(
+            user.id,
+            'profile_updated',
+            'Profilo aggiornato',
+            `Un amministratore ha aggiornato il tuo profilo: ${cognome.trim().toUpperCase()} ${nome.trim()} — ${grado}.`,
+            '/profilo'
+        );
+    }
     res.json({success:true});
 });
 
@@ -194,17 +272,40 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
 app.get('/api/auth/my-profile', authenticate,(req,res)=>{
     const user=Users.findById(req.user.id);
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
-    res.json({email:user.email,role:user.role,nome:user.nome,cognome:user.cognome,grado:user.grado});
+    const locked = isLockedProfile(user.email);
+    res.json({
+        email: user.email,
+        role: user.role,
+        nome: locked ? SUPERADMIN_NOME : user.nome,
+        cognome: locked ? SUPERADMIN_COGNOME : user.cognome,
+        grado: locked ? '' : user.grado,
+        canEdit: !locked,
+    });
 });
 
 // ── POST /api/auth/profile-change-request  (user: richiesta modifica profilo) ─
 app.post('/api/auth/profile-change-request', authenticate,(req,res)=>{
+    if (isLockedProfile(req.user.email)) return res.status(403).json({error:'Il profilo di sistema non può essere modificato.'});
     const {nome,cognome,grado}=req.body||{};
     if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado obbligatori.'});
     // Blocca se c'è già una richiesta pendente
     const existing=ProfileChangeRequests.findPendingByUser(req.user.id);
     if (existing) return res.status(409).json({error:'Hai già una richiesta di modifica profilo in attesa di approvazione.'});
     ProfileChangeRequests.insert({id:uuidv4(),userId:req.user.id,userEmail:req.user.email,nome:nome.trim(),cognome:cognome.trim(),grado,requestedAt:new Date().toISOString()});
+    notifyAdmins(
+        'profile_request',
+        'Nuova richiesta di modifica profilo',
+        `${req.user.email} ha richiesto di aggiornare nome/cognome/grado.`,
+        '/gestione-utenti#profiles',
+        req.user.id
+    );
+    notifyUser(
+        req.user.id,
+        'profile_request_sent',
+        'Richiesta inviata',
+        'La tua richiesta di modifica profilo è in attesa di approvazione.',
+        '/profilo'
+    );
     res.json({success:true});
 });
 
@@ -219,6 +320,13 @@ app.post('/api/auth/profile-change-requests/:id/approve', authenticate, requireA
     if (!pcr||pcr.status!=='pending') return res.status(404).json({error:'Richiesta non trovata.'});
     Users.updateProfile(pcr.userId,pcr.nome,pcr.cognome,pcr.grado);
     ProfileChangeRequests.approve(req.params.id,req.user.email);
+    notifyUser(
+        pcr.userId,
+        'profile_approved',
+        'Modifica profilo approvata',
+        `La richiesta è stata approvata. Nuovo profilo: ${pcr.cognome.toUpperCase()} ${pcr.nome} — ${pcr.grado}.`,
+        '/profilo'
+    );
     res.json({success:true});
 });
 
@@ -227,7 +335,40 @@ app.delete('/api/auth/profile-change-requests/:id', authenticate, requireAdmin,(
     const pcr=ProfileChangeRequests.findById(req.params.id);
     if (!pcr||pcr.status!=='pending') return res.status(404).json({error:'Richiesta non trovata.'});
     ProfileChangeRequests.reject(req.params.id,req.user.email);
+    notifyUser(
+        pcr.userId,
+        'profile_rejected',
+        'Modifica profilo rifiutata',
+        'La tua richiesta di modifica profilo è stata rifiutata. Puoi inviarne una nuova dalla pagina profilo.',
+        '/profilo'
+    );
     res.json({success:true});
+});
+
+// ── GET /api/auth/notifications ───────────────────────────────────────────────
+app.get('/api/auth/notifications', authenticate,(req,res)=>{
+    const items = Notifications.findForUser(req.user.id).map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        link: n.link,
+        createdAt: n.createdAt,
+        read: !!n.readAt,
+    }));
+    res.json({ unread: Notifications.countUnread(req.user.id), items });
+});
+
+// ── POST /api/auth/notifications/:id/read ─────────────────────────────────────
+app.post('/api/auth/notifications/:id/read', authenticate,(req,res)=>{
+    Notifications.markRead(req.params.id, req.user.id);
+    res.json({ success: true, unread: Notifications.countUnread(req.user.id) });
+});
+
+// ── POST /api/auth/notifications/read-all ─────────────────────────────────────
+app.post('/api/auth/notifications/read-all', authenticate,(req,res)=>{
+    Notifications.markAllRead(req.user.id);
+    res.json({ success: true, unread: 0 });
 });
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`Auth service in ascolto su http://0.0.0.0:${PORT}`));

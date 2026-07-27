@@ -27,6 +27,8 @@ services:
       dockerfile: Dockerfile
     container_name: cryptovault-auth
     restart: unless-stopped
+    extra_hosts:
+      - "host-gateway:host-gateway"
     environment:
       - PORTAL_URL=${PORTAL_URL:-https://192.168.4.77:5200}
       - SMTP_HOST=${SMTP_HOST:-}

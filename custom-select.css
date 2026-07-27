@@ -54,7 +54,7 @@
     border-bottom-right-radius: 8px;
     max-height: 280px;
     overflow-y: auto;
-    z-index: 7000;
+    z-index: 10000;
     box-shadow: 0 12px 36px rgba(0,0,0,0.6);
 }
 .csel-panel.open { display: block; }

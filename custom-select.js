@@ -10,6 +10,8 @@
  * options: [{value, label, group?, img?}]
  */
 class CustomSelect {
+    static _instances = [];
+
     constructor(el, options, onChange, cfg = {}) {
         this.el          = typeof el === 'string' ? document.querySelector(el) : el;
         this.options     = options || [];
@@ -17,7 +19,7 @@ class CustomSelect {
         this.placeholder = cfg.placeholder || '— Seleziona —';
         this.showImages  = cfg.showImages !== false;
         this._value      = cfg.value || '';
-        this._open       = false;
+        this._isOpen     = false;
 
         this.el.classList.add('csel');
         if (cfg.small) this.el.classList.add('csel-sm');
@@ -36,6 +38,14 @@ class CustomSelect {
         this._renderOptions();
         this._updateBtn();
         this._bindEvents();
+
+        CustomSelect._instances.push(this);
+    }
+
+    static closeAll(except) {
+        for (const inst of CustomSelect._instances) {
+            if (inst !== except) inst._close();
+        }
     }
 
     _renderOptions() {
@@ -62,7 +72,8 @@ class CustomSelect {
             const span = document.createElement('span');
             span.textContent = opt.label;
             item.appendChild(span);
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const prev = this._value;
                 this._value = opt.value;
                 this._renderOptions();
@@ -100,7 +111,7 @@ class CustomSelect {
     }
 
     _open() {
-        this._open = true;
+        this._isOpen = true;
         this.btn.classList.add('active');
         this.panel.classList.add('open');
         // Controlla spazio disponibile
@@ -115,7 +126,7 @@ class CustomSelect {
     }
 
     _close() {
-        this._open = false;
+        this._isOpen = false;
         this.btn.classList.remove('active');
         this.panel.classList.remove('open');
     }
@@ -123,13 +134,8 @@ class CustomSelect {
     _bindEvents() {
         this.btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (this._open) { this._close(); return; }
-            // Chiude tutti gli altri
-            document.querySelectorAll('.csel-panel.open').forEach(p => {
-                p.classList.remove('open');
-                p.previousElementSibling?.classList.remove('active');
-            });
-            this._open = false;
+            if (this._isOpen) { this._close(); return; }
+            CustomSelect.closeAll(this);
             this._open();
         });
     }
@@ -140,12 +146,7 @@ class CustomSelect {
 }
 
 // Chiude al click esterno
-document.addEventListener('click', () => {
-    document.querySelectorAll('.csel-panel.open').forEach(p => {
-        p.classList.remove('open');
-        p.previousElementSibling?.classList.remove('active');
-    });
-});
+document.addEventListener('click', () => CustomSelect.closeAll());
 
 // ── Dati gradi (condivisi tra le pagine) ──────────────────────────────────────
 const GRADO_IMG_MAP = {

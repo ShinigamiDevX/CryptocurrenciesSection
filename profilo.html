@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Il mio profilo — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="custom-select.css?v=2">
+    <style>
+        .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
+        .nav-bell-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; padding: 0; margin: 0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 9px; color: #7ACCE0; cursor: pointer;
+        }
+        .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
+        .nav-bell-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-badge {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
+            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+        }
+        .nav-bell-badge.visible { display: block; }
+        #navBellPanel {
+            display: none !important; position: fixed; top: 64px; right: 1rem;
+            width: min(360px, calc(100vw - 2rem)); background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
+        }
+        #navBellPanel.open { display: block !important; }
+        #navBellPanel .nav-bell-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
+        #navBellPanel .nav-bell-panel-head a {
+            color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
+            background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+        }
+        #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
+        #navBellPanel .nav-bell-item {
+            display: block; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
+        }
+        #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
+        #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+        #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
+        #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
+        header nav ul { flex-wrap: nowrap !important; align-items: center; }
+        header nav ul li { white-space: nowrap; }
+        li.nav-logout a {
+            background: linear-gradient(135deg, #00d4ff, #7b5ea7) !important;
+            color: #fff !important; padding: 0.45rem 1.2rem !important;
+            border-radius: 8px !important; text-transform: none !important;
+        }
+
+        #authOverlay { position:fixed;inset:0;background:#030E1C;z-index:9999;display:flex;align-items:center;justify-content:center; }
+        #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
+
+        main { max-width: none; width: 100%; padding: 1.5rem 2rem; margin: 0 auto; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; }
+        .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin-bottom: 2rem; }
+
+        .profile-card {
+            background: rgba(0,200,255,0.04);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 14px;
+            padding: 1.8rem 2rem;
+            width: 100%;
+            max-width: 720px;
+        }
+        .profile-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem;
+        }
+        .profile-head h3 { color: #C8F0E8; font-size: 1.15rem; margin: 0; }
+        .profile-head .role-badge {
+            display: inline-block; margin-left: 0.5rem; padding: 0.15rem 0.55rem;
+            border-radius: 5px; font-size: 0.75rem; font-weight: 600;
+            background: rgba(0,200,255,0.15); color: #00C8FF; vertical-align: middle;
+        }
+
+        .btn-edit {
+            padding: 0.55rem 1.2rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700;
+            font-size: 0.88rem; cursor: pointer;
+        }
+        .btn-edit:hover { opacity: 0.9; }
+        .btn-cancel {
+            padding: 0.55rem 1.2rem; background: transparent;
+            border: 1px solid rgba(0,200,255,0.3); border-radius: 7px;
+            color: #5ABBC8; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+        }
+        .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+        .btn-save {
+            padding: 0.55rem 1.3rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700;
+            font-size: 0.88rem; cursor: pointer;
+        }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .locked-note {
+            font-size: 0.85rem; color: #7ACCE0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.2);
+            border-radius: 8px; padding: 0.7rem 1rem; margin-bottom: 1.2rem;
+        }
+
+        .dl-grid {
+            display: grid; grid-template-columns: 140px 1fr; gap: 0.85rem 1rem;
+            align-items: center;
+        }
+        .dl-grid dt {
+            font-size: 0.75rem; font-weight: 600; color: #7ACCE0;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .dl-grid dd { margin: 0; color: #C8F0E8; font-size: 0.95rem; }
+        .grado-row { display: flex; align-items: center; gap: 0.6rem; }
+        .grado-row img { width: 36px; height: 36px; object-fit: contain; }
+
+        .edit-field { margin-bottom: 1rem; }
+        .edit-field label {
+            display: block; font-size: 0.78rem; font-weight: 600; color: #7ACCE0;
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;
+        }
+        .edit-field input {
+            width: 100%; padding: 0.65rem 0.9rem; background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.22); border-radius: 8px;
+            color: #C8F0E8; font-size: 0.9rem; font-family: inherit; outline: none;
+        }
+        .edit-field input:focus { border-color: rgba(0,200,255,0.6); }
+        .edit-row { display: flex; gap: 0.75rem; }
+        .edit-row .edit-field { flex: 1; }
+        .edit-actions { display: flex; gap: 0.7rem; justify-content: flex-end; margin-top: 0.5rem; }
+        .edit-field:has(.csel) { position: relative; z-index: 5; }
+
+        .feedback { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin-bottom: 1rem; display: none; }
+        .feedback.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
+        .feedback.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
+
+        @media (max-width: 600px) {
+            .dl-grid { grid-template-columns: 1fr; gap: 0.25rem 0; }
+            .dl-grid dt { margin-top: 0.6rem; }
+            .edit-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Il mio profilo</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li id="navAdminBtn" style="display:none;"><a href="/gestione-utenti">Gestione Utenti</a></li>
+                    <li><a href="/portal">← Portale</a></li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title">👤 Il mio profilo</div>
+        <p class="page-sub">Visualizza i tuoi dati anagrafici e di accesso al portale.</p>
+
+        <div class="feedback" id="profileMsg"></div>
+
+        <div class="profile-card">
+            <div class="profile-head">
+                <h3>Dati account <span class="role-badge" id="viewRole">—</span></h3>
+                <button type="button" class="btn-edit" id="btnEdit" style="display:none;" onclick="enterEditMode()">Modifica</button>
+            </div>
+
+            <div id="lockedNote" class="locked-note" style="display:none;">
+                Il profilo di sistema non può essere modificato.
+            </div>
+
+            <!-- Vista -->
+            <div id="viewMode">
+                <dl class="dl-grid">
+                    <dt>Email</dt>
+                    <dd id="viewEmail">—</dd>
+                    <dt>Nome</dt>
+                    <dd id="viewNome">—</dd>
+                    <dt>Cognome</dt>
+                    <dd id="viewCognome">—</dd>
+                    <dt id="gradoLabel">Grado</dt>
+                    <dd id="viewGrado" class="grado-row">—</dd>
+                </dl>
+            </div>
+
+            <!-- Modifica -->
+            <div id="editMode" style="display:none;">
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label for="editNome">Nome</label>
+                        <input type="text" id="editNome" placeholder="Nome">
+                    </div>
+                    <div class="edit-field">
+                        <label for="editCognome">Cognome</label>
+                        <input type="text" id="editCognome" placeholder="Cognome">
+                    </div>
+                </div>
+                <div class="edit-field">
+                    <label>Grado</label>
+                    <div id="editGradoSel" class="csel"></div>
+                </div>
+                <p id="editHint" style="font-size:0.82rem;color:#5ABBC8;margin:0 0 1rem;"></p>
+                <div class="edit-actions">
+                    <button type="button" class="btn-cancel" onclick="exitEditMode()">Annulla</button>
+                    <button type="button" class="btn-save" id="btnSave" onclick="saveProfile()">Salva</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="custom-select.js"></script>
+    <script src="nav-notifications.js?v=1"></script>
+    <script>
+    let _currentUser = null;
+    let _profile = null;
+    let editGradoCs = null;
+    const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+
+    function authHeader() {
+        return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' };
+    }
+    function logout() {
+        localStorage.removeItem('authToken');
+        window.location.replace('/login');
+    }
+    function showMsg(text, type) {
+        const el = document.getElementById('profileMsg');
+        el.className = 'feedback ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4500);
+    }
+
+    function renderView() {
+        const p = _profile;
+        document.getElementById('viewEmail').textContent = p.email || '—';
+        document.getElementById('viewNome').textContent = p.nome || '—';
+        document.getElementById('viewCognome').textContent = p.cognome || '—';
+        document.getElementById('viewRole').textContent = ROLE_LABEL[p.role] || p.role || '—';
+
+        const gradoDd = document.getElementById('viewGrado');
+        const gradoLabel = document.getElementById('gradoLabel');
+        if (!p.canEdit && (!p.grado || p.grado === '')) {
+            // Account di sistema senza grado
+            gradoLabel.style.display = 'none';
+            gradoDd.style.display = 'none';
+        } else {
+            gradoLabel.style.display = '';
+            gradoDd.style.display = '';
+            const f = GRADO_IMG_MAP[p.grado];
+            if (p.grado && f) {
+                gradoDd.innerHTML = `<img src="/immagini/gradi/${encodeURIComponent(f)}" alt=""> <span>${p.grado}</span>`;
+            } else {
+                gradoDd.textContent = p.grado || '—';
+            }
+        }
+
+        document.getElementById('btnEdit').style.display = p.canEdit ? '' : 'none';
+        document.getElementById('lockedNote').style.display = p.canEdit ? 'none' : '';
+    }
+
+    function enterEditMode() {
+        if (!_profile?.canEdit) return;
+        document.getElementById('editNome').value = _profile.nome || '';
+        document.getElementById('editCognome').value = _profile.cognome || '';
+        if (!editGradoCs) {
+            editGradoCs = new CustomSelect(
+                document.getElementById('editGradoSel'),
+                GRADI_OPTIONS, () => {},
+                { placeholder: '— Seleziona il grado —', value: _profile.grado || '' }
+            );
+        } else {
+            editGradoCs.setValue(_profile.grado || '');
+        }
+        const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
+        document.getElementById('editHint').textContent = isAdmin
+            ? 'Le modifiche verranno applicate immediatamente.'
+            : 'La richiesta di modifica verrà inviata a un amministratore per l\'approvazione.';
+        document.getElementById('btnSave').textContent = isAdmin ? 'Salva' : 'Richiedi modifica';
+        document.getElementById('viewMode').style.display = 'none';
+        document.getElementById('btnEdit').style.display = 'none';
+        document.getElementById('editMode').style.display = 'block';
+    }
+
+    function exitEditMode() {
+        document.getElementById('editMode').style.display = 'none';
+        document.getElementById('viewMode').style.display = 'block';
+        document.getElementById('btnEdit').style.display = _profile?.canEdit ? '' : 'none';
+    }
+
+    async function saveProfile() {
+        if (!_profile?.canEdit) return;
+        const nome    = document.getElementById('editNome').value.trim();
+        const cognome = document.getElementById('editCognome').value.trim();
+        const grado   = editGradoCs ? editGradoCs.getValue() : '';
+        if (!nome || !cognome || !grado) {
+            showMsg('Compila nome, cognome e grado.', 'error');
+            return;
+        }
+        const btn = document.getElementById('btnSave');
+        btn.disabled = true;
+        const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
+        const url    = isAdmin ? `/api/auth/users/${_currentUser.id}/profile` : '/api/auth/profile-change-request';
+        const method = isAdmin ? 'PATCH' : 'POST';
+        try {
+            const res  = await fetch(url, { method, headers: authHeader(), body: JSON.stringify({ nome, cognome, grado }) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showMsg(data.error || 'Errore durante il salvataggio.', 'error');
+                return;
+            }
+            if (isAdmin) {
+                showMsg('Profilo aggiornato.', 'success');
+                await loadProfile();
+                exitEditMode();
+            } else {
+                showMsg('Richiesta inviata. In attesa di approvazione.', 'success');
+                exitEditMode();
+            }
+        } catch {
+            showMsg('Errore di rete. Riprovare.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function loadProfile() {
+        const res = await fetch('/api/auth/my-profile', { headers: authHeader() });
+        if (!res.ok) throw new Error('profile');
+        _profile = await res.json();
+        renderView();
+    }
+
+    // ── Campanella: gestita da nav-notifications.js ───────────────────────────
+
+    (async function () {
+        const token = localStorage.getItem('authToken');
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            _currentUser = await res.json();
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('navUserEmail').textContent = _currentUser.email;
+            if (_currentUser.role === 'superadmin' || _currentUser.role === 'admin') {
+                document.getElementById('navAdminBtn').style.display = '';
+            }
+            initNavBell();
+            await loadProfile();
+        } catch {
+            localStorage.removeItem('authToken');
+            window.location.replace('/login');
+        }
+    })();
+    </script>
+</body>
+</html>

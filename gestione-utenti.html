@@ -6,15 +6,66 @@
     <title>Gestione Utenti — CryptocurrenciesSection</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="custom-select.css">
+    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="custom-select.css?v=2">
     <style>
+        /* Campanella: regole critiche */
+        .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
+        .nav-bell-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; padding: 0; margin: 0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 9px; color: #7ACCE0; cursor: pointer;
+        }
+        .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
+        .nav-bell-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-badge {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
+            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+        }
+        .nav-bell-badge.visible { display: block; }
+        #navBellPanel {
+            display: none !important; position: fixed; top: 64px; right: 1rem;
+            width: min(360px, calc(100vw - 2rem)); background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
+        }
+        #navBellPanel.open { display: block !important; }
+        #navBellPanel .nav-bell-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
+        #navBellPanel .nav-bell-panel-head a {
+            color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
+            background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+        }
+        #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
+        #navBellPanel .nav-bell-item {
+            display: block; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
+        }
+        #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
+        #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+        #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
+        #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
+        header nav ul { flex-wrap: nowrap !important; align-items: center; }
+        header nav ul li { white-space: nowrap; }
+        li.nav-logout a {
+            background: linear-gradient(135deg, #00d4ff, #7b5ea7) !important;
+            color: #fff !important; padding: 0.45rem 1.2rem !important;
+            border-radius: 8px !important; text-transform: none !important;
+        }
+
         /* ── Auth overlay ── */
         #authOverlay { position:fixed;inset:0;background:#030E1C;z-index:9999;display:flex;align-items:center;justify-content:center; }
         #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
 
         /* ── Layout pagina ── */
-        main { max-width: 100%; padding: 1.5rem 2rem; }
+        main { max-width: none; width: 100%; padding: 1.5rem 2rem; margin: 0 auto; }
         .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; }
         .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin-bottom: 2rem; }
 
@@ -50,9 +101,10 @@
         .grado-img { width:32px; height:32px; object-fit:contain; vertical-align:middle; margin-right:0.4rem; }
         /* modale modifica profilo */
         .edit-modal-bg { position:fixed;inset:0;background:rgba(3,14,28,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem; }
-        .edit-modal-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:460px;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
+        .edit-modal-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:560px;overflow:visible;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
         .edit-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; }
-        .edit-field { margin-bottom:0.9rem; }
+        .edit-field { margin-bottom:0.9rem; position:relative; z-index:1; }
+        .edit-field:has(.csel) { z-index:2; }
         .edit-field label { display:block;font-size:0.78rem;font-weight:600;color:#7ACCE0;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem; }
         .edit-field input, .edit-field select { width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.22);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none; }
         .edit-field input:focus, .edit-field select:focus { border-color:rgba(0,200,255,0.6); }
@@ -62,6 +114,12 @@
         .edit-row { display:flex;gap:0.6rem; }
         .edit-row .edit-field { flex:1; }
         .edit-actions { display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1.2rem; }
+        .edit-actions .btn-cancel {
+            padding:0.6rem 1.2rem; background:transparent;
+            border:1px solid rgba(0,200,255,0.3); border-radius:7px;
+            color:#5ABBC8; font-size:0.88rem; cursor:pointer; font-family:inherit;
+        }
+        .edit-actions .btn-cancel:hover { background:rgba(0,200,255,0.07); }
         /* richieste profilo */
         .pcr-item { background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.12);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.5rem; }
         .pcr-info  { color:#C8F0E8;font-size:0.88rem;margin-bottom:0.5rem; }
@@ -123,12 +181,28 @@
             <nav>
                 <ul>
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
                     <li><a href="/portal">← Portale</a></li>
-                    <li><a href="#" onclick="logout();return false;">Esci</a></li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
                 </ul>
             </nav>
         </div>
     </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
 
     <main>
         <div class="page-title">⚙️ Gestione Utenti</div>
@@ -161,7 +235,7 @@
                 </div>
                 <div class="field-group" style="max-width:200px;">
                     <label>Ruolo da assegnare</label>
-                    <select id="inviteRoleSelect"></select>
+                    <div id="inviteRoleSelect" class="csel"></div>
                 </div>
                 <button class="btn-invite" onclick="sendInvite()">Genera link</button>
             </div>
@@ -221,6 +295,7 @@
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
     <script src="custom-select.js"></script>
+    <script src="nav-notifications.js?v=1"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -289,22 +364,13 @@
             }
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.email;
-            // Popola select ruolo invito
-            const myLevel  = ROLE_LEVEL[_currentUser.role] || 0;
-            const sel = document.getElementById('inviteRoleSelect');
-            sel.innerHTML = ['reader','user','admin','superadmin']
-                .filter(r => ROLE_LEVEL[r] <= myLevel)
-                .map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('');
-            sel.value = 'user';
-            // Aggiorna opzioni ruolo disponibili
-            const myLevel2 = ROLE_LEVEL[_currentUser.role] || 0;
-            if (inviteRoleCs) inviteRoleCs.setOptions(RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value]||0) <= myLevel2), 'user');
-            // Badge richieste profilo pendenti
-            fetch('/api/auth/profile-change-requests', { headers: { 'Authorization': 'Bearer ' + token } })
-                .then(r => r.ok ? r.json() : [])
-                .then(data => { if (data.length) { const b=document.getElementById('pcrBadge'); b.textContent=data.length; b.style.display=''; } })
-                .catch(()=>{});
+            initNavBell();
+            // Aggiorna opzioni ruolo disponibili per CustomSelect
+            const myLevel = ROLE_LEVEL[_currentUser.role] || 0;
+            if (inviteRoleCs) inviteRoleCs.setOptions(RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value]||0) <= myLevel), 'user');
+            refreshPcrTabBadge();
             loadUsers();
+            if (location.hash === '#profiles') switchTab('profiles');
         } catch {
             localStorage.removeItem('authToken');
             window.location.replace('/login');
@@ -313,6 +379,18 @@
 
     function logout() { localStorage.removeItem('authToken'); window.location.replace('/login'); }
     function authHeader() { return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' }; }
+
+    // Campanella: nav-notifications.js — aggiorna anche badge tab Modifiche Profilo
+    async function refreshPcrTabBadge() {
+        try {
+            const res = await fetch('/api/auth/profile-change-requests', { headers: authHeader() });
+            const data = res.ok ? await res.json() : [];
+            const tabBadge = document.getElementById('pcrBadge');
+            if (!tabBadge) return;
+            if (data.length) { tabBadge.textContent = data.length; tabBadge.style.display = ''; }
+            else tabBadge.style.display = 'none';
+        } catch {}
+    }
 
     // ── Tab ───────────────────────────────────────────────────────────────────
     function switchTab(tab) {
@@ -361,6 +439,7 @@
                 const targetLevel   = ROLE_LEVEL[u.role] ?? 0;
                 const canDelete     = !isSelf && !isSuperadmin && targetLevel < myLevel;
                 const canEdit       = !isFounder && !isSuperadmin && !isSelf && targetLevel < myLevel;
+                const canEditProfile = !isFounder;
                 const roleOpts      = canEdit
                     ? ['reader','user','admin','superadmin']
                         .filter(r => ROLE_LEVEL[r] <= myLevel)
@@ -368,14 +447,20 @@
                         .join('')
                     : '';
                 const badgeCls = (isSuperadmin || u.role==='admin') ? 'badge-admin' : 'badge-user';
+                const displayNome = isFounder
+                    ? 'Portale Crypto'
+                    : (u.cognome ? u.cognome.toUpperCase()+' '+u.nome : '—');
+                const displayGrado = isFounder
+                    ? '<span class="grado-badge">—</span>'
+                    : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado||'—'}</span>`;
                 return `<tr>
-                    <td>${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado||'—'}</span></td>
-                    <td>${u.cognome ? u.cognome.toUpperCase()+' '+u.nome : '—'}</td>
+                    <td>${displayGrado}</td>
+                    <td>${displayNome}</td>
                     <td>${u.email}${isSelf?' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>':''}</td>
                     <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role]||u.role}</span></td>
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
                     <td style="white-space:nowrap;">
-                        <button class="btn-edit" onclick="openEditModal('${u.id}','${(u.nome||'').replace(/'/g,"\\'")}','${(u.cognome||'').replace(/'/g,"\\'")}','${(u.grado||'').replace(/'/g,"\\'")}')">Modifica</button>
+                        ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}','${(u.nome||'').replace(/'/g,"\\'")}','${(u.cognome||'').replace(/'/g,"\\'")}','${(u.grado||'').replace(/'/g,"\\'")}')">Modifica</button>` : ''}
                         ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
                         ${canEdit ? `<div class="csel csel-sm role-csel" data-uid="${u.id}" data-uemail="${u.email.replace(/"/g,'&quot;')}" data-current="${u.role}"></div>` : ''}
                     </td>
@@ -520,14 +605,14 @@
     function approveProfile(id) {
         showConfirm('Approvare questa modifica profilo?', async () => {
             const res = await fetch(`/api/auth/profile-change-requests/${id}/approve`, { method:'POST', headers:authHeader() });
-            if (res.ok) { showMsg('profilesMsg','Modifica approvata e applicata.','success'); loadProfileChangeRequests(); loadUsers(); }
+            if (res.ok) { showMsg('profilesMsg','Modifica approvata e applicata.','success'); loadProfileChangeRequests(); loadUsers(); refreshNavBell(); refreshPcrTabBadge(); }
             else { const d=await res.json(); showMsg('profilesMsg',d.error||'Errore.','error'); }
         });
     }
     function rejectProfile(id) {
         showConfirm('Rifiutare questa richiesta?', async () => {
             const res = await fetch(`/api/auth/profile-change-requests/${id}`, { method:'DELETE', headers:authHeader() });
-            if (res.ok) { showMsg('profilesMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); }
+            if (res.ok) { showMsg('profilesMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); refreshNavBell(); refreshPcrTabBadge(); }
             else { const d=await res.json(); showMsg('profilesMsg',d.error||'Errore.','error'); }
         });
     }

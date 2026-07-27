@@ -65,6 +65,17 @@ db.exec(`
         reviewedBy  TEXT,
         reviewedAt  TEXT
     );
+    CREATE TABLE IF NOT EXISTS notifications (
+        id        TEXT PRIMARY KEY,
+        userId    TEXT NOT NULL,
+        type      TEXT NOT NULL,
+        title     TEXT NOT NULL,
+        body      TEXT NOT NULL DEFAULT '',
+        link      TEXT NOT NULL DEFAULT '',
+        createdAt TEXT NOT NULL,
+        readAt    TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, createdAt);
 `);
 
 // ── Migrazione da JSON (eseguita una sola volta) ──────────────────────────────
@@ -124,6 +135,21 @@ const Users = {
     insert: u => db.prepare(
         'INSERT INTO users (id,email,passwordHash,role,createdAt,mustChangePassword,nome,cognome,grado) VALUES (@id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,@nome,@cognome,@grado)'
     ).run({ ...u, mustChangePassword: u.mustChangePassword ? 1 : 0, nome: u.nome||'', cognome: u.cognome||'', grado: u.grado||'' }),
+    /** Riattiva un utente revocato (stesso id/email) con nuove credenziali e profilo. */
+    reactivate: (id, u) => db.prepare(
+        `UPDATE users SET passwordHash=@passwordHash, role=@role, createdAt=@createdAt,
+         revokedAt=NULL, mustChangePassword=@mustChangePassword,
+         nome=@nome, cognome=@cognome, grado=@grado WHERE id=@id`
+    ).run({
+        id,
+        passwordHash: u.passwordHash,
+        role: u.role || 'user',
+        createdAt: u.createdAt,
+        mustChangePassword: u.mustChangePassword ? 1 : 0,
+        nome: u.nome || '',
+        cognome: u.cognome || '',
+        grado: u.grado || '',
+    }),
     updateRole:    (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
     updateProfile: (id, nome, cognome, grado) => db.prepare('UPDATE users SET nome=?,cognome=?,grado=? WHERE id=?').run(nome,cognome,grado,id),
     revoke:        id  => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
@@ -154,4 +180,23 @@ const Invitations = {
     cancel:  token => db.prepare('UPDATE invitations SET used=1 WHERE token=?').run(token),
 };
 
-module.exports = { Users, Invitations, ProfileChangeRequests };
+// ── Notifications ─────────────────────────────────────────────────────────────
+const Notifications = {
+    insert: n => db.prepare(
+        'INSERT INTO notifications (id,userId,type,title,body,link,createdAt) VALUES (@id,@userId,@type,@title,@body,@link,@createdAt)'
+    ).run({ body: '', link: '', ...n }),
+    findForUser: (userId, limit = 40) => db.prepare(
+        'SELECT * FROM notifications WHERE userId=? ORDER BY createdAt DESC LIMIT ?'
+    ).all(userId, limit),
+    countUnread: userId => db.prepare(
+        'SELECT COUNT(*) AS c FROM notifications WHERE userId=? AND readAt IS NULL'
+    ).get(userId).c,
+    markRead: (id, userId) => db.prepare(
+        "UPDATE notifications SET readAt=? WHERE id=? AND userId=? AND readAt IS NULL"
+    ).run(new Date().toISOString(), id, userId),
+    markAllRead: userId => db.prepare(
+        "UPDATE notifications SET readAt=? WHERE userId=? AND readAt IS NULL"
+    ).run(new Date().toISOString(), userId),
+};
+
+module.exports = { Users, Invitations, ProfileChangeRequests, Notifications };
