@@ -276,6 +276,9 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
     const user  = users.find(u => u.id === req.params.id);
     if (!user)          return res.status(404).json({ error: 'Utente non trovato.' });
     if (user.revokedAt) return res.status(403).json({ error: 'Impossibile modificare un utente revocato.' });
+    // L'account fondatore non può mai essere retrocesso
+    if (user.email === SUPERADMIN_EMAIL)
+        return res.status(403).json({ error: `L'account ${SUPERADMIN_EMAIL} non può essere modificato.` });
 
     const isSuperadminTarget = user.role === 'superadmin';
     const isSelfChange       = req.user.id === user.id;
@@ -370,6 +373,12 @@ app.post('/api/auth/role-change-requests/:id/approve', authenticate, requireSupe
     const users = readJSON(USERS_FILE);
     const user  = users.find(u => u.id === rcr.targetId);
     if (!user) return res.status(404).json({ error: 'Utente target non trovato.' });
+    // Protezione extra: l'account fondatore non può mai essere retrocesso
+    if (user.email === SUPERADMIN_EMAIL) {
+        rcr.status = 'cancelled'; rcr.cancelledAt = new Date().toISOString();
+        writeJSON(REQUESTS_FILE, requests);
+        return res.status(403).json({ error: `L'account ${SUPERADMIN_EMAIL} non può essere modificato.` });
+    }
     user.role = rcr.newRole;
     writeJSON(USERS_FILE, users);
     rcr.status     = 'approved';

@@ -348,11 +348,11 @@
             tbody.innerHTML = users.map(u => {
                 const targetLevel = ROLE_LEVEL[u.role] ?? 0;
                 const isSelf      = u.id === _currentUser.id;
-                const canDelete   = !isSelf && u.role !== 'superadmin' && targetLevel < myLevel;
-                // Superadmin può avviare richiesta anche per superadmin (incl. sé stesso)
-                const canEdit     = u.role === 'superadmin'
+                const isFounder   = u.email === 'portalecrypto@proton.me'; // account fondatore — ruolo immutabile
+                const canDelete   = !isSelf && !isFounder && u.role !== 'superadmin' && targetLevel < myLevel;
+                const canEdit     = !isFounder && (u.role === 'superadmin'
                     ? _currentUser.role === 'superadmin'
-                    : (!isSelf && targetLevel < myLevel);
+                    : (!isSelf && targetLevel < myLevel));
                 const roleOpts    = canEdit
                     ? ['reader','user','admin','superadmin']
                         .filter(r => ROLE_LEVEL[r] <= myLevel)
@@ -363,7 +363,7 @@
                 const editHint = (canEdit && u.role === 'superadmin')
                     ? ' title="Richiede consenso di un altro superadmin"' : '';
                 // Nota per righe superadmin senza azioni dirette disponibili
-                const noActionNote = (!canDelete && !canEdit && !isSelf && u.role === 'superadmin')
+                const noActionNote = (!canDelete && !canEdit && !isSelf && u.role === 'superadmin' && !isFounder)
                     ? '<span style="color:#5ABBC8;font-size:0.75rem;" title="Usa \'Richieste\' per cambiare ruolo prima di revocare">Usa tab Richieste</span>'
                     : '';
                 return `
