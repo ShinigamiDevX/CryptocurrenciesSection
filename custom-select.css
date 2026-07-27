@@ -1,0 +1,112 @@
+/* ═══════════════════════════════════════════════
+   Custom Select — Componente dropdown personalizzato
+   ═══════════════════════════════════════════════ */
+
+.csel {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    user-select: none;
+    font-family: inherit;
+}
+
+/* ── Pulsante ── */
+.csel-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.9rem;
+    background: rgba(0,200,255,0.07);
+    border: 1px solid rgba(0,200,255,0.25);
+    border-radius: 8px;
+    color: #C8F0E8;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, background 0.2s;
+    box-sizing: border-box;
+}
+.csel-btn:hover,
+.csel-btn.active { border-color: rgba(0,200,255,0.6); background: rgba(0,200,255,0.12); }
+.csel-btn.active { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.csel-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csel-placeholder { color: rgba(90,187,200,0.5); }
+.csel-arrow {
+    font-size: 0.7rem; color: #5ABBC8; flex-shrink: 0;
+    transition: transform 0.18s;
+}
+.csel-btn.active .csel-arrow { transform: rotate(180deg); }
+.csel-btn-img { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
+
+/* ── Panel ── */
+.csel-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: #0a1628;
+    border: 1px solid rgba(0,200,255,0.35);
+    border-top: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 7000;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+}
+.csel-panel.open { display: block; }
+.csel-panel.up {
+    top: auto; bottom: 100%;
+    border-top: 1px solid rgba(0,200,255,0.35);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+}
+
+/* Scrollbar */
+.csel-panel::-webkit-scrollbar { width: 4px; }
+.csel-panel::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.3); border-radius: 2px; }
+
+/* ── Gruppo ── */
+.csel-group {
+    padding: 0.45rem 0.9rem 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #7ACCE0;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    border-top: 1px solid rgba(0,200,255,0.1);
+    margin-top: 0.1rem;
+}
+.csel-group:first-child { border-top: none; margin-top: 0; }
+
+/* ── Opzione ── */
+.csel-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.9rem;
+    color: #C8F0E8;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.csel-option:hover { background: rgba(0,200,255,0.12); }
+.csel-option.selected {
+    background: rgba(0,200,255,0.15);
+    color: #00C8FF;
+    font-weight: 600;
+}
+.csel-opt-img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+
+/* ── Variante piccola (per celle tabella) ── */
+.csel.csel-sm .csel-btn {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.78rem;
+    border-radius: 5px;
+    color: #00C8FF;
+}
+.csel.csel-sm .csel-panel { font-size: 0.82rem; min-width: 130px; right: auto; }
+.csel.csel-sm .csel-option { padding: 0.4rem 0.75rem; font-size: 0.82rem; }

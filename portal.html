@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="custom-select.css">
     <style>
         /* ── Auth overlay ─────────────────────────────────────── */
         #authOverlay {
@@ -243,45 +244,7 @@
             </div>
             <div class="pf-field">
                 <label>Grado</label>
-                <select id="pfGrado">
-                    <option value="" disabled>— Seleziona il grado —</option>
-                    <optgroup label="Ufficiali Generali">
-                        <option>Generale di Corpo d'Armata</option>
-                        <option>Generale di Divisione</option>
-                        <option>Generale di Brigata</option>
-                    </optgroup>
-                    <optgroup label="Ufficiali Superiori">
-                        <option>Colonnello</option>
-                        <option>Tenente Colonnello</option>
-                        <option>Maggiore</option>
-                    </optgroup>
-                    <optgroup label="Ufficiali Inferiori">
-                        <option>Capitano</option>
-                        <option>Tenente</option>
-                        <option>Sottotenente</option>
-                    </optgroup>
-                    <optgroup label="Ispettori">
-                        <option>Luogotenente "Carica Speciale"</option>
-                        <option>Luogotenente</option>
-                        <option>Maresciallo Maggiore</option>
-                        <option>Maresciallo Capo</option>
-                        <option>Maresciallo Ordinario</option>
-                        <option>Maresciallo</option>
-                    </optgroup>
-                    <optgroup label="Sovrintendenti – Brigadieri">
-                        <option>Brigadiere Capo "Qualifica Speciale"</option>
-                        <option>Brigadiere Capo</option>
-                        <option>Brigadiere</option>
-                        <option>Vicebrigadiere</option>
-                    </optgroup>
-                    <optgroup label="Appuntati e Carabinieri">
-                        <option>Appuntato Scelto "Qualifica Speciale"</option>
-                        <option>Appuntato Scelto</option>
-                        <option>Appuntato</option>
-                        <option>Carabiniere Scelto</option>
-                        <option>Carabiniere</option>
-                    </optgroup>
-                </select>
+                <div id="pfGradoSel" class="csel"></div>
                 <img id="pfGradoImg" class="pf-grado-img" src="" style="display:none;">
             </div>
             <div class="pf-actions">
@@ -341,8 +304,9 @@
         </div>
     </div>
 
+    <script src="custom-select.js"></script>
     <script>
-    // ── Auth check ────────────────────────────────────────────────────────────
+    // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
     (async function() {
         const token = localStorage.getItem('authToken');
@@ -410,16 +374,26 @@
         "Carabiniere": "carabiniere.webp",
     };
 
+    let pfGradoCs = null;
+
     async function openProfileModal() {
         const res  = await fetch('/api/auth/my-profile', { headers: authHeader() });
         const data = await res.json();
         document.getElementById('pfNome').value    = data.nome    || '';
         document.getElementById('pfCognome').value = data.cognome || '';
-        const sel = document.getElementById('pfGrado');
-        for (const opt of sel.options) { if (opt.text === data.grado) { sel.value = opt.value; break; } }
-        updateGradoImg();
+        // Inizializza il custom select del grado (una sola volta)
+        if (!pfGradoCs) {
+            pfGradoCs = new CustomSelect(
+                document.getElementById('pfGradoSel'),
+                GRADI_OPTIONS,
+                (val) => { updateGradoImg(val); },
+                { placeholder: '— Seleziona il grado —', value: data.grado || '' }
+            );
+        } else {
+            pfGradoCs.setValue(data.grado || '');
+        }
+        updateGradoImg(data.grado || '');
         document.getElementById('profileMsg').style.display = 'none';
-        // Gli admin/superadmin modificano direttamente; gli altri inviano richiesta
         const isAdmin = data.role === 'superadmin' || data.role === 'admin';
         document.getElementById('profileSubtitle').textContent = isAdmin
             ? 'Modifica il tuo profilo.'
@@ -430,21 +404,17 @@
     }
     function closeProfileModal() { document.getElementById('profileModal').style.display = 'none'; }
 
-    function updateGradoImg() {
-        const grado = document.getElementById('pfGrado').value;
-        const img   = document.getElementById('pfGradoImg');
-        const f     = GRADO_IMG_P[grado];
+    function updateGradoImg(grado) {
+        const img = document.getElementById('pfGradoImg');
+        const f   = GRADO_IMG_MAP[grado];
         if (f) { img.src = `/immagini/gradi/${encodeURIComponent(f)}`; img.style.display='block'; }
         else   { img.style.display='none'; }
     }
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('pfGrado').addEventListener('change', updateGradoImg);
-    });
 
     async function submitProfileChange() {
         const nome    = document.getElementById('pfNome').value.trim();
         const cognome = document.getElementById('pfCognome').value.trim();
-        const grado   = document.getElementById('pfGrado').value;
+        const grado   = pfGradoCs ? pfGradoCs.getValue() : '';
         const msgEl   = document.getElementById('profileMsg');
         const btn     = document.getElementById('pfSubmitBtn');
         msgEl.style.display = 'none';
