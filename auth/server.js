@@ -303,6 +303,30 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin, (req, res) => {
         };
         requests.push(newReq);
         writeJSON(REQUESTS_FILE, requests);
+        // Notifica email al target
+        if (user.id !== req.user.id) {
+            const ROLE_LABEL_MAP = { reader:'Reader', user:'Utente', admin:'Admin', superadmin:'Super Admin' };
+            const subj = `[CryptocurrenciesSection] Richiesta cambio ruolo`;
+            const link = `${PORTAL_URL}/portal`;
+            const html = `<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+<tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr>
+<tr><td style="padding:32px;">
+<h2 style="color:#1a2a3a;margin:0 0 12px;">Richiesta cambio ruolo</h2>
+<p style="color:#4a5568;line-height:1.6;margin:0 0 8px;"><strong>${req.user.email}</strong> ha richiesto di cambiare il tuo ruolo da <strong>${ROLE_LABEL_MAP[user.role]}</strong> a <strong>${ROLE_LABEL_MAP[newRole]}</strong>.</p>
+<p style="color:#4a5568;line-height:1.6;margin:0 0 28px;">Accedi al portale per approvare o ignorare la richiesta. Scade tra <strong>24 ore</strong>.</p>
+<a href="${link}" style="display:inline-block;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;">Vai al portale</a>
+</td></tr>
+<tr><td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="color:#a0aec0;font-size:0.75rem;margin:0;">Uso interno riservato.</p></td></tr>
+</table></td></tr></table></body></html>`;
+            if (transporter) {
+                transporter.sendMail({ from: SMTP_FROM, to: user.email, subject: subj, html })
+                    .catch(err => console.error('[AUTH] Errore email notifica:', err.message));
+            } else {
+                console.log(`[AUTH] Notifica cambio ruolo per ${user.email}: ${req.user.email} richiede ${newRole}`);
+            }
+        }
         return res.status(202).json({ requestCreated: true, requestId: newReq.id });
     }
 
@@ -331,11 +355,10 @@ app.post('/api/auth/role-change-requests/:id/approve', authenticate, requireSupe
         rcr.status = 'expired'; writeJSON(REQUESTS_FILE, requests);
         return res.status(400).json({ error: 'Richiesta scaduta.' });
     }
-    // L'approvatore non deve essere il richiedente né il target
+    // L'approvatore non deve essere il richiedente
+    // Il TARGET può approvare la modifica del proprio ruolo (consenso diretto)
     if (req.user.id === rcr.requestedBy.id)
         return res.status(403).json({ error: 'Non puoi approvare la tua stessa richiesta.' });
-    if (req.user.id === rcr.targetId)
-        return res.status(403).json({ error: 'Non puoi approvare la modifica del tuo stesso ruolo.' });
     // Applica il cambio ruolo
     const users = readJSON(USERS_FILE);
     const user  = users.find(u => u.id === rcr.targetId);

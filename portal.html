@@ -187,7 +187,7 @@
                 <button class="admin-tab active" onclick="switchTab('users')">Utenti</button>
                 <button class="admin-tab" onclick="switchTab('invite')">Invita</button>
                 <button class="admin-tab" onclick="switchTab('invitations')">Inviti in sospeso</button>
-                <button class="admin-tab" id="tabBtnRequests" style="display:none;" onclick="switchTab('requests')">Richieste</button>
+                <button class="admin-tab" id="tabBtnRequests" style="display:none;" onclick="switchTab('requests')">Richieste <span id="reqBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.25rem;display:none;">0</span></button>
             </div>
             <div class="admin-body">
                                 <!-- Tab: Utenti -->
@@ -212,7 +212,7 @@
                     </div>
                     <div style="margin-bottom:1rem;">
                         <span style="font-size:0.8rem;color:#7ACCE0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:0.45rem;">Ruolo da assegnare</span>
-                        <select id="inviteRoleSelect" class="role-select" style="margin-left:0;font-size:0.88rem;padding:0.5rem 0.7rem;">
+                        <select id="inviteRoleSelect" style="width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.08);border:1px solid rgba(0,200,255,0.25);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none;cursor:pointer;">
                             <!-- opzioni popolate da openAdminPanel() -->
                         </select>
                     </div>
@@ -251,6 +251,17 @@
             document.getElementById('navUserEmail').textContent = _currentUser.email;
             if (_currentUser.role === 'superadmin' || _currentUser.role === 'admin') {
                 document.getElementById('navAdminBtn').style.display = '';
+            }
+            // Superadmin: controlla subito se ci sono richieste pendenti
+            if (_currentUser.role === 'superadmin') {
+                fetch('/api/auth/role-change-requests', { headers: { 'Authorization': 'Bearer ' + token } })
+                    .then(r => r.ok ? r.json() : [])
+                    .then(data => {
+                        if (data.length > 0) {
+                            const badge = document.getElementById('reqBadge');
+                            if (badge) { badge.textContent = data.length; badge.style.display = ''; }
+                        }
+                    }).catch(() => {});
             }
         } catch {
             localStorage.removeItem('authToken');
@@ -380,20 +391,28 @@
         try {
             const res  = await fetch('/api/auth/role-change-requests', { headers: authHeader() });
             const data = await res.json();
+            // Aggiorna badge
+            const badge = document.getElementById('reqBadge');
+            if (data.length > 0) { badge.textContent = data.length; badge.style.display = ''; }
+            else badge.style.display = 'none';
             if (!data.length) { list.innerHTML = '<div class="empty-state">Nessuna richiesta in sospeso.</div>'; return; }
             list.innerHTML = data.map(r => {
-                const isMine    = r.requestedBy.id === _currentUser.id;
-                const isTarget  = r.targetId === _currentUser.id;
-                const canApprove = !isMine && !isTarget;
+                const isMine   = r.requestedBy.id === _currentUser.id;
+                const isTarget = r.targetId === _currentUser.id;
+                // Il target può approvare; il richiedente no
+                const canApprove = !isMine;
                 const exp = new Date(r.expiresAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+                const whoTag = isTarget ? ' <span style="color:#FFD700;font-size:0.75rem;">(il tuo ruolo)</span>' : '';
                 return `
                 <div class="req-item">
                     <div class="req-info">
-                        <strong>${r.targetEmail}</strong>: ${ROLE_LABEL[r.currentRole] || r.currentRole} → ${ROLE_LABEL[r.newRole] || r.newRole}
+                        <strong>${r.targetEmail}</strong>${whoTag}: ${ROLE_LABEL[r.currentRole] || r.currentRole} &rarr; ${ROLE_LABEL[r.newRole] || r.newRole}
                         <small>Richiesta da: ${r.requestedBy.email} &mdash; Scade: ${exp}</small>
                     </div>
                     <div style="display:flex;gap:0.5rem;">
-                        ${canApprove ? `<button class="btn-approve" onclick="approveRoleChange('${r.id}')">Approva</button>` : '<span style="color:#5ABBC8;font-size:0.78rem;">In attesa</span>'}
+                        ${canApprove
+                            ? `<button class="btn-approve" onclick="approveRoleChange('${r.id}')">${isTarget ? 'Accetta' : 'Approva'}</button>`
+                            : '<span style="color:#5ABBC8;font-size:0.78rem;">In attesa risposta</span>'}
                         <button class="btn-del" onclick="cancelRoleChange('${r.id}')">Annulla</button>
                     </div>
                 </div>`;
@@ -468,13 +487,14 @@
             const data = await res.json();
             if (!data.length) { list.innerHTML = '<div class="empty-state">Nessun invito in sospeso.</div>'; return; }
             list.innerHTML = data.map(i => {
-                const roleLabel = i.role === 'admin' ? 'admin' : 'utente';
-                const badgeCls  = i.role === 'admin' ? 'badge-admin' : 'badge-user';
+                const roleLabel = { reader:'Reader', user:'Utente', admin:'Admin', superadmin:'Super Admin' }[i.role] || i.role;
+                const badgeCls  = (i.role === 'admin' || i.role === 'superadmin') ? 'badge-admin' : 'badge-user';
+                const exp = new Date(i.expiresAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
                 return `
                 <div class="inv-item">
                     <span class="inv-email">${i.email}</span>
                     <span class="badge ${badgeCls} inv-role">${roleLabel}</span>
-                    <span class="inv-exp">Scade: ${new Date(i.expiresAt).toLocaleDateString('it-IT')}</span>
+                    <span class="inv-exp">Scade: ${exp}</span>
                     <button class="btn-del" style="white-space:nowrap;" onclick="cancelInvitation('${i.token}','${i.email}')">Annulla</button>
                 </div>`;
             }).join('');
