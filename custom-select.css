@@ -34,7 +34,7 @@
 .csel-btn.active { border-color: rgba(0,200,255,0.6); background: #0a1a2e; }
 .csel-btn.active { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 
-.csel-combo { cursor: text; padding: 0.35rem 0.65rem 0.35rem 0.75rem; }
+.csel-combo { cursor: pointer; padding: 0.35rem 0.65rem 0.35rem 0.75rem; }
 .csel-input {
     flex: 1;
     min-width: 0;
@@ -47,14 +47,29 @@
     padding: 0.35rem 0 !important;
     box-shadow: none !important;
     width: 100%;
+    cursor: pointer;
 }
+.csel-input:focus { cursor: text; }
 .csel-input::placeholder { color: rgba(90,187,200,0.5); }
 
 .csel-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .csel-placeholder { color: rgba(90,187,200,0.5); }
+.csel-sublabel {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(122, 140, 155, 0.85);
+    font-size: 0.82rem;
+    font-weight: 400;
+}
+.csel-opt-label { flex-shrink: 0; }
+.csel-option .csel-sublabel { margin-left: 0.35rem; }
 .csel-arrow {
     font-size: 0.7rem; color: #5ABBC8; flex-shrink: 0;
     transition: transform 0.18s;
+    cursor: pointer;
 }
 .csel-btn.active .csel-arrow { transform: rotate(180deg); }
 .csel-btn-img { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }

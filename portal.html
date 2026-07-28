@@ -6,8 +6,8 @@
     <title>CryptocurrenciesSection — Portale Operativo Interno</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=3">
-    <link rel="stylesheet" href="custom-select.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="custom-select.css?v=2">
     <style>
         /* Campanella: regole critiche (evita layout rotto se CSS in cache) */
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
@@ -32,25 +32,42 @@
             box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
         }
         #navBellPanel.open { display: block !important; }
+        #navBellPanel.open.nav-bell-fullscreen { display: flex !important; }
         #navBellPanel .nav-bell-panel-head {
             display: flex; align-items: center; justify-content: space-between;
             gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
         }
         #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
-        #navBellPanel .nav-bell-panel-head a {
+        #navBellPanel .nav-bell-head-actions { display: flex; align-items: center; gap: 0.75rem; }
+        #navBellPanel .nav-bell-head-btn, #navBellPanel .nav-bell-panel-head a {
             color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
             background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+            border: none; cursor: pointer; font-family: inherit; font-weight: 600;
         }
         #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
         #navBellPanel .nav-bell-item {
-            display: block; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem;
+            padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
             color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
         }
         #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
         #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item-body { display: block; width: 100%; color: inherit; text-decoration: none; background: none !important; padding: 0 !important; text-transform: none; }
         #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
         #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
         #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        #navBellPanel .nav-bell-mark-one {
+            padding: 0.3rem 0.7rem; font-size: 0.72rem; font-weight: 600; font-family: inherit;
+            color: #00C8FF; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 6px; cursor: pointer;
+        }
+        #navBellPanel.nav-bell-fullscreen {
+            display: flex !important; flex-direction: column; z-index: 5000;
+            border-radius: 0 !important; border: none;
+        }
+        #navBellPanel.nav-bell-fullscreen .nav-bell-list {
+            flex: 1; max-height: none; max-width: 720px; width: 100%; margin: 0 auto; padding: 0.5rem 1rem 2rem;
+        }
         header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
         header nav ul { flex-wrap: nowrap !important; align-items: center; }
         header nav ul li { white-space: nowrap; }
@@ -201,11 +218,10 @@
 
     <header>
         <div class="header-inner">
-            <h1><img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">Cryptocurrencies <span>Section</span> <small>Portale Interno</small></h1>
+            <h1><img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">Cryptocurrencies<span>Section</span> <small>Portale Interno</small></h1>
             <nav>
                 <ul>
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
-                    <li id="navAdminBtn" style="display:none;"><a href="/gestione-utenti">Gestione Utenti</a></li>
                     <li><a href="/profilo">Il mio profilo</a></li>
                     <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
                         <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
@@ -231,39 +247,45 @@
 
     <main>
         <section style="padding: 2.5rem 1rem; text-align: left;">
-            <h2 style="font-size: 1.6rem; text-align: left;">Benvenuto nel portale operativo</h2>
-            <p style="text-align: left; margin: 0;">Accesso riservato al personale autorizzato. Seleziona un'area di lavoro.</p>
+            <h2 id="welcomeTitle" style="font-size: 1.6rem; text-align: left;">Benvenuto nel portale operativo</h2>
+            <p id="welcomeSub" style="text-align: left; margin: 0; max-width: none; white-space: nowrap; font-size: 0.95rem;">Accesso riservato al personale autorizzato. Seleziona un'area di lavoro.</p>
         </section>
-        <div class="cards">
-            <div class="card">
+        <div class="cards" id="dashboardCards">
+            <div class="card" data-card="blockchain">
                 <div class="icon">🔗</div>
                 <h3>Tracciamento Blockchain</h3>
                 <p>Analisi del flusso di transazioni su blockchain. Visualizzazione grafica dei percorsi wallet.</p>
                 <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
-            <div class="card">
+            <div class="card" data-card="osint">
                 <div class="icon">🕵️</div>
                 <h3>OSINT & Intelligence</h3>
                 <p>Ricerca e correlazione di identità, exchange, indirizzi IP e metadati associati a wallet e transazioni sospette.</p>
                 <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
-            <div class="card">
+            <div class="card" data-card="chainholder">
                 <div class="icon">🔒</div>
                 <h3>Chainholder</h3>
                 <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
                 <a href="http://192.168.1.73:3000/login?callbackUrl=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
-            <div class="card">
+            <div class="card" data-card="corsi">
                 <div class="icon">🎓</div>
                 <h3>Corsi</h3>
                 <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
                 <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
-            <div class="card">
+            <div class="card" data-card="cluster">
                 <div class="icon">🧩</div>
                 <h3>Cluster</h3>
                 <p>Clusterizzazione dei report forniti dagli Exchange.</p>
                 <a href="/cluster/" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="gestione-utenti" style="display:none;">
+                <div class="icon">👥</div>
+                <h3>Gestione Utenti</h3>
+                <p>Inviti, ruoli, profili e richieste di modifica. Area riservata ad amministratori e super admin.</p>
+                <a href="/gestione-utenti" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
         </div>
     </main>
@@ -318,6 +340,17 @@
                             <!-- opzioni popolate da openAdminPanel() -->
                         </select>
                     </div>
+                    <div style="margin-bottom:1rem;">
+                        <span style="font-size:0.8rem;color:#7ACCE0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:0.45rem;">Schede del portale</span>
+                        <p style="font-size:0.78rem;color:#5ABBC8;margin:0 0 0.6rem;">Gestione Utenti resta automatica per Admin/Super Admin.</p>
+                        <div id="portalInviteCards" style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;">
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="blockchain" checked> Blockchain</label>
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="osint" checked> OSINT</label>
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="chainholder" checked> Chainholder</label>
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="corsi" checked> Corsi</label>
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="cluster" checked> Cluster</label>
+                        </div>
+                    </div>
                     <div class="invite-result" id="inviteResult">
                         <div class="link-label">Link di registrazione:</div>
                         <div id="inviteLink"></div>
@@ -333,8 +366,8 @@
         </div>
     </div>
 
-    <script src="custom-select.js?v=6"></script>
-    <script src="nav-notifications.js?v=1"></script>
+    <script src="custom-select.js"></script>
+    <script src="nav-notifications.js?v=3"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -347,8 +380,28 @@
             _currentUser = await res.json();
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.email;
-            if (_currentUser.role === 'superadmin' || _currentUser.role === 'admin') {
-                document.getElementById('navAdminBtn').style.display = '';
+            applyDashboardCards(_currentUser);
+            const welcomeTitle = document.getElementById('welcomeTitle');
+            const welcomeSub = document.getElementById('welcomeSub');
+            if (_currentUser.role === 'superadmin') {
+                welcomeTitle.textContent = 'Benvenuto Super Admin';
+                welcomeTitle.style.color = '#FF6B7A';
+                welcomeSub.style.display = 'none';
+            } else {
+                try {
+                    const pref = await fetch('/api/auth/my-profile', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (pref.ok) {
+                        const p = await pref.json();
+                        const nomeUtente = (p.nome || '').trim()
+                            || (_currentUser.email || '').split('@')[0];
+                        if (nomeUtente) {
+                            welcomeTitle.textContent =
+                                'Benvenuto nel portale operativo, ' + nomeUtente;
+                        }
+                    }
+                } catch { /* titolo di default */ }
             }
             initNavBell();
         } catch {
@@ -360,6 +413,19 @@
     function logout() {
         localStorage.removeItem('authToken');
         window.location.replace('/login');
+    }
+
+    /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin */
+    function applyDashboardCards(user) {
+        const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+        const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
+        document.querySelectorAll('#dashboardCards .card[data-card]').forEach(card => {
+            const id = card.getAttribute('data-card');
+            let show;
+            if (id === 'gestione-utenti') show = isAdmin;
+            else show = allowed.has(id);
+            card.style.display = show ? '' : 'none';
+        });
     }
 
     function authHeader() {
@@ -461,7 +527,7 @@
                     <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span></td>
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
                     <td style="white-space:nowrap;">
-                        ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
+                        ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Elimina</button>` : ''}
                         ${canEdit   ? `<select class="role-select"${editHint} onchange="changeRole('${u.id}','${u.email}',this.value,this)">${roleOpts}</select>` : ''}
                         ${noActionNote}
                     </td>
@@ -473,7 +539,7 @@
     }
 
     function deleteUser(id, email) {
-        showConfirm(`Revocare l'accesso a ${email}?`, async () => {
+        showConfirm(`Eliminare l'accesso a ${email}?`, async () => {
             const res = await fetch('/api/auth/users/' + id, { method: 'DELETE', headers: authHeader() });
             if (res.ok) { showMsg('usersMsg', 'Utente rimosso.', 'success'); loadUsers(); }
             else        { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); }
@@ -570,12 +636,14 @@
     async function sendInvite() {
         const email     = document.getElementById('inviteEmail').value.trim();
         const role      = document.getElementById('inviteRoleSelect').value || 'user';
+        const cards     = Array.from(document.querySelectorAll('input[name="portalInviteCard"]:checked')).map(i => i.value);
         const result    = document.getElementById('inviteResult');
         result.style.display = 'none';
         if (!email) { showMsg('inviteMsg', 'Inserisci un\'email.', 'error'); return; }
+        if (!cards.length) { showMsg('inviteMsg', 'Seleziona almeno una scheda.', 'error'); return; }
         const res  = await fetch('/api/auth/invite', {
             method: 'POST', headers: authHeader(),
-            body: JSON.stringify({ email, role })
+            body: JSON.stringify({ email, role, cards })
         });
         const data = await res.json();
         if (!res.ok) { showMsg('inviteMsg', data.error || 'Errore.', 'error'); return; }

@@ -7,7 +7,7 @@
  *   cs.setValue(value)
  *   cs.setOptions(options)
  *
- * options: [{value, label, group?, img?}]
+ * options: [{value, label, group?, img?, sublabel?}]
  */
 class CustomSelect {
     static _instances = [];
@@ -19,6 +19,8 @@ class CustomSelect {
         this.placeholder = cfg.placeholder || '— Seleziona —';
         this.showImages  = cfg.showImages !== false;
         this.searchable  = !!cfg.searchable;
+        this.showBtnSublabel = cfg.showBtnSublabel !== false;
+        this.showOptionSublabel = cfg.showOptionSublabel !== false;
         this._value      = cfg.value || '';
         this._isOpen     = false;
         this._filter     = '';
@@ -39,6 +41,10 @@ class CustomSelect {
             this.input.spellcheck = false;
             this.input.placeholder = this.placeholder;
             this.btn.appendChild(this.input);
+            this.subEl = document.createElement('span');
+            this.subEl.className = 'csel-sublabel';
+            this.subEl.hidden = true;
+            this.btn.appendChild(this.subEl);
             const arrow = document.createElement('span');
             arrow.className = 'csel-arrow';
             arrow.textContent = '▾';
@@ -84,11 +90,25 @@ class CustomSelect {
     _filteredOptions() {
         if (!this.searchable || !this._filter.trim()) return this.options;
         const q = CustomSelect._norm(this._filter.trim());
+        const qDigits = q.replace(/^\+/, '');
         return this.options.filter(o => {
             const label = CustomSelect._norm(o.label);
             const value = CustomSelect._norm(o.value);
-            return label.startsWith(q) || value.startsWith(q);
+            const sub = CustomSelect._norm(o.sublabel);
+            const labelDigits = label.replace(/^\+/, '');
+            return label.startsWith(q)
+                || value.startsWith(q)
+                || (sub && (sub.startsWith(q) || sub.split(/\s+/).some(w => w.startsWith(q))))
+                || (qDigits && labelDigits.startsWith(qDigits));
         });
+    }
+
+    _appendSublabel(parent, text) {
+        if (!text) return;
+        const sub = document.createElement('span');
+        sub.className = 'csel-sublabel';
+        sub.textContent = text;
+        parent.appendChild(sub);
     }
 
     _renderOptions() {
@@ -124,8 +144,10 @@ class CustomSelect {
                 item.appendChild(img);
             }
             const span = document.createElement('span');
+            span.className = 'csel-opt-label';
             span.textContent = opt.label;
             item.appendChild(span);
+            if (this.showOptionSublabel) this._appendSublabel(item, opt.sublabel);
             item.addEventListener('mousedown', (e) => {
                 // mousedown evita blur dell'input prima del click
                 e.preventDefault();
@@ -136,7 +158,7 @@ class CustomSelect {
                 this._renderOptions();
                 this._updateBtn();
                 this._close();
-                if (prev !== opt.value) this.onChange(opt.value, opt.label);
+                if (prev !== opt.value) this.onChange(opt.value, opt.label, prev);
             });
             this.panel.appendChild(item);
         }
@@ -147,10 +169,20 @@ class CustomSelect {
         if (this.searchable) {
             if (this._isOpen && this._filter !== '') {
                 // mentre digita lascia il testo filtro
+                if (this.subEl) this.subEl.hidden = true;
                 return;
             }
             this.input.value = opt ? opt.label : '';
             this.input.placeholder = this.placeholder;
+            if (this.subEl) {
+                if (this.showBtnSublabel && opt && opt.sublabel) {
+                    this.subEl.textContent = opt.sublabel;
+                    this.subEl.hidden = false;
+                } else {
+                    this.subEl.textContent = '';
+                    this.subEl.hidden = true;
+                }
+            }
             return;
         }
         this.btn.innerHTML = '';
@@ -170,6 +202,7 @@ class CustomSelect {
             lbl.textContent = this.placeholder;
         }
         this.btn.appendChild(lbl);
+        if (this.showBtnSublabel && opt) this._appendSublabel(this.btn, opt.sublabel);
         const arrow = document.createElement('span');
         arrow.className = 'csel-arrow';
         arrow.textContent = '▾';
@@ -263,6 +296,7 @@ class CustomSelect {
             });
             this.input.addEventListener('input', () => {
                 this._filter = this.input.value;
+                if (this.subEl) this.subEl.hidden = true;
                 // digitando si invalida la selezione finché non sceglie
                 if (this._value) {
                     const opt = this.options.find(o => o.value === this._value);

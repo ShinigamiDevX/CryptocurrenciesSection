@@ -35,25 +35,32 @@ db.exec(`
         residenzaProvincia      TEXT NOT NULL DEFAULT '',
         residenzaComune         TEXT NOT NULL DEFAULT '',
         residenzaStato          TEXT NOT NULL DEFAULT '',
+        residenzaIndirizzo      TEXT NOT NULL DEFAULT '',
+        residenzaCivico         TEXT NOT NULL DEFAULT '',
         domicilio               TEXT NOT NULL DEFAULT '',
         domicilioTipo           TEXT NOT NULL DEFAULT '',
         domicilioProvincia      TEXT NOT NULL DEFAULT '',
         domicilioComune         TEXT NOT NULL DEFAULT '',
         domicilioStato          TEXT NOT NULL DEFAULT '',
+        domicilioIndirizzo      TEXT NOT NULL DEFAULT '',
+        domicilioCivico         TEXT NOT NULL DEFAULT '',
         domicilioComeResidenza  INTEGER NOT NULL DEFAULT 0,
-        telefono                TEXT NOT NULL DEFAULT ''
+        telefono                TEXT NOT NULL DEFAULT '',
+        telefonoPrefisso        TEXT NOT NULL DEFAULT '+39',
+        allowedCards            TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS invitations (
-        token     TEXT PRIMARY KEY,
-        email     TEXT NOT NULL,
-        role      TEXT NOT NULL DEFAULT 'user',
-        invitedBy TEXT,
-        createdAt TEXT NOT NULL,
-        expiresAt TEXT NOT NULL,
-        used      INTEGER NOT NULL DEFAULT 0,
-        otp       TEXT,
-        otpExpiry TEXT,
-        otpUsed   INTEGER NOT NULL DEFAULT 0
+        token         TEXT PRIMARY KEY,
+        email         TEXT NOT NULL,
+        role          TEXT NOT NULL DEFAULT 'user',
+        invitedBy     TEXT,
+        createdAt     TEXT NOT NULL,
+        expiresAt     TEXT NOT NULL,
+        used          INTEGER NOT NULL DEFAULT 0,
+        otp           TEXT,
+        otpExpiry     TEXT,
+        otpUsed       INTEGER NOT NULL DEFAULT 0,
+        allowedCards  TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS role_change_requests (
         id               TEXT PRIMARY KEY,
@@ -89,13 +96,18 @@ db.exec(`
         residenzaProvincia     TEXT NOT NULL DEFAULT '',
         residenzaComune        TEXT NOT NULL DEFAULT '',
         residenzaStato         TEXT NOT NULL DEFAULT '',
+        residenzaIndirizzo     TEXT NOT NULL DEFAULT '',
+        residenzaCivico        TEXT NOT NULL DEFAULT '',
         domicilio              TEXT NOT NULL DEFAULT '',
         domicilioTipo          TEXT NOT NULL DEFAULT '',
         domicilioProvincia     TEXT NOT NULL DEFAULT '',
         domicilioComune        TEXT NOT NULL DEFAULT '',
         domicilioStato         TEXT NOT NULL DEFAULT '',
+        domicilioIndirizzo     TEXT NOT NULL DEFAULT '',
+        domicilioCivico        TEXT NOT NULL DEFAULT '',
         domicilioComeResidenza INTEGER NOT NULL DEFAULT 0,
         telefono               TEXT NOT NULL DEFAULT '',
+        telefonoPrefisso       TEXT NOT NULL DEFAULT '+39',
         requestedAt            TEXT NOT NULL,
         status                 TEXT NOT NULL DEFAULT 'pending',
         reviewedBy             TEXT,
@@ -169,16 +181,30 @@ const USER_EXTRA_COLS = [
     ['residenzaProvincia', "TEXT NOT NULL DEFAULT ''"],
     ['residenzaComune', "TEXT NOT NULL DEFAULT ''"],
     ['residenzaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaCivico', "TEXT NOT NULL DEFAULT ''"],
     ['domicilio', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioTipo', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioProvincia', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioComune', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioCivico', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioComeResidenza', 'INTEGER NOT NULL DEFAULT 0'],
     ['telefono', "TEXT NOT NULL DEFAULT ''"],
+    ['telefonoPrefisso', "TEXT NOT NULL DEFAULT '+39'"],
+    ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
 ];
 USER_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+const INV_EXTRA_COLS = [
+    ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
+];
+INV_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE invitations ADD COLUMN ${col} ${def}`); }
     catch { /* già presente */ }
 });
 
@@ -194,13 +220,18 @@ const PCR_EXTRA_COLS = [
     ['residenzaProvincia', "TEXT NOT NULL DEFAULT ''"],
     ['residenzaComune', "TEXT NOT NULL DEFAULT ''"],
     ['residenzaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaCivico', "TEXT NOT NULL DEFAULT ''"],
     ['domicilio', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioTipo', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioProvincia', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioComune', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioCivico', "TEXT NOT NULL DEFAULT ''"],
     ['domicilioComeResidenza', 'INTEGER NOT NULL DEFAULT 0'],
     ['telefono', "TEXT NOT NULL DEFAULT ''"],
+    ['telefonoPrefisso', "TEXT NOT NULL DEFAULT '+39'"],
 ];
 PCR_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE profile_change_requests ADD COLUMN ${col} ${def}`); }
@@ -215,28 +246,36 @@ const fromRow = (r) => r ? {
     domicilioComeResidenza: toBool(r.domicilioComeResidenza),
 } : null;
 
-function geoBlock(p, prefix) {
+function geoBlock(p, prefix, { withAddress = false } = {}) {
     const tipo = p[`${prefix}Tipo`] === 'IT' || p[`${prefix}Tipo`] === 'ESTERO' ? p[`${prefix}Tipo`] : '';
-    return {
+    const out = {
         [prefix]: p[prefix] || '',
         [`${prefix}Tipo`]: tipo,
         [`${prefix}Provincia`]: tipo === 'IT' ? (p[`${prefix}Provincia`] || '') : '',
         [`${prefix}Comune`]: tipo === 'IT' ? (p[`${prefix}Comune`] || '') : '',
         [`${prefix}Stato`]: tipo === 'ESTERO' ? (p[`${prefix}Stato`] || '') : '',
     };
+    if (withAddress) {
+        out[`${prefix}Indirizzo`] = p[`${prefix}Indirizzo`] || '';
+        out[`${prefix}Civico`] = p[`${prefix}Civico`] || '';
+    }
+    return out;
 }
 
 function profileDefaults(p = {}) {
     const comeRes = !!p.domicilioComeResidenza;
     const luogo = geoBlock(p, 'luogoNascita');
-    const residenza = geoBlock(p, 'residenza');
+    const residenza = geoBlock(p, 'residenza', { withAddress: true });
     const domicilio = comeRes ? {
         domicilio: residenza.residenza,
         domicilioTipo: residenza.residenzaTipo,
         domicilioProvincia: residenza.residenzaProvincia,
         domicilioComune: residenza.residenzaComune,
         domicilioStato: residenza.residenzaStato,
-    } : geoBlock(p, 'domicilio');
+        domicilioIndirizzo: residenza.residenzaIndirizzo,
+        domicilioCivico: residenza.residenzaCivico,
+    } : geoBlock(p, 'domicilio', { withAddress: true });
+    const telefonoPrefisso = String(p.telefonoPrefisso || '+39').trim() || '+39';
     return {
         nome: p.nome || '',
         cognome: p.cognome || '',
@@ -247,6 +286,7 @@ function profileDefaults(p = {}) {
         ...domicilio,
         domicilioComeResidenza: comeRes ? 1 : 0,
         telefono: p.telefono || '',
+        telefonoPrefisso,
     };
 }
 
@@ -263,15 +303,19 @@ const Users = {
                 nome,cognome,grado,dataNascita,luogoNascita,
                 luogoNascitaTipo,luogoNascitaProvincia,luogoNascitaComune,luogoNascitaStato,
                 residenza,residenzaTipo,residenzaProvincia,residenzaComune,residenzaStato,
+                residenzaIndirizzo,residenzaCivico,
                 domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
-                domicilioComeResidenza,telefono
+                domicilioIndirizzo,domicilioCivico,
+                domicilioComeResidenza,telefono,telefonoPrefisso,allowedCards
             ) VALUES (
                 @id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,
                 @nome,@cognome,@grado,@dataNascita,@luogoNascita,
                 @luogoNascitaTipo,@luogoNascitaProvincia,@luogoNascitaComune,@luogoNascitaStato,
                 @residenza,@residenzaTipo,@residenzaProvincia,@residenzaComune,@residenzaStato,
+                @residenzaIndirizzo,@residenzaCivico,
                 @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
-                @domicilioComeResidenza,@telefono
+                @domicilioIndirizzo,@domicilioCivico,
+                @domicilioComeResidenza,@telefono,@telefonoPrefisso,@allowedCards
             )
         `).run({
             id: u.id,
@@ -280,6 +324,7 @@ const Users = {
             role: u.role || 'user',
             createdAt: u.createdAt,
             mustChangePassword: u.mustChangePassword ? 1 : 0,
+            allowedCards: u.allowedCards || '',
             ...p,
         });
     },
@@ -296,9 +341,12 @@ const Users = {
                 luogoNascitaComune=@luogoNascitaComune, luogoNascitaStato=@luogoNascitaStato,
                 residenza=@residenza, residenzaTipo=@residenzaTipo, residenzaProvincia=@residenzaProvincia,
                 residenzaComune=@residenzaComune, residenzaStato=@residenzaStato,
+                residenzaIndirizzo=@residenzaIndirizzo, residenzaCivico=@residenzaCivico,
                 domicilio=@domicilio, domicilioTipo=@domicilioTipo, domicilioProvincia=@domicilioProvincia,
                 domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
-                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono
+                domicilioIndirizzo=@domicilioIndirizzo, domicilioCivico=@domicilioCivico,
+                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono, telefonoPrefisso=@telefonoPrefisso,
+                allowedCards=@allowedCards
             WHERE id=@id
         `).run({
             id,
@@ -306,10 +354,12 @@ const Users = {
             role: u.role || 'user',
             createdAt: u.createdAt,
             mustChangePassword: u.mustChangePassword ? 1 : 0,
+            allowedCards: u.allowedCards || '',
             ...p,
         });
     },
     updateRole: (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
+    updateAllowedCards: (id, allowedCards) => db.prepare('UPDATE users SET allowedCards = ? WHERE id = ?').run(allowedCards || '', id),
     updateProfile: (id, profile) => {
         const p = profileDefaults(profile);
         return db.prepare(`
@@ -320,14 +370,18 @@ const Users = {
                 luogoNascitaComune=@luogoNascitaComune, luogoNascitaStato=@luogoNascitaStato,
                 residenza=@residenza, residenzaTipo=@residenzaTipo, residenzaProvincia=@residenzaProvincia,
                 residenzaComune=@residenzaComune, residenzaStato=@residenzaStato,
+                residenzaIndirizzo=@residenzaIndirizzo, residenzaCivico=@residenzaCivico,
                 domicilio=@domicilio, domicilioTipo=@domicilioTipo, domicilioProvincia=@domicilioProvincia,
                 domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
-                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono
+                domicilioIndirizzo=@domicilioIndirizzo, domicilioCivico=@domicilioCivico,
+                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono, telefonoPrefisso=@telefonoPrefisso
             WHERE id=@id
         `).run({ id, ...p });
     },
     revoke: id => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
     changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?').run(hash, id),
+    /** Reset admin: nuova password e obbligo di cambio al prossimo accesso. */
+    resetPassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?').run(hash, id),
 };
 
 // ── Profile Change Requests ─────────────────────────────────────────────────
@@ -349,15 +403,19 @@ const ProfileChangeRequests = {
                 id,userId,userEmail,nome,cognome,grado,
                 dataNascita,luogoNascita,luogoNascitaTipo,luogoNascitaProvincia,luogoNascitaComune,luogoNascitaStato,
                 residenza,residenzaTipo,residenzaProvincia,residenzaComune,residenzaStato,
+                residenzaIndirizzo,residenzaCivico,
                 domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
-                domicilioComeResidenza,telefono,
+                domicilioIndirizzo,domicilioCivico,
+                domicilioComeResidenza,telefono,telefonoPrefisso,
                 requestedAt
             ) VALUES (
                 @id,@userId,@userEmail,@nome,@cognome,@grado,
                 @dataNascita,@luogoNascita,@luogoNascitaTipo,@luogoNascitaProvincia,@luogoNascitaComune,@luogoNascitaStato,
                 @residenza,@residenzaTipo,@residenzaProvincia,@residenzaComune,@residenzaStato,
+                @residenzaIndirizzo,@residenzaCivico,
                 @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
-                @domicilioComeResidenza,@telefono,
+                @domicilioIndirizzo,@domicilioCivico,
+                @domicilioComeResidenza,@telefono,@telefonoPrefisso,
                 @requestedAt
             )
         `).run({
@@ -379,8 +437,8 @@ const Invitations = {
     findActive:       ()    => db.prepare("SELECT * FROM invitations WHERE used=0 AND expiresAt > datetime('now')").all().map(toInv),
     invalidateByEmail:email => db.prepare('UPDATE invitations SET used=1 WHERE email=? COLLATE NOCASE').run(email),
     insert: i => db.prepare(
-        'INSERT INTO invitations (token,email,role,invitedBy,createdAt,expiresAt) VALUES (@token,@email,@role,@invitedBy,@createdAt,@expiresAt)'
-    ).run(i),
+        'INSERT INTO invitations (token,email,role,invitedBy,createdAt,expiresAt,allowedCards) VALUES (@token,@email,@role,@invitedBy,@createdAt,@expiresAt,@allowedCards)'
+    ).run({ allowedCards: '', ...i }),
     setOtp:  (token, hash, exp) => db.prepare('UPDATE invitations SET otp=?,otpExpiry=?,otpUsed=0 WHERE token=?').run(hash, exp, token),
     markUsed:token => db.prepare('UPDATE invitations SET used=1,otpUsed=1 WHERE token=?').run(token),
     cancel:  token => db.prepare('UPDATE invitations SET used=1 WHERE token=?').run(token),

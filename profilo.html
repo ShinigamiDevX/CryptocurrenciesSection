@@ -6,10 +6,10 @@
     <title>Il mio profilo — CryptocurrenciesSection</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=3">
-    <link rel="stylesheet" href="custom-select.css?v=5">
-    <link rel="stylesheet" href="custom-date.css">
-    <link rel="stylesheet" href="luogo-nascita.css">
+    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="custom-select.css?v=8">
+    <link rel="stylesheet" href="custom-date.css?v=8">
+    <link rel="stylesheet" href="luogo-nascita.css?v=5">
     <style>
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
         .nav-bell-btn {
@@ -33,25 +33,42 @@
             box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
         }
         #navBellPanel.open { display: block !important; }
+        #navBellPanel.open.nav-bell-fullscreen { display: flex !important; }
         #navBellPanel .nav-bell-panel-head {
             display: flex; align-items: center; justify-content: space-between;
             gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
         }
         #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
-        #navBellPanel .nav-bell-panel-head a {
+        #navBellPanel .nav-bell-head-actions { display: flex; align-items: center; gap: 0.75rem; }
+        #navBellPanel .nav-bell-head-btn, #navBellPanel .nav-bell-panel-head a {
             color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
             background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+            border: none; cursor: pointer; font-family: inherit; font-weight: 600;
         }
         #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
         #navBellPanel .nav-bell-item {
-            display: block; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem;
+            padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
             color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
         }
         #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
         #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item-body { display: block; width: 100%; color: inherit; text-decoration: none; background: none !important; padding: 0 !important; text-transform: none; }
         #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
         #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
         #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        #navBellPanel .nav-bell-mark-one {
+            padding: 0.3rem 0.7rem; font-size: 0.72rem; font-weight: 600; font-family: inherit;
+            color: #00C8FF; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 6px; cursor: pointer;
+        }
+        #navBellPanel.nav-bell-fullscreen {
+            display: flex !important; flex-direction: column; z-index: 5000;
+            border-radius: 0 !important; border: none;
+        }
+        #navBellPanel.nav-bell-fullscreen .nav-bell-list {
+            flex: 1; max-height: none; max-width: 720px; width: 100%; margin: 0 auto; padding: 0.5rem 1rem 2rem;
+        }
         header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
         header nav ul { flex-wrap: nowrap !important; align-items: center; }
         header nav ul li { white-space: nowrap; }
@@ -65,8 +82,8 @@
         #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
 
         main { max-width: none; width: 100%; padding: 1.5rem 2rem; margin: 0 auto; }
-        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; }
-        .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin-bottom: 2rem; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; }
+        .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 2rem; text-align: center; max-width: 720px; }
 
         .profile-card {
             background: rgba(0,200,255,0.04);
@@ -75,6 +92,7 @@
             padding: 1.8rem 2rem;
             width: 100%;
             max-width: 720px;
+            margin: 0 auto;
         }
         .profile-head {
             display: flex; align-items: center; justify-content: space-between;
@@ -151,7 +169,7 @@
         .edit-field:has(.csel) { position: relative; z-index: 5; }
         .edit-field:has(.cdate) { position: relative; z-index: 6; }
 
-        .feedback { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin-bottom: 1rem; display: none; }
+        .feedback { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin: 0 auto 1rem; display: none; max-width: 720px; }
         .feedback.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
         .feedback.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
 
@@ -174,8 +192,11 @@
             <nav>
                 <ul>
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
-                    <li id="navAdminBtn" style="display:none;"><a href="/gestione-utenti">Gestione Utenti</a></li>
-                    <li><a href="/portal">← Portale</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 3.5 10.2c-.3.25-.3.7 0 .95l.7.55c.25.2.6.15.8-.1L12 5.9l6.99 5.7c.2.25.55.3.8.1l.7-.55c.3-.25.3-.7 0-.95L12 3.2zM5.5 12.5V20c0 .55.45 1 1 1h3.75c.4 0 .75-.35.75-.75V16.5c0-.55.45-1 1-1h.5c.55 0 1 .45 1 1v3.75c0 .4.35.75.75.75H17.5c.55 0 1-.45 1-1v-7.5L12 7.2 5.5 12.5z"/></svg>
+                        </a>
+                    </li>
                     <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
                         <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
@@ -199,7 +220,7 @@
 
     <main>
         <div class="page-title">👤 Il mio profilo</div>
-        <p class="page-sub">Visualizza i tuoi dati anagrafici e di accesso al portale.</p>
+        <p class="page-sub">Visualizza i tuoi dati anagrafici e modifica la password di accesso.</p>
 
         <div class="feedback" id="profileMsg"></div>
 
@@ -279,7 +300,7 @@
                 </div>
                 <div class="edit-field">
                     <label for="editTelefono">Numero di telefono</label>
-                    <input type="tel" id="editTelefono" placeholder="+39 …">
+                    <div id="editTelefono" class="tel-field"></div>
                 </div>
                 <p id="editHint" style="font-size:0.82rem;color:#5ABBC8;margin:0 0 1rem;"></p>
                 <div class="edit-actions">
@@ -287,16 +308,47 @@
                     <button type="button" class="btn-save" id="btnSave" onclick="saveProfile()">Salva</button>
                 </div>
             </div>
+
+            <div id="pwdToggleWrap" class="edit-actions" style="justify-content:flex-start;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
+                <button type="button" class="btn-cancel" id="btnShowPwd" onclick="showPasswordForm()">Modifica password</button>
+            </div>
+
+            <div id="pwdSection" style="display:none;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
+                <div class="profile-head" style="margin-bottom:1rem;">
+                    <h3 style="font-size:1.05rem;">Modifica password</h3>
+                </div>
+                <div class="feedback" id="pwdMsg" style="max-width:none;margin:0 0 1rem;"></div>
+                <div class="edit-field">
+                    <label for="pwdCurrent">Password attuale</label>
+                    <input type="password" id="pwdCurrent" autocomplete="current-password" placeholder="Inserisci la password attuale">
+                </div>
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label for="pwdNew">Nuova password</label>
+                        <input type="password" id="pwdNew" autocomplete="new-password" placeholder="Minimo 8 caratteri">
+                    </div>
+                    <div class="edit-field">
+                        <label for="pwdConfirm">Conferma nuova password</label>
+                        <input type="password" id="pwdConfirm" autocomplete="new-password" placeholder="Ripeti la nuova password">
+                    </div>
+                </div>
+                <p style="font-size:0.82rem;color:#5ABBC8;margin:0 0 1rem;">La nuova password deve contenere almeno 8 caratteri.</p>
+                <div class="edit-actions">
+                    <button type="button" class="btn-cancel" onclick="hidePasswordForm()">Annulla</button>
+                    <button type="button" class="btn-save" id="btnChangePwd" onclick="changeOwnPassword()">Aggiorna password</button>
+                </div>
+            </div>
         </div>
     </main>
 
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
-    <script src="custom-select.js?v=6"></script>
-    <script src="custom-date.js"></script>
-    <script src="luogo-nascita.js"></script>
-    <script src="profile-fields.js"></script>
-    <script src="nav-notifications.js?v=1"></script>
+    <script src="custom-select.js?v=10"></script>
+    <script src="custom-date.js?v=6"></script>
+    <script src="luogo-nascita.js?v=9"></script>
+    <script src="telefono-field.js?v=7"></script>
+    <script src="profile-fields.js?v=5"></script>
+    <script src="nav-notifications.js?v=3"></script>
     <script>
     let _currentUser = null;
     let _profile = null;
@@ -305,6 +357,7 @@
     let editLuogoNascitaLn = null;
     let editResidenzaLn = null;
     let editDomicilioLn = null;
+    let editTelefonoTf = null;
     let _domicilioWired = false;
     const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
     const EDIT_IDS = {
@@ -334,6 +387,76 @@
         setTimeout(() => { el.style.display = 'none'; }, 4500);
     }
 
+    function showPwdMsg(text, type) {
+        const el = document.getElementById('pwdMsg');
+        el.className = 'feedback ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+
+    function showPasswordForm() {
+        document.getElementById('pwdToggleWrap').style.display = 'none';
+        document.getElementById('pwdSection').style.display = 'block';
+        document.getElementById('pwdMsg').style.display = 'none';
+        document.getElementById('pwdCurrent').value = '';
+        document.getElementById('pwdNew').value = '';
+        document.getElementById('pwdConfirm').value = '';
+        setTimeout(() => document.getElementById('pwdCurrent').focus(), 50);
+    }
+
+    function hidePasswordForm() {
+        document.getElementById('pwdSection').style.display = 'none';
+        document.getElementById('pwdToggleWrap').style.display = 'flex';
+        document.getElementById('pwdMsg').style.display = 'none';
+        document.getElementById('pwdCurrent').value = '';
+        document.getElementById('pwdNew').value = '';
+        document.getElementById('pwdConfirm').value = '';
+    }
+
+    async function changeOwnPassword() {
+        const currentPassword = document.getElementById('pwdCurrent').value;
+        const newPassword = document.getElementById('pwdNew').value;
+        const confirmPassword = document.getElementById('pwdConfirm').value;
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            showPwdMsg('Compila tutti i campi password.', 'error');
+            return;
+        }
+        if (newPassword.length < 8) {
+            showPwdMsg('La nuova password deve contenere almeno 8 caratteri.', 'error');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            showPwdMsg('La nuova password e la conferma non coincidono.', 'error');
+            return;
+        }
+        if (newPassword === currentPassword) {
+            showPwdMsg('La nuova password deve essere diversa da quella attuale.', 'error');
+            return;
+        }
+        const btn = document.getElementById('btnChangePwd');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: authHeader(),
+                body: JSON.stringify({ currentPassword, newPassword }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showPwdMsg(data.error || 'Impossibile aggiornare la password.', 'error');
+                return;
+            }
+            if (data.token) localStorage.setItem('authToken', data.token);
+            hidePasswordForm();
+            showMsg('Password aggiornata correttamente.', 'success');
+        } catch {
+            showPwdMsg('Errore di rete. Riprovare.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     function renderView() {
         const p = _profile;
         document.getElementById('viewEmail').textContent = p.email || '—';
@@ -347,7 +470,7 @@
             ? (dash(p.residenza) === '—' ? '—' : dash(p.residenza) + ' (come residenza)')
             : dash(p.domicilio);
         document.getElementById('viewDomicilio').textContent = domLabel;
-        document.getElementById('viewTelefono').textContent = dash(p.telefono);
+        document.getElementById('viewTelefono').textContent = dash(formatTelefonoDisplay(p));
 
         const gradoDd = document.getElementById('viewGrado');
         const gradoLabel = document.getElementById('gradoLabel');
@@ -390,13 +513,16 @@
         }
         if (!editResidenzaLn) {
             editResidenzaLn = await LuogoGeo.create(document.getElementById('editResidenza'), {
-                prefix: 'residenza', ariaLabel: 'Tipo residenza',
+                prefix: 'residenza', ariaLabel: 'Tipo residenza', withAddress: true,
             });
         }
         if (!editDomicilioLn) {
             editDomicilioLn = await LuogoGeo.create(document.getElementById('editDomicilio'), {
-                prefix: 'domicilio', ariaLabel: 'Tipo domicilio',
+                prefix: 'domicilio', ariaLabel: 'Tipo domicilio', withAddress: true,
             });
+        }
+        if (!editTelefonoTf) {
+            editTelefonoTf = await TelefonoField.create(document.getElementById('editTelefono'));
         }
         if (!_domicilioWired) {
             wireDomicilioSync(EDIT_IDS);
@@ -411,12 +537,15 @@
         document.getElementById('viewMode').style.display = 'none';
         document.getElementById('btnEdit').style.display = 'none';
         document.getElementById('editMode').style.display = 'block';
+        hidePasswordForm();
+        document.getElementById('pwdToggleWrap').style.display = 'none';
     }
 
     function exitEditMode() {
         document.getElementById('editMode').style.display = 'none';
         document.getElementById('viewMode').style.display = 'block';
         document.getElementById('btnEdit').style.display = _profile?.canEdit ? '' : 'none';
+        document.getElementById('pwdToggleWrap').style.display = 'flex';
     }
 
     async function saveProfile() {
@@ -425,6 +554,11 @@
         const reqErr = validateRequiredProfile(profile);
         if (reqErr) {
             showMsg(reqErr, 'error');
+            return;
+        }
+        const dateErr = validateProfileDates(EDIT_IDS);
+        if (dateErr) {
+            showMsg(dateErr, 'error');
             return;
         }
         const btn = document.getElementById('btnSave');
@@ -470,11 +604,14 @@
             const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
             if (!res.ok) throw new Error();
             _currentUser = await res.json();
+            if (!_currentUser.id) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                    if (payload.id) _currentUser.id = payload.id;
+                } catch { /* ignore */ }
+            }
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.email;
-            if (_currentUser.role === 'superadmin' || _currentUser.role === 'admin') {
-                document.getElementById('navAdminBtn').style.display = '';
-            }
             initNavBell();
             await loadProfile();
         } catch {

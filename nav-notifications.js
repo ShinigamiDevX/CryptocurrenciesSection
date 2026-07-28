@@ -1,9 +1,11 @@
 /**
  * Campanella notifiche condivisa (tutti gli utenti autenticati).
  * Richiede nel DOM: #navBellWrap, #navBellBtn, #navBellBadge, #navBellPanel, #navBellList
- * Opzionale: #navBellMarkAll
+ * Opzionale: #navBellMarkAll, #navBellFullscreen
  */
 (function (global) {
+    let _fullscreen = false;
+
     function authHeader() {
         return {
             Authorization: 'Bearer ' + localStorage.getItem('authToken'),
@@ -14,7 +16,7 @@
     function positionNavBellPanel() {
         const btn = document.getElementById('navBellBtn');
         const panel = document.getElementById('navBellPanel');
-        if (!btn || !panel) return;
+        if (!btn || !panel || _fullscreen) return;
         const r = btn.getBoundingClientRect();
         const width = Math.min(360, window.innerWidth - 16);
         let left = r.right - width;
@@ -23,11 +25,43 @@
         panel.style.left = left + 'px';
         panel.style.right = 'auto';
         panel.style.width = width + 'px';
+        panel.style.bottom = 'auto';
+        panel.style.height = '';
+        panel.style.maxHeight = '';
+    }
+
+    function applyFullscreenStyles(on) {
+        const panel = document.getElementById('navBellPanel');
+        const btnFs = document.getElementById('navBellFullscreen');
+        if (!panel) return;
+        _fullscreen = !!on;
+        panel.classList.toggle('nav-bell-fullscreen', _fullscreen);
+        if (_fullscreen) {
+            panel.style.top = '0';
+            panel.style.left = '0';
+            panel.style.right = '0';
+            panel.style.bottom = '0';
+            panel.style.width = '100%';
+            panel.style.height = '100%';
+            panel.style.maxHeight = '100%';
+            panel.style.borderRadius = '0';
+        } else {
+            panel.style.borderRadius = '';
+            panel.style.height = '';
+            panel.style.maxHeight = '';
+            positionNavBellPanel();
+        }
+        if (btnFs) {
+            btnFs.textContent = _fullscreen ? 'Riduci' : 'Schermo intero';
+            btnFs.title = _fullscreen ? 'Esci da schermo intero' : 'Vedi a schermo intero';
+            btnFs.setAttribute('aria-pressed', _fullscreen ? 'true' : 'false');
+        }
     }
 
     function closeNavBell() {
         const panel = document.getElementById('navBellPanel');
         const btn = document.getElementById('navBellBtn');
+        applyFullscreenStyles(false);
         if (panel) {
             panel.classList.remove('open');
             panel.hidden = true;
@@ -65,19 +99,63 @@
                     timeStyle: 'short',
                 });
                 const href = n.link || '#';
-                const unreadCls = n.read ? '' : ' unread';
-                return `<a class="nav-bell-item${unreadCls}" href="${href}" data-nid="${n.id}">
-                    <strong>${escapeHtml(n.title)}</strong>
-                    <span>${escapeHtml(n.body || '')}</span>
-                    <time>${when}</time>
-                </a>`;
+                const unread = !n.read;
+                const unreadCls = unread ? ' unread' : '';
+                const markBtn = unread
+                    ? `<button type="button" class="nav-bell-mark-one" data-mark="${n.id}">Segna come letto</button>`
+                    : '';
+                return `<div class="nav-bell-item${unreadCls}" data-nid="${n.id}">
+                    <a class="nav-bell-item-body" href="${escapeAttr(href)}" data-nid="${n.id}">
+                        <strong>${escapeHtml(n.title)}</strong>
+                        <span>${escapeHtml(n.body || '')}</span>
+                        <time>${when}</time>
+                    </a>
+                    ${markBtn}
+                </div>`;
             })
             .join('');
 
-        list.querySelectorAll('.nav-bell-item[data-nid]').forEach((el) => {
-            el.addEventListener('click', () => {
+        list.querySelectorAll('.nav-bell-mark-one').forEach((btn) => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.getAttribute('data-mark');
+                if (!id) return;
+                btn.disabled = true;
+                await markRead(id);
+                const item = btn.closest('.nav-bell-item');
+                if (item) {
+                    item.classList.remove('unread');
+                    btn.remove();
+                }
+            });
+        });
+
+        list.querySelectorAll('.nav-bell-item-body[data-nid]').forEach((el) => {
+            el.addEventListener('click', async (e) => {
                 const id = el.getAttribute('data-nid');
-                if (id) markRead(id);
+                if (!id) return;
+                const href = el.getAttribute('href') || '#';
+                const hasLink = href && href !== '#';
+                const item = el.closest('.nav-bell-item');
+
+                if (item && item.classList.contains('unread')) {
+                    item.classList.remove('unread');
+                    const mark = item.querySelector('.nav-bell-mark-one');
+                    if (mark) mark.remove();
+                    e.preventDefault();
+                    await markRead(id);
+                    if (hasLink) {
+                        if (href.startsWith('/') || href.startsWith(window.location.origin)) {
+                            window.location.href = href;
+                        } else {
+                            window.open(href, '_blank', 'noopener');
+                        }
+                    }
+                    return;
+                }
+
+                if (!hasLink) e.preventDefault();
             });
         });
     }
@@ -90,11 +168,16 @@
             .replace(/"/g, '&quot;');
     }
 
+    function escapeAttr(s) {
+        return escapeHtml(s).replace(/'/g, '&#39;');
+    }
+
     async function markRead(id) {
         try {
             const res = await fetch('/api/auth/notifications/' + encodeURIComponent(id) + '/read', {
                 method: 'POST',
                 headers: authHeader(),
+                keepalive: true,
             });
             if (res.ok) {
                 const data = await res.json();
@@ -128,6 +211,52 @@
         } catch { /* silenzioso */ }
     }
 
+    function ensureHeadActions(panel) {
+        const head = panel.querySelector('.nav-bell-panel-head');
+        if (!head) return;
+
+        let actions = head.querySelector('.nav-bell-head-actions');
+        if (!actions) {
+            actions = document.createElement('div');
+            actions.className = 'nav-bell-head-actions';
+            // sposta eventuali link già presenti
+            [...head.querySelectorAll('a, button')].forEach((n) => {
+                if (!n.closest('.nav-bell-head-actions')) actions.appendChild(n);
+            });
+            head.appendChild(actions);
+        }
+
+        if (!document.getElementById('navBellFullscreen')) {
+            const fs = document.createElement('button');
+            fs.type = 'button';
+            fs.id = 'navBellFullscreen';
+            fs.className = 'nav-bell-head-btn';
+            fs.textContent = 'Schermo intero';
+            fs.title = 'Vedi a schermo intero';
+            fs.setAttribute('aria-pressed', 'false');
+            fs.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFullscreenStyles(!_fullscreen);
+            });
+            actions.insertBefore(fs, actions.firstChild);
+        }
+
+        if (!document.getElementById('navBellMarkAll')) {
+            const a = document.createElement('button');
+            a.type = 'button';
+            a.id = 'navBellMarkAll';
+            a.className = 'nav-bell-head-btn';
+            a.textContent = 'Segna tutte';
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                markAllRead();
+            });
+            actions.appendChild(a);
+        }
+    }
+
     function initNavBell() {
         const wrap = document.getElementById('navBellWrap');
         const btn = document.getElementById('navBellBtn');
@@ -137,27 +266,16 @@
         if (wrap) wrap.style.display = '';
         if (panel.parentElement !== document.body) document.body.appendChild(panel);
         panel.hidden = true;
-        panel.classList.remove('open');
+        panel.classList.remove('open', 'nav-bell-fullscreen');
+        _fullscreen = false;
 
-        // Link "Segna tutte" nell'header del pannello
-        const head = panel.querySelector('.nav-bell-panel-head');
-        if (head && !document.getElementById('navBellMarkAll')) {
-            const a = document.createElement('a');
-            a.id = 'navBellMarkAll';
-            a.href = '#';
-            a.textContent = 'Segna tutte';
-            a.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                markAllRead();
-            });
-            head.appendChild(a);
-        }
+        ensureHeadActions(panel);
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const willOpen = panel.hidden || !panel.classList.contains('open');
             if (willOpen) {
+                applyFullscreenStyles(false);
                 positionNavBellPanel();
                 panel.hidden = false;
                 panel.classList.add('open');
@@ -167,10 +285,26 @@
                 closeNavBell();
             }
         });
-        document.addEventListener('click', () => closeNavBell());
+
+        document.addEventListener('click', () => {
+            if (_fullscreen) return; // in schermo intero non chiudere al click esterno
+            closeNavBell();
+        });
         panel.addEventListener('click', (e) => e.stopPropagation());
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (panel.hidden) return;
+            if (_fullscreen) {
+                applyFullscreenStyles(false);
+                e.preventDefault();
+                return;
+            }
+            closeNavBell();
+        });
+
         window.addEventListener('resize', () => {
-            if (!panel.hidden) positionNavBellPanel();
+            if (!panel.hidden && !_fullscreen) positionNavBellPanel();
         });
 
         refreshNavBell();

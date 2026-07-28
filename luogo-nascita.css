@@ -52,6 +52,76 @@
 
 .lnasc-it, .lnasc-estero { position: relative; }
 
+.lnasc-addr { margin-top: 0.75rem; }
+.lnasc-civico { flex: 0 0 5.5rem; max-width: 5.5rem; }
+.lnasc-indirizzo { flex: 1; }
+
+.lnasc-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.65rem 0.9rem;
+    background: #07111f;
+    border: 1px solid rgba(0,200,255,0.25);
+    border-radius: 8px;
+    color: #C8F0E8;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+}
+.lnasc-input:hover,
+.lnasc-input:focus {
+    border-color: rgba(0,200,255,0.6);
+    background: #0a1a2e;
+}
+.lnasc-input::placeholder { color: rgba(90,187,200,0.5); }
+
+/* Telefono: prefisso + numero */
+.tel-field { width: 100%; }
+.tel-row {
+    display: flex;
+    gap: 0.65rem;
+    align-items: stretch;
+}
+.tel-prefisso {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+}
+.tel-prefisso .csel-input {
+    flex: 1 1 auto;
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+}
+.tel-prefisso .csel-btn {
+    padding-left: 0.65rem;
+    padding-right: 0.5rem;
+}
+.tel-numero {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0.65rem 0.9rem;
+    background: #07111f;
+    border: 1px solid rgba(0,200,255,0.25);
+    border-radius: 8px;
+    color: #C8F0E8;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+}
+.tel-numero:hover,
+.tel-numero:focus {
+    border-color: rgba(0,200,255,0.6);
+    background: #0a1a2e;
+}
+.tel-numero::placeholder { color: rgba(90,187,200,0.5); }
+
 @media (max-width: 600px) {
     .lnasc-row { flex-direction: column; gap: 0.75rem; }
+    .lnasc-civico { flex: 1; max-width: none; }
+    .tel-row { flex-direction: column; }
+    .tel-prefisso { flex: 1; width: 100% !important; max-width: none; }
 }

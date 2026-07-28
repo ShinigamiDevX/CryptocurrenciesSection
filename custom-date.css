@@ -33,13 +33,55 @@
     background: rgba(0,200,255,0.12);
 }
 
+.cdate-combo.invalid {
+    border-color: rgba(255,71,87,0.7) !important;
+    background: rgba(255,71,87,0.08);
+}
+.cdate-combo.invalid .cdate-input { color: #FF6B7A !important; }
+.cdate-input {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    color: #C8F0E8 !important;
+    font-size: 0.9rem;
+    font-family: inherit;
+    padding: 0.35rem 0 !important;
+    box-shadow: none !important;
+    width: 100%;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+.cdate-input:focus { cursor: text; }
+.cdate-input::placeholder { color: rgba(90,187,200,0.5); }
+
+.cdate-icon-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #5ABBC8;
+    cursor: pointer;
+}
+.cdate-icon-btn:hover {
+    background: rgba(0,200,255,0.12);
+    color: #00C8FF;
+}
+
 .cdate-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdate-placeholder { color: rgba(90,187,200,0.5); }
 .cdate-icon {
     flex-shrink: 0;
     width: 1.05rem;
     height: 1.05rem;
-    color: #5ABBC8;
+    color: inherit;
 }
 .cdate-icon svg { width: 100%; height: 100%; display: block; }
 
@@ -100,6 +142,19 @@
     font-size: 0.92rem;
     font-weight: 600;
     text-transform: capitalize;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    padding: 0.25rem 0.4rem;
+    border-radius: 6px;
+    cursor: default;
+}
+.cdate-title.clickable {
+    cursor: pointer;
+}
+.cdate-title.clickable:hover {
+    color: #00C8FF;
+    background: rgba(0,200,255,0.1);
 }
 
 .cdate-week {
@@ -124,6 +179,51 @@
     grid-template-columns: repeat(7, 1fr);
     gap: 0.2rem;
 }
+
+/* Mesi / anni: griglia 3×4 (deve venire dopo .cdate-grid) */
+.cdate-grid.cdate-grid-months,
+.cdate-grid.cdate-grid-years {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem 0.5rem;
+    min-height: 11.5rem;
+    align-content: stretch;
+    justify-items: stretch;
+}
+.cdate-grid.cdate-grid-months .cdate-cell,
+.cdate-grid.cdate-grid-years .cdate-cell {
+    width: 100%;
+    min-height: 2.55rem;
+    box-sizing: border-box;
+}
+
+.cdate-cell {
+    min-height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #C8F0E8;
+    font-size: 0.88rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0.45rem 0.2rem;
+    text-transform: capitalize;
+}
+.cdate-cell:hover:not(:disabled) {
+    background: rgba(0,200,255,0.12);
+    border-color: rgba(0,200,255,0.28);
+}
+.cdate-cell.today { border-color: rgba(0,200,255,0.45); color: #00C8FF; }
+.cdate-cell.selected {
+    background: linear-gradient(135deg, #00C8FF 0%, #00E676 100%);
+    color: #030E1C;
+    font-weight: 700;
+    border-color: transparent;
+}
+.cdate-cell:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .cdate-day {
     aspect-ratio: 1;
     display: inline-flex;
@@ -143,6 +243,10 @@
     border-color: rgba(0,200,255,0.28);
 }
 .cdate-day.muted { color: rgba(90,187,200,0.35); }
+.cdate-day.weekend:not(.muted):not(.selected):not(.today),
+.cdate-day.holiday:not(.muted):not(.selected):not(.today) { color: #FF8A95; }
+.cdate-day.weekend.muted,
+.cdate-day.holiday.muted { color: rgba(255, 138, 149, 0.35); }
 .cdate-day.today { border-color: rgba(0,200,255,0.45); color: #00C8FF; }
 .cdate-day.selected {
     background: linear-gradient(135deg, #00C8FF 0%, #00E676 100%);
