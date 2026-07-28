@@ -1,0 +1,244 @@
+Sigla Estesa,Descrizione
+AFG,Afghanistan
+ALB,Albania
+DZA,Algeria
+AND,Andorra
+AGO,Angola
+AIA,Anguilla
+ATA,Antartide
+ATG,Antigua e Barbuda
+ANT,Antille Olandesi
+SAU,Arabia Saudita
+ARG,Argentina
+ARM,Armenia
+ABW,Aruba
+AUS,Australia
+AUT,Austria
+AZE,Azerbaijan
+BHS,Bahamas
+BHR,Bahrain
+BGD,Bangladesh
+BRB,Barbados
+BEL,Belgio
+BLZ,Belize
+BEN,Benin
+BMU,Bermuda
+BLR,Bielorussia
+BTN,Bhutan
+BOL,Bolivia
+BIH,Bosnia Erzegovina
+BWA,Botswana
+BRA,Brasile
+BRN,Brunei Darussalam
+BGR,Bulgaria
+BFA,Burkina Faso
+BDI,Burundi
+KHM,Cambogia
+CMR,Camerun
+CAN,Canada
+CPV,Capo Verde
+TCD,Ciad
+CHL,Cile
+CHN,Cina
+CYP,Cipro
+VAT,Citta del Vaticano
+COL,Colombia
+COM,Comore
+PRK,Corea del Nord
+KOR,Corea del Sud
+CRI,Costa Rica
+CIV,Costa d'Avorio
+HRV,Croazia
+CUB,Cuba
+DNK,Danimarca
+DMA,Dominica
+ECU,Ecuador
+EGY,Egitto
+IRL,Eire
+SLV,El Salvador
+ARE,Emirati Arabi Uniti
+ERI,Eritrea
+EST,Estonia
+ETH,Etiopia
+RUS,Federazione Russa
+FJI,Fiji
+PHL,Filippine
+FIN,Finlandia
+FRA,Francia
+GAB,Gabon
+GMB,Gambia
+GEO,Georgia
+DEU,Germania
+GHA,Ghana
+JAM,Giamaica
+JPN,Giappone
+GIB,Gibilterra
+DJI,Gibuti
+JOR,Giordania
+GRC,Grecia
+GRD,Grenada
+GRL,Groenlandia
+GLP,Guadalupa
+GUM,Guam
+GTM,Guatemala
+GIN,Guinea
+GNB,Guinea-Bissau
+GNQ,Guinea Equatoriale
+GUY,Guyana
+GUF,Guyana Francese
+HTI,Haiti
+HND,Honduras
+HKG,Hong Kong
+IND,India
+IDN,Indonesia
+IRN,Iran
+IRQ,Iraq
+BVT,Isola di Bouvet
+CXR,Isola di Natale
+HMD,Isola Heard e Isole McDonald
+CYM,Isole Cayman
+CCK,Isole Cocos
+COK,Isole Cook
+FLK,Isole Falkland
+FRO,Isole Faroe
+MHL,Isole Marshall
+MNP,Isole Marianne Settentrionali
+UMI,Isole Minori degli Stati Uniti d'America
+NFK,Isola Norfolk
+SLB,Isole Solomon
+TCA,Isole Turks e Caicos
+VIR,Isole Vergini Americane
+VGB,Isole Vergini Britanniche
+ISR,Israele
+ISL,Islanda
+ITA,Italia
+KAZ,Kazakhistan
+KEN,Kenya
+KGZ,Kirghizistan
+KIR,Kiribati
+KWT,Kuwait
+LAO,Laos
+LVA,Lettonia
+LSO,Lesotho
+LBN,Libano
+LBR,Liberia
+LBY,Libia
+LIE,Liechtenstein
+LTU,Lituania
+LUX,Lussemburgo
+MAC,Macao
+MKD,Macedonia
+MDG,Madagascar
+MWI,Malawi
+MDV,Maldive
+MYS,Malesia
+MLI,Mali
+MLT,Malta
+MAR,Marocco
+MTQ,Martinica
+MRT,Mauritania
+MUS,Maurizius
+MYT,Mayotte
+MEX,Messico
+MDA,Moldavia
+MCO,Monaco
+MNG,Mongolia
+MSR,Montserrat
+MOZ,Mozambico
+MMR,Myanmar
+NAM,Namibia
+NRU,Nauru
+NPL,Nepal
+NIC,Nicaragua
+NER,Niger
+NGA,Nigeria
+NIU,Niue
+NOR,Norvegia
+NCL,Nuova Caledonia
+NZL,Nuova Zelanda
+OMN,Oman
+NLD,Paesi Bassi
+PAK,Pakistan
+PLW,Palau
+PAN,Panama
+PNG,Papua Nuova Guinea
+PRY,Paraguay
+PER,Peru
+PCN,Pitcairn
+PYF,Polinesia Francese
+POL,Polonia
+PRT,Portogallo
+PRI,Porto Rico
+QAT,Qatar
+GBR,Regno Unito
+CZE,Repubblica Ceca
+CAF,Repubblica Centroafricana
+COG,Repubblica del Congo
+COD,Repubblica Democratica del Congo
+DOM,Repubblica Dominicana
+REU,Reunion
+ROU,Romania
+RWA,Ruanda
+ESH,Sahara Occidentale
+KNA,Saint Kitts e Nevis
+SPM,Saint Pierre e Miquelon
+VCT,Saint Vincent e Grenadine
+WSM,Samoa
+ASM,Samoa Americane
+SMR,San Marino
+SHN,Sant'Elena
+LCA,Santa Lucia
+STP,Sao Tome e Principe
+SEN,Senegal
+XXK,Kosovo
+SYC,Seychelles
+SLE,Sierra Leone
+SGP,Singapore
+SYR,Siria
+SVK,Slovacchia
+SVN,Slovenia
+SOM,Somalia
+ESP,Spagna
+LKA,Sri Lanka
+FSM,Stati Federati della Micronesia
+USA,Stati Uniti d'America
+ZAF,Sud Africa
+SGS,Sud Georgia e Isole Sandwich
+SDN,Sudan
+SUR,Suriname
+SJM,Svalbard e Jan Mayen
+SWE,Svezia
+CHE,Svizzera
+SWZ,Swaziland
+TJK,Tagikistan
+THA,Tailandia
+TWN,Taiwan
+TZA,Tanzania
+IOT,Territori Britannici dell'Oceano Indiano
+ATF,Territori Francesi del Sud
+PSE,Territori Palestinesi Occupati
+TLS,Timor Est
+TGO,Togo
+TKL,Tokelau
+TON,Tonga
+TTO,Trinidad e Tobago
+TUN,Tunisia
+TUR,Turchia
+TKM,Turkmenistan
+TUV,Tuvalu
+UKR,Ucraina
+UGA,Uganda
+HUN,Ungheria
+URY,Uruguay
+UZB,Uzbekistan
+VUT,Vanuatu
+VEN,Venezuela
+VNM,Vietnam
+WLF,Wallis e Futuna
+YEM,Yemen
+ZMB,Zambia
+ZWE,Zimbabwe
+SRB,Serbia
+MNE,Montenegro
+TLS,Timor Est
+GGY,Guernsey

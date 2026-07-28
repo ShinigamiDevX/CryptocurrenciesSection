@@ -7,7 +7,7 @@ const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { Users, Invitations, ProfileChangeRequests, Notifications } = require('./db');
+const { Users, Invitations, ProfileChangeRequests, Notifications, profileDefaults } = require('./db');
 
 const app  = express();
 app.use(express.json());
@@ -24,6 +24,103 @@ const ALL_ROLES        = ['reader', 'user', 'admin', 'superadmin'];
 
 function isLockedProfile(email) {
     return !!(email && email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase());
+}
+
+/** Estrae e normalizza i campi anagrafici dal body. Obbligatori: nome, cognome, grado. */
+function parseProfileBody(body) {
+    const b = body || {};
+    const nome = String(b.nome || '').trim();
+    const cognome = String(b.cognome || '').trim();
+    const grado = String(b.grado || '').trim();
+    if (!nome || !cognome || !grado) {
+        return { error: 'Nome, cognome e grado sono obbligatori.' };
+    }
+    const dataNascita = String(b.dataNascita || '').trim();
+    if (dataNascita && !/^\d{4}-\d{2}-\d{2}$/.test(dataNascita)) {
+        return { error: 'Data di nascita non valida (usa AAAA-MM-GG).' };
+    }
+    const profile = profileDefaults({
+        nome,
+        cognome,
+        grado,
+        dataNascita,
+        luogoNascita: String(b.luogoNascita || '').trim(),
+        luogoNascitaTipo: String(b.luogoNascitaTipo || '').trim(),
+        luogoNascitaProvincia: String(b.luogoNascitaProvincia || '').trim(),
+        luogoNascitaComune: String(b.luogoNascitaComune || '').trim(),
+        luogoNascitaStato: String(b.luogoNascitaStato || '').trim(),
+        residenza: String(b.residenza || '').trim(),
+        residenzaTipo: String(b.residenzaTipo || '').trim(),
+        residenzaProvincia: String(b.residenzaProvincia || '').trim(),
+        residenzaComune: String(b.residenzaComune || '').trim(),
+        residenzaStato: String(b.residenzaStato || '').trim(),
+        domicilio: String(b.domicilio || '').trim(),
+        domicilioTipo: String(b.domicilioTipo || '').trim(),
+        domicilioProvincia: String(b.domicilioProvincia || '').trim(),
+        domicilioComune: String(b.domicilioComune || '').trim(),
+        domicilioStato: String(b.domicilioStato || '').trim(),
+        domicilioComeResidenza: !!b.domicilioComeResidenza,
+        telefono: String(b.telefono || '').trim(),
+    });
+    // profilo API: booleano più comodo per i client
+    return {
+        profile: {
+            ...profile,
+            domicilioComeResidenza: !!profile.domicilioComeResidenza,
+        },
+    };
+}
+
+function publicProfile(user, locked) {
+    const emptyGeo = (prefix) => ({
+        [prefix]: '',
+        [`${prefix}Tipo`]: '',
+        [`${prefix}Provincia`]: '',
+        [`${prefix}Comune`]: '',
+        [`${prefix}Stato`]: '',
+    });
+    if (locked) {
+        return {
+            email: user.email,
+            role: user.role,
+            nome: SUPERADMIN_NOME,
+            cognome: SUPERADMIN_COGNOME,
+            grado: '',
+            dataNascita: '',
+            ...emptyGeo('luogoNascita'),
+            ...emptyGeo('residenza'),
+            ...emptyGeo('domicilio'),
+            domicilioComeResidenza: false,
+            telefono: '',
+            canEdit: false,
+        };
+    }
+    return {
+        email: user.email,
+        role: user.role,
+        nome: user.nome || '',
+        cognome: user.cognome || '',
+        grado: user.grado || '',
+        dataNascita: user.dataNascita || '',
+        luogoNascita: user.luogoNascita || '',
+        luogoNascitaTipo: user.luogoNascitaTipo || '',
+        luogoNascitaProvincia: user.luogoNascitaProvincia || '',
+        luogoNascitaComune: user.luogoNascitaComune || '',
+        luogoNascitaStato: user.luogoNascitaStato || '',
+        residenza: user.residenza || '',
+        residenzaTipo: user.residenzaTipo || '',
+        residenzaProvincia: user.residenzaProvincia || '',
+        residenzaComune: user.residenzaComune || '',
+        residenzaStato: user.residenzaStato || '',
+        domicilio: user.domicilio || '',
+        domicilioTipo: user.domicilioTipo || '',
+        domicilioProvincia: user.domicilioProvincia || '',
+        domicilioComune: user.domicilioComune || '',
+        domicilioStato: user.domicilioStato || '',
+        domicilioComeResidenza: !!user.domicilioComeResidenza,
+        telefono: user.telefono || '',
+        canEdit: true,
+    };
 }
 
 function notifyUser(userId, type, title, body, link) {
@@ -80,7 +177,7 @@ if (!JWT_SECRET) {
         console.log('[AUTH] Superadmin creato con password iniziale: 1234');
     } else {
         // Profilo di sistema fisso: Portale Crypto, senza grado
-        Users.updateProfile(existing.id, SUPERADMIN_NOME, SUPERADMIN_COGNOME, '');
+        Users.updateProfile(existing.id, { nome: SUPERADMIN_NOME, cognome: SUPERADMIN_COGNOME, grado: '' });
     }
 })();
 
@@ -138,10 +235,11 @@ app.get('/api/auth/invite-info',(req,res)=>{
 
 app.post('/api/auth/register', async(req,res)=>{
     try {
-        const { token, password, otp, nome, cognome, grado } = req.body || {};
+        const { token, password, otp } = req.body || {};
         if (!token||!password||!otp) return res.status(400).json({error:'Token, password e codice OTP obbligatori.'});
-        if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado sono obbligatori.'});
         if (password.length<8) return res.status(400).json({error:'Password di almeno 8 caratteri.'});
+        const parsed = parseProfileBody(req.body);
+        if (parsed.error) return res.status(400).json({error: parsed.error});
         const inv=Invitations.findByToken(token);
         if (!inv||inv.used) return res.status(400).json({error:'Invito non valido o già utilizzato.'});
         if (new Date()>new Date(inv.expiresAt)) return res.status(400).json({error:'Invito scaduto.'});
@@ -156,9 +254,7 @@ app.post('/api/auth/register', async(req,res)=>{
             role:inv.role||'user',
             createdAt:new Date().toISOString(),
             mustChangePassword:false,
-            nome:nome.trim(),
-            cognome:cognome.trim(),
-            grado,
+            ...parsed.profile,
         };
         if (ex&&ex.revokedAt) {
             Users.reactivate(ex.id, profile);
@@ -250,18 +346,18 @@ app.post('/api/auth/change-password', authenticate, async(req,res)=>{
 
 // ── PATCH /api/auth/users/:id/profile  (admin/superadmin — modifica diretta) ─
 app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
-    const {nome,cognome,grado}=req.body||{};
-    if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado obbligatori.'});
+    const parsed = parseProfileBody(req.body);
+    if (parsed.error) return res.status(400).json({error: parsed.error});
     const user=Users.findById(req.params.id);
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
     if (isLockedProfile(user.email)) return res.status(403).json({error:'Il profilo di sistema non può essere modificato.'});
-    Users.updateProfile(user.id,nome.trim(),cognome.trim(),grado);
+    Users.updateProfile(user.id, parsed.profile);
     if (user.id !== req.user.id) {
         notifyUser(
             user.id,
             'profile_updated',
             'Profilo aggiornato',
-            `Un amministratore ha aggiornato il tuo profilo: ${cognome.trim().toUpperCase()} ${nome.trim()} — ${grado}.`,
+            `Un amministratore ha aggiornato il tuo profilo: ${parsed.profile.cognome.toUpperCase()} ${parsed.profile.nome} — ${parsed.profile.grado}.`,
             '/profilo'
         );
     }
@@ -272,30 +368,28 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
 app.get('/api/auth/my-profile', authenticate,(req,res)=>{
     const user=Users.findById(req.user.id);
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
-    const locked = isLockedProfile(user.email);
-    res.json({
-        email: user.email,
-        role: user.role,
-        nome: locked ? SUPERADMIN_NOME : user.nome,
-        cognome: locked ? SUPERADMIN_COGNOME : user.cognome,
-        grado: locked ? '' : user.grado,
-        canEdit: !locked,
-    });
+    res.json(publicProfile(user, isLockedProfile(user.email)));
 });
 
 // ── POST /api/auth/profile-change-request  (user: richiesta modifica profilo) ─
 app.post('/api/auth/profile-change-request', authenticate,(req,res)=>{
     if (isLockedProfile(req.user.email)) return res.status(403).json({error:'Il profilo di sistema non può essere modificato.'});
-    const {nome,cognome,grado}=req.body||{};
-    if (!nome||!cognome||!grado) return res.status(400).json({error:'Nome, cognome e grado obbligatori.'});
+    const parsed = parseProfileBody(req.body);
+    if (parsed.error) return res.status(400).json({error: parsed.error});
     // Blocca se c'è già una richiesta pendente
     const existing=ProfileChangeRequests.findPendingByUser(req.user.id);
     if (existing) return res.status(409).json({error:'Hai già una richiesta di modifica profilo in attesa di approvazione.'});
-    ProfileChangeRequests.insert({id:uuidv4(),userId:req.user.id,userEmail:req.user.email,nome:nome.trim(),cognome:cognome.trim(),grado,requestedAt:new Date().toISOString()});
+    ProfileChangeRequests.insert({
+        id: uuidv4(),
+        userId: req.user.id,
+        userEmail: req.user.email,
+        requestedAt: new Date().toISOString(),
+        ...parsed.profile,
+    });
     notifyAdmins(
         'profile_request',
         'Nuova richiesta di modifica profilo',
-        `${req.user.email} ha richiesto di aggiornare nome/cognome/grado.`,
+        `${req.user.email} ha richiesto di aggiornare il profilo anagrafico.`,
         '/gestione-utenti#profiles',
         req.user.id
     );
@@ -318,7 +412,7 @@ app.get('/api/auth/profile-change-requests', authenticate, requireAdmin,(req,res
 app.post('/api/auth/profile-change-requests/:id/approve', authenticate, requireAdmin,(req,res)=>{
     const pcr=ProfileChangeRequests.findById(req.params.id);
     if (!pcr||pcr.status!=='pending') return res.status(404).json({error:'Richiesta non trovata.'});
-    Users.updateProfile(pcr.userId,pcr.nome,pcr.cognome,pcr.grado);
+    Users.updateProfile(pcr.userId, pcr);
     ProfileChangeRequests.approve(req.params.id,req.user.email);
     notifyUser(
         pcr.userId,

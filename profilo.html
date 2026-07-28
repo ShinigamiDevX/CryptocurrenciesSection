@@ -7,7 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=3">
-    <link rel="stylesheet" href="custom-select.css?v=2">
+    <link rel="stylesheet" href="custom-select.css?v=5">
+    <link rel="stylesheet" href="custom-date.css">
+    <link rel="stylesheet" href="luogo-nascita.css">
     <style>
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
         .nav-bell-btn {
@@ -133,10 +135,21 @@
             color: #C8F0E8; font-size: 0.9rem; font-family: inherit; outline: none;
         }
         .edit-field input:focus { border-color: rgba(0,200,255,0.6); }
+        .edit-field input:disabled { opacity: 0.55; cursor: not-allowed; }
         .edit-row { display: flex; gap: 0.75rem; }
         .edit-row .edit-field { flex: 1; }
+        .check-field { margin-bottom: 0.5rem; }
+        .check-label {
+            display: flex; align-items: center; gap: 0.55rem;
+            font-size: 0.88rem; font-weight: 500; text-transform: none;
+            letter-spacing: 0; color: #C8F0E8; cursor: pointer; margin-bottom: 0;
+        }
+        .check-label input[type="checkbox"] {
+            width: auto; padding: 0; accent-color: #00C8FF; cursor: pointer;
+        }
         .edit-actions { display: flex; gap: 0.7rem; justify-content: flex-end; margin-top: 0.5rem; }
         .edit-field:has(.csel) { position: relative; z-index: 5; }
+        .edit-field:has(.cdate) { position: relative; z-index: 6; }
 
         .feedback { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin-bottom: 1rem; display: none; }
         .feedback.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
@@ -211,6 +224,16 @@
                     <dd id="viewCognome">—</dd>
                     <dt id="gradoLabel">Grado</dt>
                     <dd id="viewGrado" class="grado-row">—</dd>
+                    <dt>Data di nascita</dt>
+                    <dd id="viewDataNascita">—</dd>
+                    <dt>Luogo di nascita</dt>
+                    <dd id="viewLuogoNascita">—</dd>
+                    <dt>Residenza</dt>
+                    <dd id="viewResidenza">—</dd>
+                    <dt>Domicilio</dt>
+                    <dd id="viewDomicilio">—</dd>
+                    <dt>Telefono</dt>
+                    <dd id="viewTelefono">—</dd>
                 </dl>
             </div>
 
@@ -218,17 +241,45 @@
             <div id="editMode" style="display:none;">
                 <div class="edit-row">
                     <div class="edit-field">
-                        <label for="editNome">Nome</label>
+                        <label for="editNome">Nome *</label>
                         <input type="text" id="editNome" placeholder="Nome">
                     </div>
                     <div class="edit-field">
-                        <label for="editCognome">Cognome</label>
+                        <label for="editCognome">Cognome *</label>
                         <input type="text" id="editCognome" placeholder="Cognome">
                     </div>
                 </div>
                 <div class="edit-field">
-                    <label>Grado</label>
+                    <label>Grado *</label>
                     <div id="editGradoSel" class="csel"></div>
+                </div>
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label for="editDataNascita">Data di nascita</label>
+                        <div id="editDataNascita" class="cdate"></div>
+                    </div>
+                </div>
+                <div class="edit-field">
+                    <label>Luogo di nascita</label>
+                    <div id="editLuogoNascita" class="lnasc"></div>
+                </div>
+                <div class="edit-field">
+                    <label>Residenza</label>
+                    <div id="editResidenza" class="lnasc"></div>
+                </div>
+                <div class="check-field">
+                    <label class="check-label">
+                        <input type="checkbox" id="editDomicilioComeResidenza">
+                        <span>Il domicilio corrisponde alla residenza</span>
+                    </label>
+                </div>
+                <div class="edit-field" id="editDomicilioWrap">
+                    <label>Domicilio</label>
+                    <div id="editDomicilio" class="lnasc"></div>
+                </div>
+                <div class="edit-field">
+                    <label for="editTelefono">Numero di telefono</label>
+                    <input type="tel" id="editTelefono" placeholder="+39 …">
                 </div>
                 <p id="editHint" style="font-size:0.82rem;color:#5ABBC8;margin:0 0 1rem;"></p>
                 <div class="edit-actions">
@@ -241,13 +292,32 @@
 
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
-    <script src="custom-select.js"></script>
+    <script src="custom-select.js?v=6"></script>
+    <script src="custom-date.js"></script>
+    <script src="luogo-nascita.js"></script>
+    <script src="profile-fields.js"></script>
     <script src="nav-notifications.js?v=1"></script>
     <script>
     let _currentUser = null;
     let _profile = null;
     let editGradoCs = null;
+    let editDataNascitaCd = null;
+    let editLuogoNascitaLn = null;
+    let editResidenzaLn = null;
+    let editDomicilioLn = null;
+    let _domicilioWired = false;
     const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+    const EDIT_IDS = {
+        nome: 'editNome',
+        cognome: 'editCognome',
+        dataNascita: 'editDataNascita',
+        luogoNascita: 'editLuogoNascita',
+        residenza: 'editResidenza',
+        domicilio: 'editDomicilio',
+        domicilioComeResidenza: 'editDomicilioComeResidenza',
+        domicilioWrap: 'editDomicilioWrap',
+        telefono: 'editTelefono',
+    };
 
     function authHeader() {
         return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' };
@@ -270,6 +340,14 @@
         document.getElementById('viewNome').textContent = p.nome || '—';
         document.getElementById('viewCognome').textContent = p.cognome || '—';
         document.getElementById('viewRole').textContent = ROLE_LABEL[p.role] || p.role || '—';
+        document.getElementById('viewDataNascita').textContent = formatDateIT(p.dataNascita);
+        document.getElementById('viewLuogoNascita').textContent = dash(p.luogoNascita);
+        document.getElementById('viewResidenza').textContent = dash(p.residenza);
+        const domLabel = p.domicilioComeResidenza
+            ? (dash(p.residenza) === '—' ? '—' : dash(p.residenza) + ' (come residenza)')
+            : dash(p.domicilio);
+        document.getElementById('viewDomicilio').textContent = domLabel;
+        document.getElementById('viewTelefono').textContent = dash(p.telefono);
 
         const gradoDd = document.getElementById('viewGrado');
         const gradoLabel = document.getElementById('gradoLabel');
@@ -292,23 +370,43 @@
         document.getElementById('lockedNote').style.display = p.canEdit ? 'none' : '';
     }
 
-    function enterEditMode() {
+    async function enterEditMode() {
         if (!_profile?.canEdit) return;
-        document.getElementById('editNome').value = _profile.nome || '';
-        document.getElementById('editCognome').value = _profile.cognome || '';
         if (!editGradoCs) {
             editGradoCs = new CustomSelect(
                 document.getElementById('editGradoSel'),
                 GRADI_OPTIONS, () => {},
                 { placeholder: '— Seleziona il grado —', value: _profile.grado || '' }
             );
-        } else {
-            editGradoCs.setValue(_profile.grado || '');
         }
+        if (!editDataNascitaCd) {
+            editDataNascitaCd = new CustomDate(document.getElementById('editDataNascita'), {
+                placeholder: 'gg / mm / aaaa',
+                max: new Date().toISOString().slice(0, 10),
+            });
+        }
+        if (!editLuogoNascitaLn) {
+            editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
+        }
+        if (!editResidenzaLn) {
+            editResidenzaLn = await LuogoGeo.create(document.getElementById('editResidenza'), {
+                prefix: 'residenza', ariaLabel: 'Tipo residenza',
+            });
+        }
+        if (!editDomicilioLn) {
+            editDomicilioLn = await LuogoGeo.create(document.getElementById('editDomicilio'), {
+                prefix: 'domicilio', ariaLabel: 'Tipo domicilio',
+            });
+        }
+        if (!_domicilioWired) {
+            wireDomicilioSync(EDIT_IDS);
+            _domicilioWired = true;
+        }
+        fillProfileFields(EDIT_IDS, _profile, (g) => editGradoCs.setValue(g || ''));
         const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
         document.getElementById('editHint').textContent = isAdmin
-            ? 'Le modifiche verranno applicate immediatamente.'
-            : 'La richiesta di modifica verrà inviata a un amministratore per l\'approvazione.';
+            ? 'Le modifiche verranno applicate immediatamente. * campi obbligatori.'
+            : 'La richiesta di modifica verrà inviata a un amministratore per l\'approvazione. * campi obbligatori.';
         document.getElementById('btnSave').textContent = isAdmin ? 'Salva' : 'Richiedi modifica';
         document.getElementById('viewMode').style.display = 'none';
         document.getElementById('btnEdit').style.display = 'none';
@@ -323,11 +421,10 @@
 
     async function saveProfile() {
         if (!_profile?.canEdit) return;
-        const nome    = document.getElementById('editNome').value.trim();
-        const cognome = document.getElementById('editCognome').value.trim();
-        const grado   = editGradoCs ? editGradoCs.getValue() : '';
-        if (!nome || !cognome || !grado) {
-            showMsg('Compila nome, cognome e grado.', 'error');
+        const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
+        const reqErr = validateRequiredProfile(profile);
+        if (reqErr) {
+            showMsg(reqErr, 'error');
             return;
         }
         const btn = document.getElementById('btnSave');
@@ -336,7 +433,7 @@
         const url    = isAdmin ? `/api/auth/users/${_currentUser.id}/profile` : '/api/auth/profile-change-request';
         const method = isAdmin ? 'PATCH' : 'POST';
         try {
-            const res  = await fetch(url, { method, headers: authHeader(), body: JSON.stringify({ nome, cognome, grado }) });
+            const res  = await fetch(url, { method, headers: authHeader(), body: JSON.stringify(profile) });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
                 showMsg(data.error || 'Errore durante il salvataggio.', 'error');

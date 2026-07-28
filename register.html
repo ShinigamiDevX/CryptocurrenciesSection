@@ -6,7 +6,9 @@
     <title>Registrazione — CryptocurrenciesSection</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="custom-select.css">
+    <link rel="stylesheet" href="custom-select.css?v=5">
+    <link rel="stylesheet" href="custom-date.css">
+    <link rel="stylesheet" href="luogo-nascita.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -54,6 +56,7 @@
         .form-grid .field-full { grid-column: 1 / -1; }
         .field { margin-bottom: 1.1rem; position: relative; }
         .field:has(.csel) { z-index: 5; }
+        .field:has(.cdate) { z-index: 6; }
         label { display: block; font-size: 0.8rem; font-weight: 600; color: #7ACCE0; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.45rem; }
         input {
             width: 100%;
@@ -69,6 +72,26 @@
         }
         input:focus { border-color: rgba(0,200,255,0.6); }
         input::placeholder { color: rgba(90,187,200,0.45); }
+        input:disabled { opacity: 0.55; cursor: not-allowed; }
+        .check-field { margin-bottom: 0.4rem; }
+        .check-label {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            font-size: 0.88rem;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0;
+            color: #C8F0E8;
+            cursor: pointer;
+            margin-bottom: 0;
+        }
+        .check-label input[type="checkbox"] {
+            width: auto;
+            padding: 0;
+            accent-color: #00C8FF;
+            cursor: pointer;
+        }
         .hint { font-size: 0.75rem; color: #5ABBC8; margin-top: 0.35rem; }
         select.grade-select {
             display: none; /* rimpiazzato da CustomSelect */
@@ -141,6 +164,32 @@
                         <input type="text" id="cognome" name="cognome" placeholder="Cognome" autocomplete="family-name" required>
                     </div>
                     <div class="field">
+                        <label for="dataNascita">Data di nascita</label>
+                        <div id="dataNascita" class="cdate"></div>
+                    </div>
+                    <div class="field field-full">
+                        <label>Luogo di nascita</label>
+                        <div id="luogoNascita" class="lnasc"></div>
+                    </div>
+                    <div class="field field-full">
+                        <label>Residenza</label>
+                        <div id="residenza" class="lnasc"></div>
+                    </div>
+                    <div class="field field-full check-field">
+                        <label class="check-label">
+                            <input type="checkbox" id="domicilioComeResidenza" checked>
+                            <span>Il domicilio corrisponde alla residenza</span>
+                        </label>
+                    </div>
+                    <div class="field field-full" id="domicilioWrap">
+                        <label>Domicilio</label>
+                        <div id="domicilio" class="lnasc"></div>
+                    </div>
+                    <div class="field field-full">
+                        <label for="telefono">Numero di telefono</label>
+                        <input type="tel" id="telefono" name="telefono" placeholder="+39 …" autocomplete="tel">
+                    </div>
+                    <div class="field">
                         <label for="password">Password</label>
                         <input type="password" id="password" name="password" placeholder="Minimo 8 caratteri" autocomplete="new-password" required>
                         <div class="hint">Almeno 8 caratteri.</div>
@@ -168,15 +217,45 @@
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
 
-    <script src="custom-select.js"></script>
+    <script src="custom-select.js?v=6"></script>
+    <script src="custom-date.js"></script>
+    <script src="luogo-nascita.js"></script>
+    <script src="profile-fields.js"></script>
     <script>
+        const REG_IDS = {
+            nome: 'nome',
+            cognome: 'cognome',
+            dataNascita: 'dataNascita',
+            luogoNascita: 'luogoNascita',
+            residenza: 'residenza',
+            domicilio: 'domicilio',
+            domicilioComeResidenza: 'domicilioComeResidenza',
+            telefono: 'telefono',
+        };
+
         let gradoCs = null;
-        document.addEventListener('DOMContentLoaded', () => {
+        let dataNascitaCd = null;
+        let luogoNascitaLn = null;
+        let residenzaLn = null;
+        let domicilioLn = null;
+        document.addEventListener('DOMContentLoaded', async () => {
             gradoCs = new CustomSelect(
                 document.getElementById('gradoSelect'),
                 GRADI_OPTIONS, () => {},
                 { placeholder: '— Seleziona il grado —' }
             );
+            dataNascitaCd = new CustomDate(document.getElementById('dataNascita'), {
+                placeholder: 'gg / mm / aaaa',
+                max: new Date().toISOString().slice(0, 10),
+            });
+            luogoNascitaLn = await LuogoNascita.create(document.getElementById('luogoNascita'));
+            residenzaLn = await LuogoGeo.create(document.getElementById('residenza'), {
+                prefix: 'residenza', ariaLabel: 'Tipo residenza',
+            });
+            domicilioLn = await LuogoGeo.create(document.getElementById('domicilio'), {
+                prefix: 'domicilio', ariaLabel: 'Tipo domicilio',
+            });
+            wireDomicilioSync({ ...REG_IDS, domicilioWrap: 'domicilioWrap' });
         });
 
         const params = new URLSearchParams(window.location.search);
@@ -216,12 +295,11 @@
             const pwd     = document.getElementById('password').value;
             const confirm = document.getElementById('confirmPassword').value;
             const otp     = document.getElementById('otpInput').value.trim();
-            const nome    = document.getElementById('nome').value.trim();
-            const cognome = document.getElementById('cognome').value.trim();
-            const grado   = gradoCs ? gradoCs.getValue() : '';
+            const profile = collectProfileFields(REG_IDS, () => gradoCs ? gradoCs.getValue() : '');
+            const reqErr  = validateRequiredProfile(profile);
 
-            if (!nome || !cognome || !grado) {
-                errorMsg.textContent = 'Compila grado, nome e cognome.';
+            if (reqErr) {
+                errorMsg.textContent = reqErr;
                 errorMsg.style.display = 'block'; return;
             }
             if (!otp) {
@@ -235,7 +313,7 @@
                 const res  = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, password: pwd, otp, nome, cognome, grado })
+                    body: JSON.stringify({ token, password: pwd, otp, ...profile })
                 });
                 let data = {};
                 try { data = await res.json(); } catch { /* risposta non JSON (es. 502) */ }

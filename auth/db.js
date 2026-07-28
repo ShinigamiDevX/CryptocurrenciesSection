@@ -14,16 +14,34 @@ db.pragma('journal_mode = WAL');
 // ── Schema ───────────────────────────────────────────────────────────────────
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-        id                 TEXT PRIMARY KEY,
-        email              TEXT UNIQUE NOT NULL COLLATE NOCASE,
-        passwordHash       TEXT NOT NULL DEFAULT '',
-        role               TEXT NOT NULL DEFAULT 'user',
-        createdAt          TEXT NOT NULL,
-        revokedAt          TEXT,
-        mustChangePassword INTEGER NOT NULL DEFAULT 0,
-        nome               TEXT NOT NULL DEFAULT '',
-        cognome            TEXT NOT NULL DEFAULT '',
-        grado              TEXT NOT NULL DEFAULT ''
+        id                      TEXT PRIMARY KEY,
+        email                   TEXT UNIQUE NOT NULL COLLATE NOCASE,
+        passwordHash            TEXT NOT NULL DEFAULT '',
+        role                    TEXT NOT NULL DEFAULT 'user',
+        createdAt               TEXT NOT NULL,
+        revokedAt               TEXT,
+        mustChangePassword      INTEGER NOT NULL DEFAULT 0,
+        nome                    TEXT NOT NULL DEFAULT '',
+        cognome                 TEXT NOT NULL DEFAULT '',
+        grado                   TEXT NOT NULL DEFAULT '',
+        dataNascita             TEXT NOT NULL DEFAULT '',
+        luogoNascita            TEXT NOT NULL DEFAULT '',
+        luogoNascitaTipo        TEXT NOT NULL DEFAULT '',
+        luogoNascitaProvincia   TEXT NOT NULL DEFAULT '',
+        luogoNascitaComune      TEXT NOT NULL DEFAULT '',
+        luogoNascitaStato       TEXT NOT NULL DEFAULT '',
+        residenza               TEXT NOT NULL DEFAULT '',
+        residenzaTipo           TEXT NOT NULL DEFAULT '',
+        residenzaProvincia      TEXT NOT NULL DEFAULT '',
+        residenzaComune         TEXT NOT NULL DEFAULT '',
+        residenzaStato          TEXT NOT NULL DEFAULT '',
+        domicilio               TEXT NOT NULL DEFAULT '',
+        domicilioTipo           TEXT NOT NULL DEFAULT '',
+        domicilioProvincia      TEXT NOT NULL DEFAULT '',
+        domicilioComune         TEXT NOT NULL DEFAULT '',
+        domicilioStato          TEXT NOT NULL DEFAULT '',
+        domicilioComeResidenza  INTEGER NOT NULL DEFAULT 0,
+        telefono                TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS invitations (
         token     TEXT PRIMARY KEY,
@@ -54,16 +72,34 @@ db.exec(`
         cancelledAt      TEXT
     );
     CREATE TABLE IF NOT EXISTS profile_change_requests (
-        id          TEXT PRIMARY KEY,
-        userId      TEXT NOT NULL,
-        userEmail   TEXT NOT NULL,
-        nome        TEXT NOT NULL,
-        cognome     TEXT NOT NULL,
-        grado       TEXT NOT NULL,
-        requestedAt TEXT NOT NULL,
-        status      TEXT NOT NULL DEFAULT 'pending',
-        reviewedBy  TEXT,
-        reviewedAt  TEXT
+        id                     TEXT PRIMARY KEY,
+        userId                 TEXT NOT NULL,
+        userEmail              TEXT NOT NULL,
+        nome                   TEXT NOT NULL,
+        cognome                TEXT NOT NULL,
+        grado                  TEXT NOT NULL,
+        dataNascita            TEXT NOT NULL DEFAULT '',
+        luogoNascita           TEXT NOT NULL DEFAULT '',
+        luogoNascitaTipo       TEXT NOT NULL DEFAULT '',
+        luogoNascitaProvincia  TEXT NOT NULL DEFAULT '',
+        luogoNascitaComune     TEXT NOT NULL DEFAULT '',
+        luogoNascitaStato      TEXT NOT NULL DEFAULT '',
+        residenza              TEXT NOT NULL DEFAULT '',
+        residenzaTipo          TEXT NOT NULL DEFAULT '',
+        residenzaProvincia     TEXT NOT NULL DEFAULT '',
+        residenzaComune        TEXT NOT NULL DEFAULT '',
+        residenzaStato         TEXT NOT NULL DEFAULT '',
+        domicilio              TEXT NOT NULL DEFAULT '',
+        domicilioTipo          TEXT NOT NULL DEFAULT '',
+        domicilioProvincia     TEXT NOT NULL DEFAULT '',
+        domicilioComune        TEXT NOT NULL DEFAULT '',
+        domicilioStato         TEXT NOT NULL DEFAULT '',
+        domicilioComeResidenza INTEGER NOT NULL DEFAULT 0,
+        telefono               TEXT NOT NULL DEFAULT '',
+        requestedAt            TEXT NOT NULL,
+        status                 TEXT NOT NULL DEFAULT 'pending',
+        reviewedBy             TEXT,
+        reviewedAt             TEXT
     );
     CREATE TABLE IF NOT EXISTS notifications (
         id        TEXT PRIMARY KEY,
@@ -118,50 +154,220 @@ function migrateFromJson() {
 migrateFromJson();
 
 // Migrazione colonne opzionali (aggiunta su DB esistenti)
-['nome','cognome','grado'].forEach(col => {
-    try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`); }
-    catch { /* colonna già presente */ }
+const USER_EXTRA_COLS = [
+    ['nome', "TEXT NOT NULL DEFAULT ''"],
+    ['cognome', "TEXT NOT NULL DEFAULT ''"],
+    ['grado', "TEXT NOT NULL DEFAULT ''"],
+    ['dataNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenza', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilio', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComune', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComeResidenza', 'INTEGER NOT NULL DEFAULT 0'],
+    ['telefono', "TEXT NOT NULL DEFAULT ''"],
+];
+USER_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+const PCR_EXTRA_COLS = [
+    ['dataNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenza', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilio', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComune', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComeResidenza', 'INTEGER NOT NULL DEFAULT 0'],
+    ['telefono', "TEXT NOT NULL DEFAULT ''"],
+];
+PCR_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE profile_change_requests ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
 });
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 const toBool = v => !!v;
-const fromRow = (r) => r ? { ...r, mustChangePassword: toBool(r.mustChangePassword) } : null;
+const fromRow = (r) => r ? {
+    ...r,
+    mustChangePassword: toBool(r.mustChangePassword),
+    domicilioComeResidenza: toBool(r.domicilioComeResidenza),
+} : null;
+
+function geoBlock(p, prefix) {
+    const tipo = p[`${prefix}Tipo`] === 'IT' || p[`${prefix}Tipo`] === 'ESTERO' ? p[`${prefix}Tipo`] : '';
+    return {
+        [prefix]: p[prefix] || '',
+        [`${prefix}Tipo`]: tipo,
+        [`${prefix}Provincia`]: tipo === 'IT' ? (p[`${prefix}Provincia`] || '') : '',
+        [`${prefix}Comune`]: tipo === 'IT' ? (p[`${prefix}Comune`] || '') : '',
+        [`${prefix}Stato`]: tipo === 'ESTERO' ? (p[`${prefix}Stato`] || '') : '',
+    };
+}
+
+function profileDefaults(p = {}) {
+    const comeRes = !!p.domicilioComeResidenza;
+    const luogo = geoBlock(p, 'luogoNascita');
+    const residenza = geoBlock(p, 'residenza');
+    const domicilio = comeRes ? {
+        domicilio: residenza.residenza,
+        domicilioTipo: residenza.residenzaTipo,
+        domicilioProvincia: residenza.residenzaProvincia,
+        domicilioComune: residenza.residenzaComune,
+        domicilioStato: residenza.residenzaStato,
+    } : geoBlock(p, 'domicilio');
+    return {
+        nome: p.nome || '',
+        cognome: p.cognome || '',
+        grado: p.grado || '',
+        dataNascita: p.dataNascita || '',
+        ...luogo,
+        ...residenza,
+        ...domicilio,
+        domicilioComeResidenza: comeRes ? 1 : 0,
+        telefono: p.telefono || '',
+    };
+}
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 const Users = {
     findById:    id    => fromRow(db.prepare('SELECT * FROM users WHERE id = ?').get(id)),
     findByEmail: email => fromRow(db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').get(email)),
     findActive:  ()    => db.prepare('SELECT * FROM users WHERE revokedAt IS NULL').all().map(fromRow),
-    insert: u => db.prepare(
-        'INSERT INTO users (id,email,passwordHash,role,createdAt,mustChangePassword,nome,cognome,grado) VALUES (@id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,@nome,@cognome,@grado)'
-    ).run({ ...u, mustChangePassword: u.mustChangePassword ? 1 : 0, nome: u.nome||'', cognome: u.cognome||'', grado: u.grado||'' }),
+    insert: u => {
+        const p = profileDefaults(u);
+        return db.prepare(`
+            INSERT INTO users (
+                id,email,passwordHash,role,createdAt,mustChangePassword,
+                nome,cognome,grado,dataNascita,luogoNascita,
+                luogoNascitaTipo,luogoNascitaProvincia,luogoNascitaComune,luogoNascitaStato,
+                residenza,residenzaTipo,residenzaProvincia,residenzaComune,residenzaStato,
+                domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
+                domicilioComeResidenza,telefono
+            ) VALUES (
+                @id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,
+                @nome,@cognome,@grado,@dataNascita,@luogoNascita,
+                @luogoNascitaTipo,@luogoNascitaProvincia,@luogoNascitaComune,@luogoNascitaStato,
+                @residenza,@residenzaTipo,@residenzaProvincia,@residenzaComune,@residenzaStato,
+                @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
+                @domicilioComeResidenza,@telefono
+            )
+        `).run({
+            id: u.id,
+            email: u.email,
+            passwordHash: u.passwordHash,
+            role: u.role || 'user',
+            createdAt: u.createdAt,
+            mustChangePassword: u.mustChangePassword ? 1 : 0,
+            ...p,
+        });
+    },
     /** Riattiva un utente revocato (stesso id/email) con nuove credenziali e profilo. */
-    reactivate: (id, u) => db.prepare(
-        `UPDATE users SET passwordHash=@passwordHash, role=@role, createdAt=@createdAt,
-         revokedAt=NULL, mustChangePassword=@mustChangePassword,
-         nome=@nome, cognome=@cognome, grado=@grado WHERE id=@id`
-    ).run({
-        id,
-        passwordHash: u.passwordHash,
-        role: u.role || 'user',
-        createdAt: u.createdAt,
-        mustChangePassword: u.mustChangePassword ? 1 : 0,
-        nome: u.nome || '',
-        cognome: u.cognome || '',
-        grado: u.grado || '',
-    }),
-    updateRole:    (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
-    updateProfile: (id, nome, cognome, grado) => db.prepare('UPDATE users SET nome=?,cognome=?,grado=? WHERE id=?').run(nome,cognome,grado,id),
-    revoke:        id  => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
+    reactivate: (id, u) => {
+        const p = profileDefaults(u);
+        return db.prepare(`
+            UPDATE users SET
+                passwordHash=@passwordHash, role=@role, createdAt=@createdAt,
+                revokedAt=NULL, mustChangePassword=@mustChangePassword,
+                nome=@nome, cognome=@cognome, grado=@grado,
+                dataNascita=@dataNascita, luogoNascita=@luogoNascita,
+                luogoNascitaTipo=@luogoNascitaTipo, luogoNascitaProvincia=@luogoNascitaProvincia,
+                luogoNascitaComune=@luogoNascitaComune, luogoNascitaStato=@luogoNascitaStato,
+                residenza=@residenza, residenzaTipo=@residenzaTipo, residenzaProvincia=@residenzaProvincia,
+                residenzaComune=@residenzaComune, residenzaStato=@residenzaStato,
+                domicilio=@domicilio, domicilioTipo=@domicilioTipo, domicilioProvincia=@domicilioProvincia,
+                domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
+                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono
+            WHERE id=@id
+        `).run({
+            id,
+            passwordHash: u.passwordHash,
+            role: u.role || 'user',
+            createdAt: u.createdAt,
+            mustChangePassword: u.mustChangePassword ? 1 : 0,
+            ...p,
+        });
+    },
+    updateRole: (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
+    updateProfile: (id, profile) => {
+        const p = profileDefaults(profile);
+        return db.prepare(`
+            UPDATE users SET
+                nome=@nome, cognome=@cognome, grado=@grado,
+                dataNascita=@dataNascita, luogoNascita=@luogoNascita,
+                luogoNascitaTipo=@luogoNascitaTipo, luogoNascitaProvincia=@luogoNascitaProvincia,
+                luogoNascitaComune=@luogoNascitaComune, luogoNascitaStato=@luogoNascitaStato,
+                residenza=@residenza, residenzaTipo=@residenzaTipo, residenzaProvincia=@residenzaProvincia,
+                residenzaComune=@residenzaComune, residenzaStato=@residenzaStato,
+                domicilio=@domicilio, domicilioTipo=@domicilioTipo, domicilioProvincia=@domicilioProvincia,
+                domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
+                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono
+            WHERE id=@id
+        `).run({ id, ...p });
+    },
+    revoke: id => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
     changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?').run(hash, id),
 };
 
 // ── Profile Change Requests ─────────────────────────────────────────────────
 const ProfileChangeRequests = {
-    findPending: () => db.prepare("SELECT * FROM profile_change_requests WHERE status='pending' ORDER BY requestedAt DESC").all(),
-    findById:    id  => db.prepare('SELECT * FROM profile_change_requests WHERE id=?').get(id),
-    findPendingByUser: userId => db.prepare("SELECT * FROM profile_change_requests WHERE userId=? AND status='pending'").get(userId),
-    insert: r => db.prepare('INSERT INTO profile_change_requests (id,userId,userEmail,nome,cognome,grado,requestedAt) VALUES (@id,@userId,@userEmail,@nome,@cognome,@grado,@requestedAt)').run(r),
+    findPending: () => db.prepare("SELECT * FROM profile_change_requests WHERE status='pending' ORDER BY requestedAt DESC").all()
+        .map(r => ({ ...r, domicilioComeResidenza: toBool(r.domicilioComeResidenza) })),
+    findById: id => {
+        const r = db.prepare('SELECT * FROM profile_change_requests WHERE id=?').get(id);
+        return r ? { ...r, domicilioComeResidenza: toBool(r.domicilioComeResidenza) } : null;
+    },
+    findPendingByUser: userId => {
+        const r = db.prepare("SELECT * FROM profile_change_requests WHERE userId=? AND status='pending'").get(userId);
+        return r ? { ...r, domicilioComeResidenza: toBool(r.domicilioComeResidenza) } : null;
+    },
+    insert: r => {
+        const p = profileDefaults(r);
+        return db.prepare(`
+            INSERT INTO profile_change_requests (
+                id,userId,userEmail,nome,cognome,grado,
+                dataNascita,luogoNascita,luogoNascitaTipo,luogoNascitaProvincia,luogoNascitaComune,luogoNascitaStato,
+                residenza,residenzaTipo,residenzaProvincia,residenzaComune,residenzaStato,
+                domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
+                domicilioComeResidenza,telefono,
+                requestedAt
+            ) VALUES (
+                @id,@userId,@userEmail,@nome,@cognome,@grado,
+                @dataNascita,@luogoNascita,@luogoNascitaTipo,@luogoNascitaProvincia,@luogoNascitaComune,@luogoNascitaStato,
+                @residenza,@residenzaTipo,@residenzaProvincia,@residenzaComune,@residenzaStato,
+                @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
+                @domicilioComeResidenza,@telefono,
+                @requestedAt
+            )
+        `).run({
+            id: r.id,
+            userId: r.userId,
+            userEmail: r.userEmail,
+            requestedAt: r.requestedAt,
+            ...p,
+        });
+    },
     approve: (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='approved',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
     reject:  (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='rejected',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
 };
@@ -199,4 +405,4 @@ const Notifications = {
     ).run(new Date().toISOString(), userId),
 };
 
-module.exports = { Users, Invitations, ProfileChangeRequests, Notifications };
+module.exports = { Users, Invitations, ProfileChangeRequests, Notifications, profileDefaults };

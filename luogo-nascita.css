@@ -1,0 +1,57 @@
+/* Luogo di nascita — Italia / Estero */
+
+.lnasc { width: 100%; }
+
+.lnasc-tipo {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.lnasc-chip {
+    padding: 0.45rem 0.95rem;
+    background: rgba(0,200,255,0.06);
+    border: 1px solid rgba(0,200,255,0.25);
+    border-radius: 7px;
+    color: #7ACCE0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.lnasc-chip:hover {
+    background: rgba(0,200,255,0.12);
+    border-color: rgba(0,200,255,0.45);
+    color: #00C8FF;
+}
+.lnasc-chip.active {
+    background: #0d3550;
+    border-color: rgba(0,200,255,0.65);
+    color: #00C8FF;
+}
+
+.lnasc-row {
+    display: flex;
+    gap: 0.75rem;
+}
+.lnasc-row .lnasc-field { flex: 1; min-width: 0; }
+
+.lnasc-field { margin-bottom: 0.15rem; position: relative; z-index: 1; }
+.lnasc-field:has(.csel) { z-index: 4; }
+.lnasc-field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #7ACCE0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+}
+
+.lnasc-it, .lnasc-estero { position: relative; }
+
+@media (max-width: 600px) {
+    .lnasc-row { flex-direction: column; gap: 0.75rem; }
+}

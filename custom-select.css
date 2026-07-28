@@ -8,16 +8,18 @@
     width: 100%;
     user-select: none;
     font-family: inherit;
+    z-index: 1;
 }
+.csel.csel-open { z-index: 60; }
 
-/* ── Pulsante ── */
+/* ── Pulsante / combo ── */
 .csel-btn {
     width: 100%;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.65rem 0.9rem;
-    background: rgba(0,200,255,0.07);
+    background: #07111f;
     border: 1px solid rgba(0,200,255,0.25);
     border-radius: 8px;
     color: #C8F0E8;
@@ -29,8 +31,24 @@
     box-sizing: border-box;
 }
 .csel-btn:hover,
-.csel-btn.active { border-color: rgba(0,200,255,0.6); background: rgba(0,200,255,0.12); }
+.csel-btn.active { border-color: rgba(0,200,255,0.6); background: #0a1a2e; }
 .csel-btn.active { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.csel-combo { cursor: text; padding: 0.35rem 0.65rem 0.35rem 0.75rem; }
+.csel-input {
+    flex: 1;
+    min-width: 0;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    color: #C8F0E8 !important;
+    font-size: 0.9rem;
+    font-family: inherit;
+    padding: 0.35rem 0 !important;
+    box-shadow: none !important;
+    width: 100%;
+}
+.csel-input::placeholder { color: rgba(90,187,200,0.5); }
 
 .csel-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .csel-placeholder { color: rgba(90,187,200,0.5); }
@@ -41,33 +59,58 @@
 .csel-btn.active .csel-arrow { transform: rotate(180deg); }
 .csel-btn-img { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
 
-/* ── Panel ── */
-.csel-panel {
+/* ── Panel (anche in portale su body) ── */
+.csel-panel,
+.csel-panel-portal {
     display: none;
     position: absolute;
     top: 100%;
     left: 0; right: 0;
-    background: #0a1628;
+    background: #030E1C !important;
+    background-color: #030E1C !important;
+    background-image: none !important;
     border: 1px solid rgba(0,200,255,0.35);
     border-top: none;
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
     max-height: 280px;
+    overflow-x: hidden;
     overflow-y: auto;
-    z-index: 10000;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    z-index: 30000 !important;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.95);
+    opacity: 1 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    mix-blend-mode: normal !important;
+    isolation: isolate;
+    color: #C8F0E8;
 }
-.csel-panel.open { display: block; }
-.csel-panel.up {
-    top: auto; bottom: 100%;
+.csel-panel-portal {
+    position: fixed;
+    right: auto;
+}
+.csel-panel.open,
+.csel-panel-portal.open { display: block; }
+.csel-panel.up,
+.csel-panel-portal.up {
+    top: auto;
     border-top: 1px solid rgba(0,200,255,0.35);
     border-bottom: none;
     border-radius: 8px 8px 0 0;
 }
 
 /* Scrollbar */
-.csel-panel::-webkit-scrollbar { width: 4px; }
-.csel-panel::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.3); border-radius: 2px; }
+.csel-panel::-webkit-scrollbar,
+.csel-panel-portal::-webkit-scrollbar { width: 4px; }
+.csel-panel::-webkit-scrollbar-thumb,
+.csel-panel-portal::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.3); border-radius: 2px; }
+
+.csel-empty {
+    padding: 0.75rem 0.9rem;
+    color: #5ABBC8;
+    font-size: 0.85rem;
+    background: #030E1C;
+}
 
 /* ── Gruppo ── */
 .csel-group {
@@ -79,6 +122,7 @@
     letter-spacing: 0.07em;
     border-top: 1px solid rgba(0,200,255,0.1);
     margin-top: 0.1rem;
+    background: #030E1C !important;
 }
 .csel-group:first-child { border-top: none; margin-top: 0; }
 
@@ -92,10 +136,14 @@
     font-size: 0.88rem;
     cursor: pointer;
     transition: background 0.12s;
+    background: #030E1C !important;
+    background-color: #030E1C !important;
+    opacity: 1 !important;
 }
-.csel-option:hover { background: rgba(0,200,255,0.12); }
+.csel-option:hover { background: #0a2840 !important; background-color: #0a2840 !important; }
 .csel-option.selected {
-    background: rgba(0,200,255,0.15);
+    background: #0d3550 !important;
+    background-color: #0d3550 !important;
     color: #00C8FF;
     font-weight: 600;
 }
@@ -108,5 +156,6 @@
     border-radius: 5px;
     color: #00C8FF;
 }
-.csel.csel-sm .csel-panel { font-size: 0.82rem; min-width: 130px; right: auto; }
+.csel.csel-sm .csel-panel,
+.csel.csel-sm .csel-panel-portal { font-size: 0.82rem; min-width: 130px; }
 .csel.csel-sm .csel-option { padding: 0.4rem 0.75rem; font-size: 0.82rem; }

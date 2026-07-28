@@ -7,7 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=3">
-    <link rel="stylesheet" href="custom-select.css?v=2">
+    <link rel="stylesheet" href="custom-select.css?v=5">
+    <link rel="stylesheet" href="custom-date.css">
+    <link rel="stylesheet" href="luogo-nascita.css">
     <style>
         /* Campanella: regole critiche */
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
@@ -83,6 +85,20 @@
         /* ── Tabella utenti ── */
         .users-table { width:100%; border-collapse:collapse; font-size:0.88rem; table-layout:fixed; }
         .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.6rem 0.9rem; border-bottom:1px solid rgba(0,200,255,0.15); white-space:nowrap; }
+        .users-table th.sortable {
+            cursor: pointer; user-select: none;
+            transition: color 0.15s;
+        }
+        .users-table th.sortable:hover { color: #00C8FF; }
+        .users-table th.sortable .sort-ind {
+            display: inline-block; margin-left: 0.35rem;
+            font-size: 0.7rem; opacity: 0.35; vertical-align: middle;
+        }
+        .users-table th.sortable.sorted-asc .sort-ind,
+        .users-table th.sortable.sorted-desc .sort-ind { opacity: 1; color: #00C8FF; }
+        .users-table th.sortable.sorted-asc .sort-ind::after { content: '▲'; }
+        .users-table th.sortable.sorted-desc .sort-ind::after { content: '▼'; }
+        .users-table th.sortable:not(.sorted-asc):not(.sorted-desc) .sort-ind::after { content: '⇅'; }
         .users-table td { padding:0.55rem 0.9rem; color:#C8F0E8; border-bottom:1px solid rgba(0,200,255,0.06); vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .users-table tr:last-child td { border-bottom: none; }
         /* Larghezze colonne */
@@ -101,18 +117,33 @@
         .grado-img { width:32px; height:32px; object-fit:contain; vertical-align:middle; margin-right:0.4rem; }
         /* modale modifica profilo */
         .edit-modal-bg { position:fixed;inset:0;background:rgba(3,14,28,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem; }
-        .edit-modal-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:560px;overflow:visible;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
+        .edit-modal-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
+        .edit-modal-box .csel-panel,
+        .edit-modal-box .cdate-panel {
+            background: #030E1C !important;
+            background-color: #030E1C !important;
+            opacity: 1 !important;
+        }
         .edit-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; }
         .edit-field { margin-bottom:0.9rem; position:relative; z-index:1; }
         .edit-field:has(.csel) { z-index:2; }
+        .edit-field:has(.cdate) { z-index:3; }
         .edit-field label { display:block;font-size:0.78rem;font-weight:600;color:#7ACCE0;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem; }
         .edit-field input, .edit-field select { width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.22);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none; }
         .edit-field input:focus, .edit-field select:focus { border-color:rgba(0,200,255,0.6); }
+        .edit-field input:disabled { opacity:0.55; cursor:not-allowed; }
         .edit-field select option  { background:#0d1f35; color:#C8F0E8; }
         .edit-field select optgroup { background:#0a1628; color:#7ACCE0; font-weight:700; }
         /* i select nativi nell'edit modal sono rimpiazzati da CustomSelect */
         .edit-row { display:flex;gap:0.6rem; }
         .edit-row .edit-field { flex:1; }
+        .check-field { margin-bottom:0.5rem; }
+        .check-label {
+            display:flex; align-items:center; gap:0.55rem;
+            font-size:0.88rem; font-weight:500; text-transform:none;
+            letter-spacing:0; color:#C8F0E8; cursor:pointer; margin-bottom:0;
+        }
+        .check-label input[type="checkbox"] { width:auto; padding:0; accent-color:#00C8FF; cursor:pointer; }
         .edit-actions { display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1.2rem; }
         .edit-actions .btn-cancel {
             padding:0.6rem 1.2rem; background:transparent;
@@ -120,6 +151,48 @@
             color:#5ABBC8; font-size:0.88rem; cursor:pointer; font-family:inherit;
         }
         .edit-actions .btn-cancel:hover { background:rgba(0,200,255,0.07); }
+        /* vista profilo */
+        .view-modal-bg { position:fixed;inset:0;background:rgba(3,14,28,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem; }
+        .view-modal-box {
+            background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;
+            padding:1.8rem 2rem;width:100%;max-width:560px;max-height:92vh;overflow:auto;
+            box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75);
+        }
+        .view-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; }
+        .view-dl { display:grid; grid-template-columns:120px 1fr; gap:0.75rem 1rem; align-items:center; }
+        .view-dl dt { font-size:0.75rem; font-weight:600; color:#7ACCE0; text-transform:uppercase; letter-spacing:0.05em; }
+        .view-dl dd { margin:0; color:#C8F0E8; font-size:0.95rem; }
+        .view-grado { display:flex; align-items:center; gap:0.55rem; }
+        .view-grado img { width:40px; height:40px; object-fit:contain; }
+        .view-actions { display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1.4rem; }
+        .view-actions .btn-cancel,
+        .view-modal-box .btn-chiudi,
+        button.btn-chiudi {
+            appearance: none; -webkit-appearance: none;
+            padding: 0.55rem 1.2rem !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            border: 1px solid rgba(0,200,255,0.35) !important;
+            border-radius: 7px !important;
+            color: #5ABBC8 !important;
+            font-size: 0.88rem !important;
+            font-weight: 500 !important;
+            font-family: inherit !important;
+            cursor: pointer !important;
+            box-shadow: none !important;
+        }
+        .view-actions .btn-cancel:hover,
+        .view-modal-box .btn-chiudi:hover,
+        button.btn-chiudi:hover {
+            background: rgba(0,200,255,0.1) !important;
+            border-color: rgba(0,200,255,0.55) !important;
+            color: #00C8FF !important;
+        }
+        .users-table tbody tr.row-clickable { cursor: pointer; }
+        .users-table tbody tr.row-clickable:hover td { background: rgba(0,200,255,0.06); }
+        .users-table tbody tr.row-clickable td.actions-cell { cursor: default; }
+        .users-table tbody tr.row-clickable td.actions-cell:hover { background: transparent; }
+
         /* richieste profilo */
         .pcr-item { background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.12);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.5rem; }
         .pcr-info  { color:#C8F0E8;font-size:0.88rem;margin-bottom:0.5rem; }
@@ -219,7 +292,16 @@
         <div class="tab-panel active" id="tab-users">
             <div class="feedback" id="usersMsg"></div>
             <table class="users-table">
-                <thead><tr><th>Grado</th><th>Nome</th><th>Email</th><th>Ruolo</th><th>Registrato</th><th>Azioni</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="grado" onclick="sortUsers('grado')">Grado <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="nome" onclick="sortUsers('nome')">Nome <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="email" onclick="sortUsers('email')">Email <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="ruolo" onclick="sortUsers('ruolo')">Ruolo <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="registrato" onclick="sortUsers('registrato')">Registrato <span class="sort-ind"></span></th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
         </div>
@@ -255,10 +337,45 @@
         <!-- Tab: Modifiche Profilo -->
         <div class="tab-panel" id="tab-profiles">
             <div class="feedback" id="profilesMsg"></div>
-            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.2rem;">Richieste di modifica nome/cognome/grado inviate dagli utenti.</p>
+            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.2rem;">Richieste di modifica profilo anagrafico inviate dagli utenti.</p>
             <div id="pcrList"></div>
         </div>
     </main>
+
+    <!-- Modale visualizza profilo utente -->
+    <div class="view-modal-bg" id="viewModal" style="display:none;" onclick="if(event.target===this)closeViewModal()">
+        <div class="view-modal-box">
+            <h3>👤 Profilo utente</h3>
+            <dl class="view-dl">
+                <dt>Email</dt>
+                <dd id="viewEmail">—</dd>
+                <dt>Nome</dt>
+                <dd id="viewNome">—</dd>
+                <dt>Cognome</dt>
+                <dd id="viewCognome">—</dd>
+                <dt>Grado</dt>
+                <dd id="viewGrado" class="view-grado">—</dd>
+                <dt>Data di nascita</dt>
+                <dd id="viewDataNascita">—</dd>
+                <dt>Luogo di nascita</dt>
+                <dd id="viewLuogoNascita">—</dd>
+                <dt>Residenza</dt>
+                <dd id="viewResidenza">—</dd>
+                <dt>Domicilio</dt>
+                <dd id="viewDomicilio">—</dd>
+                <dt>Telefono</dt>
+                <dd id="viewTelefono">—</dd>
+                <dt>Ruolo</dt>
+                <dd id="viewRuolo">—</dd>
+                <dt>Registrato</dt>
+                <dd id="viewRegistrato">—</dd>
+            </dl>
+            <div class="view-actions">
+                <button type="button" class="btn-cancel btn-chiudi" onclick="closeViewModal()">Chiudi</button>
+                <button type="button" class="btn-ok-sm" id="viewEditBtn" style="display:none;" onclick="editFromView()">Modifica</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modale modifica profilo utente -->
     <div class="edit-modal-bg" id="editModal" style="display:none;" onclick="if(event.target===this)closeEditModal()">
@@ -266,13 +383,35 @@
             <h3>Modifica profilo</h3>
             <input type="hidden" id="editUserId">
             <div class="edit-row">
-                <div class="edit-field"><label>Nome</label><input type="text" id="editNome" placeholder="Nome"></div>
-                <div class="edit-field"><label>Cognome</label><input type="text" id="editCognome" placeholder="Cognome"></div>
+                <div class="edit-field"><label>Nome *</label><input type="text" id="editNome" placeholder="Nome"></div>
+                <div class="edit-field"><label>Cognome *</label><input type="text" id="editCognome" placeholder="Cognome"></div>
             </div>
             <div class="edit-field">
-                <label>Grado</label>
+                <label>Grado *</label>
                 <div id="editGradoSel" class="csel"></div>
             </div>
+            <div class="edit-row">
+                <div class="edit-field"><label>Data di nascita</label><div id="editDataNascita" class="cdate"></div></div>
+            </div>
+            <div class="edit-field">
+                <label>Luogo di nascita</label>
+                <div id="editLuogoNascita" class="lnasc"></div>
+            </div>
+            <div class="edit-field">
+                <label>Residenza</label>
+                <div id="editResidenza" class="lnasc"></div>
+            </div>
+            <div class="check-field">
+                <label class="check-label">
+                    <input type="checkbox" id="editDomicilioComeResidenza">
+                    <span>Il domicilio corrisponde alla residenza</span>
+                </label>
+            </div>
+            <div class="edit-field" id="editDomicilioWrap">
+                <label>Domicilio</label>
+                <div id="editDomicilio" class="lnasc"></div>
+            </div>
+            <div class="edit-field"><label>Numero di telefono</label><input type="tel" id="editTelefono" placeholder="+39 …"></div>
             <div class="feedback" id="editMsg" style="margin-top:0.8rem;"></div>
             <div class="edit-actions">
                 <button class="btn-cancel" onclick="closeEditModal()">Annulla</button>
@@ -294,19 +433,38 @@
 
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
-    <script src="custom-select.js"></script>
+    <script src="custom-select.js?v=6"></script>
+    <script src="custom-date.js"></script>
+    <script src="luogo-nascita.js"></script>
+    <script src="profile-fields.js"></script>
     <script src="nav-notifications.js?v=1"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
     const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
     const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+    const EDIT_IDS = {
+        nome: 'editNome',
+        cognome: 'editCognome',
+        dataNascita: 'editDataNascita',
+        luogoNascita: 'editLuogoNascita',
+        residenza: 'editResidenza',
+        domicilio: 'editDomicilio',
+        domicilioComeResidenza: 'editDomicilioComeResidenza',
+        domicilioWrap: 'editDomicilioWrap',
+        telefono: 'editTelefono',
+    };
 
     // ── Inizializzazione CustomSelect (dopo DOMContentLoaded) ─────────────────
     let inviteRoleCs = null;
     let editGradoCs  = null;
+    let editDataNascitaCd = null;
+    let editLuogoNascitaLn = null;
+    let editResidenzaLn = null;
+    let editDomicilioLn = null;
+    let _editDomicilioWired = false;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         // Select ruolo invito
         inviteRoleCs = new CustomSelect(
             document.getElementById('inviteRoleSelect'),
@@ -320,6 +478,19 @@
             GRADI_OPTIONS, () => {},
             { placeholder: '— Seleziona il grado —' }
         );
+        editDataNascitaCd = new CustomDate(document.getElementById('editDataNascita'), {
+            placeholder: 'gg / mm / aaaa',
+            max: new Date().toISOString().slice(0, 10),
+        });
+        editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
+        editResidenzaLn = await LuogoGeo.create(document.getElementById('editResidenza'), {
+            prefix: 'residenza', ariaLabel: 'Tipo residenza',
+        });
+        editDomicilioLn = await LuogoGeo.create(document.getElementById('editDomicilio'), {
+            prefix: 'domicilio', ariaLabel: 'Tipo domicilio',
+        });
+        wireDomicilioSync(EDIT_IDS);
+        _editDomicilioWired = true;
     });
     const GRADO_IMG = {
         "Generale di Corpo d'Armata": "generale di corpo d'armata.webp",
@@ -424,58 +595,117 @@
     }
 
     // ── Utenti ────────────────────────────────────────────────────────────────
+    let _usersCache = [];
+    let _userSort = { key: 'grado', dir: 'asc' }; // grado: asc = dal più alto al più basso
+
+    // Indice gerarchico gradi (0 = più alto). Allineato a GRADI_OPTIONS.
+    const GRADO_RANK = Object.fromEntries(
+        (typeof GRADI_OPTIONS !== 'undefined' ? GRADI_OPTIONS : []).map((o, i) => [o.value, i])
+    );
+    function gradoRank(grado) {
+        if (!grado) return 9999;
+        return GRADO_RANK[grado] !== undefined ? GRADO_RANK[grado] : 9000;
+    }
+
+    function sortUsers(key) {
+        if (_userSort.key === key) {
+            _userSort.dir = _userSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            _userSort.key = key;
+            // Default: grado dal più alto; ruolo dal più alto; data dalla più recente; resto A→Z
+            _userSort.dir = (key === 'registrato') ? 'desc' : 'asc';
+        }
+        updateSortHeaders();
+        renderUsersTable();
+    }
+
+    function updateSortHeaders() {
+        document.querySelectorAll('.users-table th.sortable').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            if (th.dataset.sort === _userSort.key) {
+                th.classList.add(_userSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        });
+    }
+
+    function getSortedUsers() {
+        const dir = _userSort.dir === 'asc' ? 1 : -1;
+        const key = _userSort.key;
+        return [..._usersCache].sort((a, b) => {
+            let cmp = 0;
+            if (key === 'grado') {
+                cmp = gradoRank(a.grado) - gradoRank(b.grado);
+            } else if (key === 'nome') {
+                const na = ((a.cognome || '') + ' ' + (a.nome || '')).trim().toLocaleLowerCase('it');
+                const nb = ((b.cognome || '') + ' ' + (b.nome || '')).trim().toLocaleLowerCase('it');
+                cmp = na.localeCompare(nb, 'it', { sensitivity: 'base' });
+            } else if (key === 'email') {
+                cmp = (a.email || '').localeCompare(b.email || '', 'it', { sensitivity: 'base' });
+            } else if (key === 'ruolo') {
+                // asc = ruolo più alto prima (superadmin > admin > user > reader)
+                cmp = (ROLE_LEVEL[b.role] ?? 0) - (ROLE_LEVEL[a.role] ?? 0);
+            } else if (key === 'registrato') {
+                cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            }
+            if (cmp === 0) {
+                // tie-breaker stabile su email
+                cmp = (a.email || '').localeCompare(b.email || '', 'it');
+            }
+            return cmp * dir;
+        });
+    }
+
+    function renderUsersTable() {
+        const tbody = document.getElementById('usersTableBody');
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        const users = getSortedUsers();
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nessun utente.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map(u => {
+            const isSelf         = u.id === _currentUser.id;
+            const isSuperadmin   = u.role === 'superadmin';
+            const isFounder      = u.email === 'portalecrypto@proton.me';
+            const targetLevel    = ROLE_LEVEL[u.role] ?? 0;
+            const canDelete      = !isSelf && !isSuperadmin && targetLevel < myLevel;
+            const canEdit        = !isFounder && !isSuperadmin && !isSelf && targetLevel < myLevel;
+            const canEditProfile = !isFounder;
+            const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
+            const displayNome = isFounder
+                ? 'Portale Crypto'
+                : (u.cognome ? u.cognome.toUpperCase() + ' ' + u.nome : '—');
+            const displayGrado = isFounder
+                ? '<span class="grado-badge">—</span>'
+                : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado || '—'}</span>`;
+            return `<tr class="row-clickable" data-uid="${u.id}" onclick="onUserRowClick(event,'${u.id}')">
+                <td>${displayGrado}</td>
+                <td>${displayNome}</td>
+                <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
+                <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span></td>
+                <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
+                <td class="actions-cell" style="white-space:nowrap;" onclick="event.stopPropagation()">
+                    ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
+                    ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+
+        updateSortHeaders();
+    }
+
     async function loadUsers() {
         const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="color:#5ABBC8;padding:0.6rem">Caricamento...</td></tr>';
-        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#5ABBC8;padding:0.6rem">Caricamento...</td></tr>';
         try {
-            const res   = await fetch('/api/auth/users', { headers: authHeader() });
-            const users = await res.json();
-            if (!users.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nessun utente.</td></tr>'; return; }
-            tbody.innerHTML = users.map(u => {
-                const isSelf        = u.id === _currentUser.id;
-                const isSuperadmin  = u.role === 'superadmin';
-                const isFounder     = u.email === 'portalecrypto@proton.me';
-                const targetLevel   = ROLE_LEVEL[u.role] ?? 0;
-                const canDelete     = !isSelf && !isSuperadmin && targetLevel < myLevel;
-                const canEdit       = !isFounder && !isSuperadmin && !isSelf && targetLevel < myLevel;
-                const canEditProfile = !isFounder;
-                const roleOpts      = canEdit
-                    ? ['reader','user','admin','superadmin']
-                        .filter(r => ROLE_LEVEL[r] <= myLevel)
-                        .map(r => `<option value="${r}" ${r===u.role?'selected':''}>${ROLE_LABEL[r]}</option>`)
-                        .join('')
-                    : '';
-                const badgeCls = (isSuperadmin || u.role==='admin') ? 'badge-admin' : 'badge-user';
-                const displayNome = isFounder
-                    ? 'Portale Crypto'
-                    : (u.cognome ? u.cognome.toUpperCase()+' '+u.nome : '—');
-                const displayGrado = isFounder
-                    ? '<span class="grado-badge">—</span>'
-                    : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado||'—'}</span>`;
-                return `<tr>
-                    <td>${displayGrado}</td>
-                    <td>${displayNome}</td>
-                    <td>${u.email}${isSelf?' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>':''}</td>
-                    <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role]||u.role}</span></td>
-                    <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
-                    <td style="white-space:nowrap;">
-                        ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}','${(u.nome||'').replace(/'/g,"\\'")}','${(u.cognome||'').replace(/'/g,"\\'")}','${(u.grado||'').replace(/'/g,"\\'")}')">Modifica</button>` : ''}
-                        ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Revoca</button>` : ''}
-                        ${canEdit ? `<div class="csel csel-sm role-csel" data-uid="${u.id}" data-uemail="${u.email.replace(/"/g,'&quot;')}" data-current="${u.role}"></div>` : ''}
-                    </td>
-                </tr>`;
-            }).join('');
-        } catch { tbody.innerHTML = '<tr><td colspan="4" style="color:#FF6B7A">Errore caricamento.</td></tr>'; }        // Inizializza i CustomSelect per il cambio ruolo nelle righe
-        const myLvl = ROLE_LEVEL[_currentUser.role] ?? 0;
-        document.querySelectorAll('.role-csel').forEach(el => {
-            const uid    = el.dataset.uid;
-            const uemail = el.dataset.uemail;
-            const cur    = el.dataset.current;
-            const opts   = RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value]||0) <= myLvl);
-            new CustomSelect(el, opts, (newRole, newLabel) => changeRole(uid, uemail, newRole, null),
-                { value: cur, small: true, showImages: false, placeholder: cur });
-        });    }
+            const res = await fetch('/api/auth/users', { headers: authHeader() });
+            _usersCache = await res.json();
+            if (!Array.isArray(_usersCache)) _usersCache = [];
+            renderUsersTable();
+        } catch {
+            tbody.innerHTML = '<tr><td colspan="6" style="color:#FF6B7A">Errore caricamento.</td></tr>';
+        }
+    }
 
     function deleteUser(id, email) {
         showConfirm(`Revocare l'accesso a ${email}?`, async () => {
@@ -550,12 +780,78 @@
         });
     }
 
-    // ── Modifica profilo (admin) ───────────────────────────────────────────────
-    function openEditModal(userId, nome, cognome, grado) {
-        document.getElementById('editUserId').value  = userId;
-        document.getElementById('editNome').value    = nome;
-        document.getElementById('editCognome').value = cognome;
-        if (editGradoCs) editGradoCs.setValue(grado);
+    // ── Vista / Modifica profilo (admin) ───────────────────────────────────────
+    let _viewUserId = null;
+
+    function onUserRowClick(ev, userId) {
+        // Ignora click provenienti da controlli interattivi (già gestiti da stopPropagation sulla cella Azioni)
+        if (ev.target.closest('button, a, .csel, .csel-btn, .csel-panel')) return;
+        openViewModal(userId);
+    }
+
+    function openViewModal(userId) {
+        const u = _usersCache.find(x => x.id === userId);
+        if (!u) return;
+        _viewUserId = userId;
+        const isFounder = u.email === 'portalecrypto@proton.me';
+        document.getElementById('viewEmail').textContent = u.email || '—';
+        document.getElementById('viewNome').textContent = isFounder ? 'Portale' : (u.nome || '—');
+        document.getElementById('viewCognome').textContent = isFounder ? 'Crypto' : (u.cognome || '—');
+
+        const gradoDd = document.getElementById('viewGrado');
+        if (isFounder || !u.grado) {
+            gradoDd.innerHTML = '<span style="color:#5ABBC8;">—</span>';
+        } else {
+            const f = GRADO_IMG[u.grado];
+            gradoDd.innerHTML = f
+                ? `<img src="/immagini/gradi/${encodeURIComponent(f)}" alt=""> <span>${u.grado}</span>`
+                : `<span>${u.grado}</span>`;
+        }
+
+        document.getElementById('viewDataNascita').textContent = isFounder ? '—' : formatDateIT(u.dataNascita);
+        document.getElementById('viewLuogoNascita').textContent = isFounder ? '—' : dash(u.luogoNascita);
+        document.getElementById('viewResidenza').textContent = isFounder ? '—' : dash(u.residenza);
+        const domLabel = isFounder ? '—' : (u.domicilioComeResidenza
+            ? (dash(u.residenza) === '—' ? '—' : dash(u.residenza) + ' (come residenza)')
+            : dash(u.domicilio));
+        document.getElementById('viewDomicilio').textContent = domLabel;
+        document.getElementById('viewTelefono').textContent = isFounder ? '—' : dash(u.telefono);
+
+        const badgeCls = (u.role === 'superadmin' || u.role === 'admin') ? 'badge-admin' : 'badge-user';
+        document.getElementById('viewRuolo').innerHTML =
+            `<span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>`;
+        document.getElementById('viewRegistrato').textContent =
+            u.createdAt ? new Date(u.createdAt).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : '—';
+
+        const editBtn = document.getElementById('viewEditBtn');
+        editBtn.style.display = isFounder ? 'none' : '';
+        document.getElementById('viewModal').style.display = 'flex';
+    }
+
+    function closeViewModal() {
+        document.getElementById('viewModal').style.display = 'none';
+        _viewUserId = null;
+    }
+
+    function editFromView() {
+        const id = _viewUserId;
+        if (!id) return;
+        closeViewModal();
+        openEditModal(id);
+    }
+
+    async function openEditModal(userId) {
+        const u = _usersCache.find(x => x.id === userId);
+        if (!u) return;
+        document.getElementById('editUserId').value = userId;
+        if (!editLuogoNascitaLn) {
+            editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
+        }
+        if (!_editDomicilioWired) {
+            wireDomicilioSync(EDIT_IDS);
+            _editDomicilioWired = true;
+        }
+        fillProfileFields(EDIT_IDS, u, (g) => { if (editGradoCs) editGradoCs.setValue(g || ''); });
         document.getElementById('editMsg').style.display = 'none';
         document.getElementById('editModal').style.display = 'flex';
         setTimeout(() => document.getElementById('editNome').focus(), 100);
@@ -563,15 +859,23 @@
     function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
     async function saveProfile() {
-        const id      = document.getElementById('editUserId').value;
-        const nome    = document.getElementById('editNome').value.trim();
-        const cognome = document.getElementById('editCognome').value.trim();
-        const grado   = editGradoCs ? editGradoCs.getValue() : '';
-        const msgEl   = document.getElementById('editMsg');
+        const id = document.getElementById('editUserId').value;
+        const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
+        const msgEl = document.getElementById('editMsg');
         msgEl.style.display = 'none';
-        if (!nome || !cognome || !grado) { msgEl.className='feedback error'; msgEl.textContent='Tutti i campi sono obbligatori.'; msgEl.style.display='block'; return; }
-        const res = await fetch(`/api/auth/users/${id}/profile`, { method:'PATCH', headers:authHeader(), body:JSON.stringify({nome,cognome,grado}) });
-        const d   = await res.json();
+        const reqErr = validateRequiredProfile(profile);
+        if (reqErr) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = reqErr;
+            msgEl.style.display = 'block';
+            return;
+        }
+        const res = await fetch(`/api/auth/users/${id}/profile`, {
+            method: 'PATCH',
+            headers: authHeader(),
+            body: JSON.stringify(profile),
+        });
+        const d = await res.json();
         if (res.ok) { closeEditModal(); showMsg('usersMsg','Profilo aggiornato.','success'); loadUsers(); }
         else { msgEl.className='feedback error'; msgEl.textContent=d.error||'Errore.'; msgEl.style.display='block'; }
     }
@@ -587,18 +891,28 @@
             if (data.length) { badge.textContent=data.length; badge.style.display=''; }
             else badge.style.display='none';
             if (!data.length) { list.innerHTML='<div style="color:#5ABBC8;font-size:0.88rem;">Nessuna richiesta in sospeso.</div>'; return; }
-            list.innerHTML = data.map(r => `
+            list.innerHTML = data.map(r => {
+                const extras = [
+                    r.dataNascita ? `Nascita: ${formatDateIT(r.dataNascita)}` : null,
+                    r.luogoNascita ? `Luogo: ${r.luogoNascita}` : null,
+                    r.residenza ? `Residenza: ${r.residenza}` : null,
+                    r.domicilioComeResidenza ? 'Domicilio: come residenza' : (r.domicilio ? `Domicilio: ${r.domicilio}` : null),
+                    r.telefono ? `Tel: ${r.telefono}` : null,
+                ].filter(Boolean).join(' · ');
+                return `
                 <div class="pcr-item">
                     <div class="pcr-info">
                         <strong>${r.userEmail}</strong>
                         <small>Richiesta: ${gradoImgTag(r.grado)} ${r.cognome.toUpperCase()} ${r.nome} — ${r.grado}</small>
+                        ${extras ? `<small>${extras}</small>` : ''}
                         <small style="color:#7ACCE0;">Inviata: ${new Date(r.requestedAt).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small>
                     </div>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                         <button class="btn-ok-sm" onclick="approveProfile('${r.id}')">✓ Approva</button>
                         <button class="btn-rej"   onclick="rejectProfile('${r.id}')">✕ Rifiuta</button>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
         } catch { list.innerHTML='<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>'; }
     }
 
