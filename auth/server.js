@@ -22,7 +22,7 @@ const PORTAL_URL       = (process.env.PORTAL_URL || 'https://192.168.4.77:5200')
 const ROLE_LEVEL       = { reader: 0, user: 1, admin: 2, superadmin: 3 };
 const ALL_ROLES        = ['reader', 'user', 'admin', 'superadmin'];
 /** Schede dashboard assegnabili in invito (gestione-utenti resta solo per admin/superadmin). */
-const ASSIGNABLE_CARDS = ['blockchain', 'osint', 'chainholder', 'corsi', 'cluster'];
+const ASSIGNABLE_CARDS = ['blockchain', 'osint', 'chainholder', 'corsi', 'cluster', 'ai', 'analisi-report'];
 
 function defaultCardsForRole(role) {
     if (role === 'reader') return ['corsi'];
@@ -211,6 +211,8 @@ const CARD_LABEL = {
     chainholder: 'Chainholder',
     corsi: 'Corsi',
     cluster: 'Cluster',
+    ai: 'AI',
+    'analisi-report': 'Analisi Report',
 };
 
 function actorLabel(user) {
@@ -349,18 +351,143 @@ async function sendPasswordResetEmail(toEmail, tempPassword) {
 function authenticate(req,res,next){
     const h=req.headers['authorization'], t=h&&h.startsWith('Bearer ')?h.slice(7):null;
     if (!t) return res.status(401).json({error:'Token mancante.'});
-    try { req.user=jwt.verify(t,JWT_SECRET); next(); } catch { res.status(401).json({error:'Token non valido o scaduto.'}); }
+    try {
+        req.user=jwt.verify(t,JWT_SECRET);
+        if (req.user.purpose === 'login_otp') return res.status(401).json({error:'Token non valido.'});
+        next();
+    } catch { res.status(401).json({error:'Token non valido o scaduto.'}); }
 }
 function requireAdmin(req,res,next){ if(req.user.role!=='superadmin'&&req.user.role!=='admin') return res.status(403).json({error:'Accesso negato.'}); next(); }
 function requireSuperadmin(req,res,next){ if(req.user.role!=='superadmin') return res.status(403).json({error:'Solo i super admin possono eseguire questa operazione.'}); next(); }
+
+function otpEmailHtml(otp) {
+    return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Codice di verifica</h2><p style="color:#4a5568;margin:0 0 20px;">Valido <strong>10 minuti</strong>.</p><div style="background:#f0f9ff;border:2px solid #00C8FF;border-radius:10px;padding:20px 32px;text-align:center;letter-spacing:0.3rem;font-size:2.2rem;font-weight:700;color:#030E1C;">${otp}</div></td></tr></table></td></tr></table></body></html>`;
+}
+
+async function sendVerificationOtpEmail(toEmail, otp) {
+    const html = otpEmailHtml(otp);
+    if (transporter) {
+        await transporter.sendMail({
+            from: SMTP_FROM,
+            to: toEmail,
+            subject: '[CryptocurrenciesSection] Codice di verifica',
+            html,
+        });
+        console.log(`[AUTH] OTP email → ${toEmail}`);
+        return true;
+    }
+    console.log(`[AUTH] OTP per ${toEmail}: ${otp}`);
+    return false;
+}
+
+async function issueLoginOtp(user) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    Users.setLoginOtp(user.id, await bcrypt.hash(otp, 10), expiry);
+    let emailSent = false;
+    try {
+        emailSent = await sendVerificationOtpEmail(user.email, otp);
+    } catch (e) {
+        console.error('[AUTH] OTP login email:', e.message);
+        throw e;
+    }
+    const challenge = jwt.sign(
+        { id: user.id, email: user.email, purpose: 'login_otp' },
+        JWT_SECRET,
+        { expiresIn: '10m' }
+    );
+    return { challenge, emailSent };
+}
+
+function issueSessionToken(user) {
+    return jwt.sign(
+        { id: user.id, email: user.email, role: user.role, mustChangePassword: !!user.mustChangePassword },
+        JWT_SECRET,
+        { expiresIn: '12h' }
+    );
+}
 
 app.post('/api/auth/login', async(req,res)=>{
     const {email,password}=req.body||{};
     if (!email||!password) return res.status(400).json({error:'Email e password obbligatori.'});
     const user=Users.findByEmail(email);
-    if (!user||user.revokedAt||!(await bcrypt.compare(password,user.passwordHash))) return res.status(401).json({error:'Credenziali non valide.'});
-    const token=jwt.sign({id:user.id,email:user.email,role:user.role,mustChangePassword:user.mustChangePassword},JWT_SECRET,{expiresIn:'12h'});
-    res.json({token,role:user.role,mustChangePassword:user.mustChangePassword});
+    if (!user||user.revokedAt||!(await bcrypt.compare(password,user.passwordHash))) {
+        return res.status(401).json({error:'Credenziali non valide.'});
+    }
+    try {
+        const { challenge, emailSent } = await issueLoginOtp(user);
+        res.json({
+            requiresOtp: true,
+            challenge,
+            emailSent,
+            smtpConfigured: !!transporter,
+            message: emailSent
+                ? 'Ti abbiamo inviato un codice di verifica via email.'
+                : 'Codice generato (SMTP non configurato: controlla i log del server).',
+        });
+    } catch {
+        res.status(502).json({ error: 'Impossibile inviare il codice di verifica. Riprova.' });
+    }
+});
+
+app.post('/api/auth/login/verify-otp', async (req, res) => {
+    const { challenge, otp } = req.body || {};
+    if (!challenge || !otp) return res.status(400).json({ error: 'Codice di verifica obbligatorio.' });
+    let payload;
+    try {
+        payload = jwt.verify(challenge, JWT_SECRET);
+    } catch {
+        return res.status(401).json({ error: 'Sessione di verifica scaduta. Effettua di nuovo il login.' });
+    }
+    if (payload.purpose !== 'login_otp' || !payload.id) {
+        return res.status(401).json({ error: 'Sessione di verifica non valida.' });
+    }
+    const user = Users.findById(payload.id);
+    if (!user || user.revokedAt) return res.status(401).json({ error: 'Utente non valido.' });
+    if (!user.loginOtp || !user.loginOtpExpiry) {
+        return res.status(400).json({ error: 'Nessun codice attivo. Richiedi un nuovo codice.' });
+    }
+    if (new Date() > new Date(user.loginOtpExpiry)) {
+        Users.clearLoginOtp(user.id);
+        return res.status(400).json({ error: 'Codice scaduto. Richiedi un nuovo codice.' });
+    }
+    if (!(await bcrypt.compare(String(otp).trim(), user.loginOtp))) {
+        return res.status(401).json({ error: 'Codice non corretto.' });
+    }
+    Users.clearLoginOtp(user.id);
+    const token = issueSessionToken(user);
+    res.json({
+        token,
+        role: user.role,
+        mustChangePassword: !!user.mustChangePassword,
+    });
+});
+
+app.post('/api/auth/login/resend-otp', async (req, res) => {
+    const { challenge } = req.body || {};
+    if (!challenge) return res.status(400).json({ error: 'Sessione di verifica mancante.' });
+    let payload;
+    try {
+        payload = jwt.verify(challenge, JWT_SECRET);
+    } catch {
+        return res.status(401).json({ error: 'Sessione di verifica scaduta. Effettua di nuovo il login.' });
+    }
+    if (payload.purpose !== 'login_otp' || !payload.id) {
+        return res.status(401).json({ error: 'Sessione di verifica non valida.' });
+    }
+    const user = Users.findById(payload.id);
+    if (!user || user.revokedAt) return res.status(401).json({ error: 'Utente non valido.' });
+    try {
+        const result = await issueLoginOtp(user);
+        res.json({
+            requiresOtp: true,
+            challenge: result.challenge,
+            emailSent: result.emailSent,
+            smtpConfigured: !!transporter,
+        });
+    } catch {
+        res.status(502).json({ error: 'Impossibile inviare il codice di verifica. Riprova.' });
+    }
 });
 
 app.get('/api/auth/verify', authenticate,(req,res)=>{
@@ -382,10 +509,13 @@ app.post('/api/auth/send-otp', async(req,res)=>{
     if (!inv||inv.used||new Date()>new Date(inv.expiresAt)) return res.status(400).json({error:'Invito non valido o scaduto.'});
     const otp=Math.floor(100000+Math.random()*900000).toString();
     Invitations.setOtp(token,await bcrypt.hash(otp,10),new Date(Date.now()+10*60*1000).toISOString());
-    const html=`<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Codice di verifica</h2><p style="color:#4a5568;margin:0 0 20px;">Valido <strong>10 minuti</strong>.</p><div style="background:#f0f9ff;border:2px solid #00C8FF;border-radius:10px;padding:20px 32px;text-align:center;letter-spacing:0.3rem;font-size:2.2rem;font-weight:700;color:#030E1C;">${otp}</div></td></tr></table></td></tr></table></body></html>`;
-    if (transporter) transporter.sendMail({from:SMTP_FROM,to:inv.email,subject:'[CryptocurrenciesSection] Codice di verifica',html}).catch(e=>console.error('[AUTH] OTP email:',e.message));
-    else console.log(`[AUTH] OTP per ${inv.email}: ${otp}`);
-    res.json({sent:true,smtpConfigured:!!transporter});
+    try {
+        const emailSent = await sendVerificationOtpEmail(inv.email, otp);
+        res.json({sent:true,smtpConfigured:!!transporter,emailSent});
+    } catch (e) {
+        console.error('[AUTH] OTP email:', e.message);
+        res.status(502).json({error:'Impossibile inviare il codice. Riprova.'});
+    }
 });
 
 app.get('/api/auth/invite-info',(req,res)=>{

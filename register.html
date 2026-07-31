@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="custom-select.css?v=8">
     <link rel="stylesheet" href="custom-date.css?v=8">
     <link rel="stylesheet" href="luogo-nascita.css?v=5">
+    <link rel="stylesheet" href="otp-boxes.css?v=1">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -202,8 +203,8 @@
                     <!-- Step OTP -->
                     <div id="otpStep" class="field-full" style="display:none;">
                         <div class="field">
-                            <label for="otpInput">Codice di verifica</label>
-                            <input type="text" id="otpInput" name="otp" placeholder="Inserisci il codice a 6 cifre" autocomplete="one-time-code" inputmode="numeric" maxlength="6">
+                            <label>Codice di verifica</label>
+                            <div id="otpBoxes" class="otp-boxes" role="group" aria-label="Codice OTP a 6 cifre"></div>
                             <div class="hint" id="otpHint">Codice inviato alla tua email. Valido 10 minuti.</div>
                         </div>
                         <button type="button" class="btn btn-outline" id="resendBtn" style="margin-top:0;margin-bottom:0.4rem;">Invia di nuovo il codice</button>
@@ -223,6 +224,7 @@
     <script src="luogo-nascita.js?v=9"></script>
     <script src="telefono-field.js?v=7"></script>
     <script src="profile-fields.js?v=5"></script>
+    <script src="otp-boxes.js?v=1"></script>
     <script>
         const REG_IDS = {
             nome: 'nome',
@@ -241,6 +243,7 @@
         let residenzaLn = null;
         let domicilioLn = null;
         let telefonoTf = null;
+        let registerOtpBoxes = null;
         document.addEventListener('DOMContentLoaded', async () => {
             gradoCs = new CustomSelect(
                 document.getElementById('gradoSelect'),
@@ -260,6 +263,7 @@
             });
             telefonoTf = await TelefonoField.create(document.getElementById('telefono'));
             wireDomicilioSync({ ...REG_IDS, domicilioWrap: 'domicilioWrap' });
+            registerOtpBoxes = bindOtpBoxes('#otpBoxes');
         });
 
         const params = new URLSearchParams(window.location.search);
@@ -298,7 +302,7 @@
 
             const pwd     = document.getElementById('password').value;
             const confirm = document.getElementById('confirmPassword').value;
-            const otp     = document.getElementById('otpInput').value.trim();
+            const otp     = registerOtpBoxes ? registerOtpBoxes.getValue() : '';
             const profile = collectProfileFields(REG_IDS, () => gradoCs ? gradoCs.getValue() : '');
             const reqErr  = validateRequiredProfile(profile);
             if (reqErr) {
@@ -310,9 +314,10 @@
                 errorMsg.textContent = dateErr;
                 errorMsg.style.display = 'block'; return;
             }
-            if (!otp) {
-                errorMsg.textContent = 'Inserisci il codice di verifica.';
+            if (!otp || otp.length < 6) {
+                errorMsg.textContent = 'Inserisci tutte e 6 le cifre del codice di verifica.';
                 errorMsg.style.display = 'block';
+                if (registerOtpBoxes) registerOtpBoxes.focus(otp.length);
                 return;
             }
             submitBtn.disabled = true;
@@ -330,6 +335,10 @@
                         ? 'Servizio temporaneamente non disponibile. Riprovare.'
                         : 'Errore durante la registrazione.');
                     errorMsg.style.display = 'block';
+                    if (registerOtpBoxes) {
+                        registerOtpBoxes.clear();
+                        registerOtpBoxes.focus(0);
+                    }
                 } else {
                     document.getElementById('registerForm').style.display = 'none';
                     successMsg.textContent = 'Account creato con successo! Reindirizzamento al login...';
@@ -376,7 +385,10 @@
                     document.getElementById('otpHint').textContent = data.smtpConfigured
                         ? 'Codice inviato alla tua email. Valido 10 minuti.'
                         : 'SMTP non configurato: il codice è visibile nei log del server.';
-                    document.getElementById('otpInput').focus();
+                    if (registerOtpBoxes) {
+                        registerOtpBoxes.clear();
+                        setTimeout(() => registerOtpBoxes.focus(0), 50);
+                    }
                 }
             } catch {
                 errorMsg.textContent = 'Errore di rete.';

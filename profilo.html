@@ -174,6 +174,27 @@
         .feedback.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
         .feedback.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
 
+        .confirm-bg {
+            position: fixed; inset: 0; background: rgba(3,14,28,0.85); z-index: 9500;
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .confirm-box {
+            background: #030E1C; border: 1px solid rgba(0,200,255,0.28); border-radius: 14px;
+            padding: 1.8rem 2rem; width: 100%; max-width: 380px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.08), 0 24px 60px rgba(0,0,0,0.75);
+        }
+        .confirm-box p { color: #C8F0E8; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.4rem; }
+        .confirm-btns { display: flex; gap: 0.7rem; justify-content: flex-end; }
+        .confirm-btns .btn-ok {
+            padding: 0.6rem 1.4rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+        }
+        .confirm-btns .btn-cancel {
+            padding: 0.6rem 1.2rem; background: transparent; border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 7px; color: #5ABBC8; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+        }
+        .confirm-btns .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+
         @media (max-width: 600px) {
             .dl-grid { grid-template-columns: 1fr; gap: 0.25rem 0; }
             .dl-grid dt { margin-top: 0.6rem; }
@@ -342,6 +363,16 @@
         </div>
     </main>
 
+    <div class="confirm-bg" id="confirmModal" style="display:none;">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button type="button" class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button type="button" class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
     <script src="custom-select.js?v=10"></script>
@@ -376,9 +407,21 @@
     function authHeader() {
         return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' };
     }
+    function showConfirm(message, onOk, onCancel) {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmMsg').textContent = message;
+        modal.style.display = 'flex';
+        const ok = document.getElementById('confirmOk');
+        const cancel = document.getElementById('confirmCancel');
+        function close() { modal.style.display = 'none'; ok.onclick = null; cancel.onclick = null; }
+        ok.onclick = () => { close(); if (onOk) onOk(); };
+        cancel.onclick = () => { close(); if (onCancel) onCancel(); };
+    }
     function logout() {
-        localStorage.removeItem('authToken');
-        window.location.replace('/login');
+        showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
+            localStorage.removeItem('authToken');
+            window.location.replace('/login');
+        });
     }
     function showMsg(text, type) {
         const el = document.getElementById('profileMsg');

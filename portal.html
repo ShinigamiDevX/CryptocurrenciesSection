@@ -282,6 +282,18 @@
                 <p>Clusterizzazione dei report forniti dagli Exchange.</p>
                 <a href="/cluster/" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
+            <div class="card" data-card="ai">
+                <div class="icon">🤖</div>
+                <h3>AI</h3>
+                <p>Assistenza intelligente per analisi, ricerche e supporto operativo sulle attività del portale.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="analisi-report">
+                <div class="icon">📊</div>
+                <h3>Analisi Report</h3>
+                <p>Consultazione e analisi dei report operativi, con strumenti di lettura e correlazione dei dati.</p>
+                <a href="/analisi-report" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
             <div class="card" data-card="gestione-utenti" style="display:none;">
                 <div class="icon">👥</div>
                 <h3>Gestione Utenti</h3>
@@ -350,6 +362,8 @@
                             <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="chainholder" checked> Chainholder</label>
                             <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="corsi" checked> Corsi</label>
                             <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="cluster" checked> Cluster</label>
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="ai" checked> AI</label>
+                            <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;"><input type="checkbox" name="portalInviteCard" value="analisi-report" checked> Analisi Report</label>
                         </div>
                     </div>
                     <div class="invite-result" id="inviteResult">
@@ -412,8 +426,10 @@
     })();
 
     function logout() {
-        localStorage.removeItem('authToken');
-        window.location.replace('/login');
+        showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
+            localStorage.removeItem('authToken');
+            window.location.replace('/login');
+        });
     }
 
     /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin */

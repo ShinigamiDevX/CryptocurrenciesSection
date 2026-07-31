@@ -9,6 +9,7 @@ services:
     depends_on:
       - cluster
       - auth
+      - analisi
     volumes:
       - ./:/usr/share/nginx/html:ro
 
@@ -39,3 +40,10 @@ services:
       - SMTP_FROM=${SMTP_FROM:-}
     volumes:
       - ./auth/data:/app/data
+
+  analisi:
+    build:
+      context: ./analisi
+      dockerfile: Dockerfile
+    container_name: cryptovault-analisi
+    restart: unless-stopped

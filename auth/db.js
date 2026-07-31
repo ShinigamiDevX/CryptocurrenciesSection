@@ -194,6 +194,8 @@ const USER_EXTRA_COLS = [
     ['telefono', "TEXT NOT NULL DEFAULT ''"],
     ['telefonoPrefisso', "TEXT NOT NULL DEFAULT '+39'"],
     ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
+    ['loginOtp', 'TEXT'],
+    ['loginOtpExpiry', 'TEXT'],
 ];
 USER_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
@@ -382,6 +384,8 @@ const Users = {
     changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?').run(hash, id),
     /** Reset admin: nuova password e obbligo di cambio al prossimo accesso. */
     resetPassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?').run(hash, id),
+    setLoginOtp: (id, hash, exp) => db.prepare('UPDATE users SET loginOtp = ?, loginOtpExpiry = ? WHERE id = ?').run(hash, exp, id),
+    clearLoginOtp: id => db.prepare('UPDATE users SET loginOtp = NULL, loginOtpExpiry = NULL WHERE id = ?').run(id),
 };
 
 // ── Profile Change Requests ─────────────────────────────────────────────────

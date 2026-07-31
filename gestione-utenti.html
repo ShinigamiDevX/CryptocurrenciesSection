@@ -506,6 +506,8 @@
         { id: 'chainholder', label: 'Chainholder' },
         { id: 'corsi', label: 'Corsi' },
         { id: 'cluster', label: 'Cluster' },
+        { id: 'ai', label: 'AI' },
+        { id: 'analisi-report', label: 'Analisi Report' },
     ];
     const CARD_LABEL = Object.fromEntries(ASSIGNABLE_CARDS.map(c => [c.id, c.label]));
     function defaultCardsForRole(role) {
@@ -641,7 +643,12 @@
         }
     })();
 
-    function logout() { localStorage.removeItem('authToken'); window.location.replace('/login'); }
+    function logout() {
+        showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
+            localStorage.removeItem('authToken');
+            window.location.replace('/login');
+        });
+    }
     function authHeader() { return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' }; }
 
     // Campanella: nav-notifications.js — aggiorna anche badge tab Modifiche Profilo

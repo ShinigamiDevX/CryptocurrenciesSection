@@ -7,6 +7,7 @@
     <title>Accesso — CryptocurrenciesSection</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="otp-boxes.css?v=1">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -88,6 +89,20 @@
         }
         .btn-login:hover { opacity: 0.88; }
         .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-link {
+            display: inline-block;
+            margin-top: 0.85rem;
+            background: none;
+            border: none;
+            color: #00C8FF;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0;
+        }
+        .btn-link:disabled { opacity: 0.5; cursor: not-allowed; }
+        .hint { font-size: 0.8rem; color: #5ABBC8; margin-top: 0.45rem; }
         .error-msg {
             background: rgba(255,71,87,0.12);
             border: 1px solid rgba(255,71,87,0.35);
@@ -133,15 +148,26 @@
         <p class="subtitle">Portale operativo interno — accesso riservato</p>
         <div class="error-msg" id="errorMsg"></div>
         <form id="loginForm" autocomplete="on">
-            <div class="field">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" placeholder="nome@dominio.com" autocomplete="email" required>
+            <div id="credentialsStep">
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="nome@dominio.com" autocomplete="email" required>
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+                </div>
             </div>
-            <div class="field">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+            <div id="otpStep" style="display:none;">
+                <div class="field">
+                    <label>Codice di verifica</label>
+                    <div id="otpBoxes" class="otp-boxes" role="group" aria-label="Codice OTP a 6 cifre"></div>
+                    <div class="hint" id="otpHint">Codice inviato alla tua email. Valido 10 minuti.</div>
+                </div>
+                <button type="button" class="btn-link" id="resendOtpBtn">Reinvia codice</button>
             </div>
             <button type="submit" class="btn-login" id="submitBtn">Accedi</button>
+            <button type="button" class="btn-link" id="backToLoginBtn" style="display:none;width:100%;text-align:center;text-decoration:none;margin-top:1rem;">← Torna al login</button>
         </form>
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
@@ -164,6 +190,7 @@
         </div>
     </div>
 
+    <script src="otp-boxes.js?v=1"></script>
     <script>
         // Se già autenticato, vai al portale
         (async function() {
@@ -178,15 +205,136 @@
         const form      = document.getElementById('loginForm');
         const errorMsg  = document.getElementById('errorMsg');
         const submitBtn = document.getElementById('submitBtn');
+        const otpStep = document.getElementById('otpStep');
+        const credentialsStep = document.getElementById('credentialsStep');
+        const backToLoginBtn = document.getElementById('backToLoginBtn');
+        const resendOtpBtn = document.getElementById('resendOtpBtn');
         let _pendingToken    = null;
         let _pendingPassword = null;
+        let _loginChallenge  = null;
+        let _awaitingOtp     = false;
+        const loginOtpBoxes = bindOtpBoxes('#otpBoxes', {
+            onComplete: () => {
+                if (_awaitingOtp) form.requestSubmit();
+            },
+        });
+
+        function showError(text) {
+            errorMsg.textContent = text;
+            errorMsg.style.display = 'block';
+        }
+
+        function enterOtpStep(challenge, emailSent) {
+            _loginChallenge = challenge;
+            _awaitingOtp = true;
+            credentialsStep.style.display = 'none';
+            otpStep.style.display = 'block';
+            backToLoginBtn.style.display = 'block';
+            document.getElementById('email').required = false;
+            document.getElementById('password').required = false;
+            document.getElementById('otpHint').textContent = emailSent
+                ? 'Codice inviato alla tua email. Valido 10 minuti.'
+                : 'Codice generato. Contatta un amministratore se non ricevi l\'email.';
+            submitBtn.textContent = 'Verifica e accedi';
+            if (loginOtpBoxes) {
+                loginOtpBoxes.clear();
+                setTimeout(() => loginOtpBoxes.focus(0), 50);
+            }
+        }
+
+        function resetToCredentials() {
+            _loginChallenge = null;
+            _awaitingOtp = false;
+            otpStep.style.display = 'none';
+            credentialsStep.style.display = 'block';
+            backToLoginBtn.style.display = 'none';
+            if (loginOtpBoxes) loginOtpBoxes.clear();
+            document.getElementById('email').required = true;
+            document.getElementById('password').required = true;
+            submitBtn.textContent = 'Accedi';
+            errorMsg.style.display = 'none';
+        }
+
+        function finishLogin(data) {
+            if (data.mustChangePassword) {
+                _pendingToken = data.token;
+                _pendingPassword = document.getElementById('password').value;
+                localStorage.setItem('authToken', data.token);
+                document.getElementById('changePwdModal').style.display = 'flex';
+                setTimeout(() => document.getElementById('newPwd').focus(), 100);
+            } else {
+                localStorage.setItem('authToken', data.token);
+                window.location.replace('/portal');
+            }
+        }
+
+        backToLoginBtn.addEventListener('click', resetToCredentials);
+
+        resendOtpBtn.addEventListener('click', async () => {
+            if (!_loginChallenge) return;
+            resendOtpBtn.disabled = true;
+            errorMsg.style.display = 'none';
+            try {
+                const res = await fetch('/api/auth/login/resend-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ challenge: _loginChallenge }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showError(data.error || 'Impossibile reinviare il codice.');
+                    if (res.status === 401) resetToCredentials();
+                    return;
+                }
+                _loginChallenge = data.challenge;
+                document.getElementById('otpHint').textContent = data.emailSent
+                    ? 'Nuovo codice inviato alla tua email. Valido 10 minuti.'
+                    : 'Nuovo codice generato.';
+                if (loginOtpBoxes) {
+                    loginOtpBoxes.clear();
+                    loginOtpBoxes.focus(0);
+                }
+            } catch {
+                showError('Errore di rete. Riprovare.');
+            } finally {
+                resendOtpBtn.disabled = false;
+            }
+        });
 
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             errorMsg.style.display = 'none';
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Accesso in corso...';
+
             try {
+                if (_awaitingOtp) {
+                    const otp = loginOtpBoxes ? loginOtpBoxes.getValue() : '';
+                    if (!otp || otp.length < 6) {
+                        showError('Inserisci tutte e 6 le cifre del codice ricevuto via email.');
+                        if (loginOtpBoxes) loginOtpBoxes.focus(otp.length);
+                        return;
+                    }
+                    submitBtn.textContent = 'Verifica in corso...';
+                    const res = await fetch('/api/auth/login/verify-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ challenge: _loginChallenge, otp }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        showError(data.error || 'Codice non valido.');
+                        if (loginOtpBoxes) {
+                            loginOtpBoxes.clear();
+                            loginOtpBoxes.focus(0);
+                        }
+                        if (res.status === 401 && (data.error || '').includes('scaduta')) resetToCredentials();
+                        return;
+                    }
+                    finishLogin(data);
+                    return;
+                }
+
+                submitBtn.textContent = 'Accesso in corso...';
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -197,25 +345,21 @@
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    errorMsg.textContent = data.error || 'Credenziali non valide.';
-                    errorMsg.style.display = 'block';
-                } else if (data.mustChangePassword) {
-                    // Salva token temporaneo e mostra la modale di cambio password
-                    _pendingToken    = data.token;
-                    _pendingPassword = document.getElementById('password').value;
-                    localStorage.setItem('authToken', data.token);
-                    document.getElementById('changePwdModal').style.display = 'flex';
-                    setTimeout(() => document.getElementById('newPwd').focus(), 100);
-                } else {
-                    localStorage.setItem('authToken', data.token);
-                    window.location.replace('/portal');
+                    showError(data.error || 'Credenziali non valide.');
+                    return;
                 }
+                if (data.requiresOtp) {
+                    enterOtpStep(data.challenge, data.emailSent);
+                    return;
+                }
+                // fallback retrocompatibilità
+                finishLogin(data);
             } catch {
-                errorMsg.textContent = 'Errore di rete. Riprovare.';
-                errorMsg.style.display = 'block';
+                showError('Errore di rete. Riprovare.');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Accedi';
+                if (_awaitingOtp) submitBtn.textContent = 'Verifica e accedi';
+                else if (!_pendingToken) submitBtn.textContent = 'Accedi';
             }
         });
 

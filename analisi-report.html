@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Analisi Report — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="analisi-report.css?v=1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Analisi Report</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 3.5 10.2c-.3.25-.3.7 0 .95l.7.55c.25.2.6.15.8-.1L12 5.9l6.99 5.7c.2.25.55.3.8.1l.7-.55c.3-.25.3-.7 0-.95L12 3.2zM5.5 12.5V20c0 .55.45 1 1 1h3.75c.4 0 .75-.35.75-.75V16.5c0-.55.45-1 1-1h.5c.55 0 1 .45 1 1v3.75c0 .4.35.75.75.75H17.5c.55 0 1-.45 1-1v-7.5L12 7.2 5.5 12.5z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title">📊 Analisi Report</div>
+        <p class="page-sub">Carica file Excel, CSV o PDF. Lo strumento analizza i dati in sessione e genera statistiche e grafici.</p>
+
+        <div class="ar-card">
+            <div id="dropZone" class="ar-drop">
+                <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls,.pdf,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                <p class="ar-drop-title">Trascina qui i file oppure clicca per selezionarli</p>
+                <p class="ar-drop-hint">Formati: Excel (.xlsx / .xls), CSV, PDF con tabelle · max 25 MB per file</p>
+            </div>
+            <ul id="fileList" class="ar-file-list"></ul>
+            <div class="ar-actions">
+                <button type="button" class="ar-btn-secondary" id="btnClear" disabled>Svuota</button>
+                <button type="button" class="ar-btn-primary" id="btnAnalyze" disabled>Analizza</button>
+            </div>
+            <div id="statusMsg" class="ar-status" style="display:none;"></div>
+        </div>
+
+        <div id="resultsWrap" class="ar-results" style="display:none;">
+            <div class="ar-tabs" id="datasetTabs"></div>
+            <div class="ar-card ar-result-card">
+                <div id="datasetMeta" class="ar-meta"></div>
+                <div id="columnsTableWrap" class="ar-table-wrap"></div>
+                <div id="chartsGrid" class="ar-charts"></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="confirm-bg" id="confirmModal" style="display:none;">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button type="button" class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button type="button" class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="nav-notifications.js?v=3"></script>
+    <script src="analisi-report.js?v=1"></script>
+</body>
+</html>
