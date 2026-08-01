@@ -123,9 +123,11 @@
         .users-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .users-table th { text-align: left; color: #7ACCE0; font-weight: 600; padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(0,200,255,0.12); }
         .users-table td { padding: 0.6rem 0.75rem; color: #C8F0E8; border-bottom: 1px solid rgba(0,200,255,0.06); vertical-align: middle; }
-        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
         .badge-admin { background: rgba(0,200,255,0.15); color: #00C8FF; }
         .badge-user  { background: rgba(0,230,118,0.12); color: #00E676; }
+        .badge-docente { background: rgba(255,184,77,0.14); color: #FFB84D; border: 1px solid rgba(255,184,77,0.35); }
+        .role-cell { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
         .btn-del { background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; font-size: 0.78rem; padding: 0.3rem 0.7rem; border-radius: 5px; cursor: pointer; }
         .btn-del:hover { background: rgba(255,71,87,0.28); }
         .role-select {
@@ -274,7 +276,7 @@
                 <div class="icon">🎓</div>
                 <h3>Corsi</h3>
                 <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
-                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+                <a href="/corsi" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="cluster">
                 <div class="icon">🧩</div>
@@ -349,9 +351,16 @@
                     </div>
                     <div style="margin-bottom:1rem;">
                         <span style="font-size:0.8rem;color:#7ACCE0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:0.45rem;">Ruolo da assegnare</span>
-                        <select id="inviteRoleSelect" style="width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.08);border:1px solid rgba(0,200,255,0.25);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none;cursor:pointer;">
+                        <select id="inviteRoleSelect" onchange="syncPortalInviteDocente()" style="width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.08);border:1px solid rgba(0,200,255,0.25);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none;cursor:pointer;">
                             <!-- opzioni popolate da openAdminPanel() -->
                         </select>
+                    </div>
+                    <div id="portalInviteDocentePick" style="display:none;margin-bottom:1rem;">
+                        <span style="font-size:0.8rem;color:#7ACCE0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:0.45rem;">Categoria</span>
+                        <p style="font-size:0.78rem;color:#5ABBC8;margin:0 0 0.6rem;">Solo per Utente e Admin. Consente la gestione dei contenuti in Corsi.</p>
+                        <label style="color:#C8F0E8;font-size:0.85rem;display:flex;gap:0.4rem;align-items:center;cursor:pointer;">
+                            <input type="checkbox" id="portalInviteDocente"> Docente
+                        </label>
                     </div>
                     <div style="margin-bottom:1rem;">
                         <span style="font-size:0.8rem;color:#7ACCE0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:0.45rem;">Schede del portale</span>
@@ -482,9 +491,19 @@
                 .filter(r => ({ reader:0,user:1,admin:2,superadmin:3 }[r.v] <= myLevel))
                 .map(r => `<option value="${r.v}">${r.label}</option>`).join('');
             sel.value = 'user';
+            syncPortalInviteDocente();
         }
 
         loadUsers();
+    }
+
+    function syncPortalInviteDocente() {
+        const role = document.getElementById('inviteRoleSelect')?.value || 'user';
+        const ok = role === 'user' || role === 'admin';
+        const wrap = document.getElementById('portalInviteDocentePick');
+        const cb = document.getElementById('portalInviteDocente');
+        if (wrap) wrap.style.display = ok ? '' : 'none';
+        if (cb && !ok) cb.checked = false;
     }
     function closeAdminPanel() {
         document.getElementById('adminModalBg').style.display = 'none';
@@ -541,7 +560,7 @@
                 return `
                 <tr>
                     <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
-                    <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span></td>
+                    <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}</div></td>
                     <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
                     <td style="white-space:nowrap;">
                         ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Elimina</button>` : ''}
@@ -654,23 +673,27 @@
         const email     = document.getElementById('inviteEmail').value.trim();
         const role      = document.getElementById('inviteRoleSelect').value || 'user';
         const cards     = Array.from(document.querySelectorAll('input[name="portalInviteCard"]:checked')).map(i => i.value);
+        const docente   = (role === 'user' || role === 'admin') && !!document.getElementById('portalInviteDocente')?.checked;
         const result    = document.getElementById('inviteResult');
         result.style.display = 'none';
         if (!email) { showMsg('inviteMsg', 'Inserisci un\'email.', 'error'); return; }
         if (!cards.length) { showMsg('inviteMsg', 'Seleziona almeno una scheda.', 'error'); return; }
         const res  = await fetch('/api/auth/invite', {
             method: 'POST', headers: authHeader(),
-            body: JSON.stringify({ email, role, cards })
+            body: JSON.stringify({ email, role, cards, docente })
         });
         const data = await res.json();
         if (!res.ok) { showMsg('inviteMsg', data.error || 'Errore.', 'error'); return; }
         const fullLink  = window.location.origin + data.link;
         const roleLabel = { reader:'Reader', user:'Utente', admin:'Amministratore', superadmin:'Super Admin' }[data.role] || data.role;
+        const catNote = data.docente ? ' · Docente' : '';
         document.getElementById('inviteLink').textContent = fullLink;
         result.style.display = 'block';
         document.getElementById('inviteEmail').value = '';
+        const docCb = document.getElementById('portalInviteDocente');
+        if (docCb) docCb.checked = false;
         const emailNote = data.emailSent ? ' — email inviata automaticamente.' : ' — copia e invia il link (SMTP non configurato).';
-        showMsg('inviteMsg', `Invito ${roleLabel} generato${emailNote}`, 'success');
+        showMsg('inviteMsg', `Invito ${roleLabel}${catNote} generato${emailNote}`, 'success');
     }
 
     function copyInviteLink() {

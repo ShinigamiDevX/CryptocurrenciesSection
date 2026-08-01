@@ -1,0 +1,65 @@
+{
+  "title": "Corsi",
+  "description": "Area formazione e materiali didattici per i Reparti.",
+  "nav": [
+    {
+      "id": "about",
+      "title": "Sezione 1",
+      "type": "course",
+      "file": "about.md",
+      "children": [
+        {
+          "id": "sottosezione-1",
+          "title": "Sottosezione 1",
+          "type": "section",
+          "file": "sottosezione-1.md",
+          "children": [
+            {
+              "id": "sottosezione-liv-2",
+              "title": "Sottosezione liv. 2",
+              "type": "section",
+              "file": "sottosezione-liv-2.md",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "divider-main",
+      "type": "divider"
+    },
+    {
+      "id": "blockchain-base",
+      "title": "Sezione 2",
+      "type": "course",
+      "file": "blockchain-base.md",
+      "children": [
+        {
+          "id": "blockchain-obiettivi",
+          "title": "Sottosezione liv 1",
+          "type": "section",
+          "file": "blockchain-obiettivi.md",
+          "children": []
+        }
+      ],
+      "date": "2026-02-01"
+    },
+    {
+      "id": "esempio-contenuti",
+      "title": "Esempio di contenuti Markdown",
+      "type": "course",
+      "file": "esempio-contenuti.md",
+      "children": [],
+      "date": "2026-02-10"
+    },
+    {
+      "id": "divider-c8566ea0",
+      "type": "divider"
+    },
+    {
+      "id": "divider-5bd99b55",
+      "type": "divider"
+    }
+  ]
+}

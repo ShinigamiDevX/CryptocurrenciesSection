@@ -8,9 +8,10 @@ const path       = require('path');
 const crypto     = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { Users, Invitations, ProfileChangeRequests, Notifications, profileDefaults } = require('./db');
+const { mountCorsiRoutes } = require('./corsi-content');
 
 const app  = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 const PORT             = process.env.PORT || 4000;
 const DATA_DIR         = path.join(__dirname, 'data');
@@ -51,6 +52,32 @@ function cardsFromStored(raw, role) {
 
 function cardsToStored(cards) {
     return JSON.stringify(cards);
+}
+
+/** La categoria Docente è selezionabile solo per i ruoli Utente e Admin. */
+function roleCanBeDocente(role) {
+    return role === 'user' || role === 'admin';
+}
+
+function normalizeDocente(role, flag) {
+    return roleCanBeDocente(role) && !!flag;
+}
+
+/**
+ * Super Admin ha sempre tutti i permessi (presenti e futuri).
+ * Altre categorie: mappa capability → regola specifica.
+ */
+function userCan(user, capability) {
+    if (!user || user.revokedAt) return false;
+    if (user.role === 'superadmin') return true;
+    switch (capability) {
+        case 'corsi.manage':
+            return normalizeDocente(user.role, user.docente);
+        case 'admin.panel':
+            return user.role === 'admin';
+        default:
+            return false;
+    }
 }
 
 function isLockedProfile(email) {
@@ -202,6 +229,13 @@ function notifyAdmins(type, title, body, link, exceptUserId) {
     Users.findActive()
         .filter(u => (u.role === 'admin' || u.role === 'superadmin') && u.id !== exceptUserId)
         .forEach(u => notifyUser(u.id, type, title, body, link));
+}
+
+/** Notifica Super Admin e utenti con categoria Docente (escluso l’attore). */
+function notifyCorsiEditors(exceptUserId, type, title, body, link) {
+    Users.findActive()
+        .filter((u) => u.id !== exceptUserId && userCan(u, 'corsi.manage'))
+        .forEach((u) => notifyUser(u.id, type, title, body, link));
 }
 
 const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
@@ -359,6 +393,14 @@ function authenticate(req,res,next){
 }
 function requireAdmin(req,res,next){ if(req.user.role!=='superadmin'&&req.user.role!=='admin') return res.status(403).json({error:'Accesso negato.'}); next(); }
 function requireSuperadmin(req,res,next){ if(req.user.role!=='superadmin') return res.status(403).json({error:'Solo i super admin possono eseguire questa operazione.'}); next(); }
+/** Gestione contenuti Corsi: Docente oppure Super Admin (tutti i permessi). */
+function requireDocente(req, res, next) {
+    const user = Users.findById(req.user.id);
+    if (!userCan(user, 'corsi.manage')) {
+        return res.status(403).json({ error: 'Solo i docenti o i Super Admin possono gestire i contenuti dei corsi.' });
+    }
+    next();
+}
 
 function otpEmailHtml(otp) {
     return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Codice di verifica</h2><p style="color:#4a5568;margin:0 0 20px;">Valido <strong>10 minuti</strong>.</p><div style="background:#f0f9ff;border:2px solid #00C8FF;border-radius:10px;padding:20px 32px;text-align:center;letter-spacing:0.3rem;font-size:2.2rem;font-weight:700;color:#030E1C;">${otp}</div></td></tr></table></td></tr></table></body></html>`;
@@ -499,6 +541,8 @@ app.get('/api/auth/verify', authenticate,(req,res)=>{
         email: user.email,
         role: user.role,
         cards: cardsFromStored(user.allowedCards, user.role),
+        docente: normalizeDocente(user.role, user.docente),
+        canManageCorsi: userCan(user, 'corsi.manage'),
     });
 });
 
@@ -546,12 +590,14 @@ app.post('/api/auth/register', async(req,res)=>{
         const allowedCards = inv.allowedCards && String(inv.allowedCards).trim()
             ? inv.allowedCards
             : cardsToStored(defaultCardsForRole(inv.role || 'user'));
+        const assignedRole = inv.role || 'user';
         const profile={
             passwordHash,
-            role:inv.role||'user',
+            role: assignedRole,
             createdAt:new Date().toISOString(),
             mustChangePassword:false,
             allowedCards,
+            docente: normalizeDocente(assignedRole, inv.docente),
             ...parsed.profile,
         };
         if (ex&&ex.revokedAt) {
@@ -568,12 +614,13 @@ app.post('/api/auth/register', async(req,res)=>{
 });
 
 app.post('/api/auth/invite', authenticate, requireAdmin, async(req,res)=>{
-    const {email,role:requestedRole,cards}=req.body||{};
+    const {email,role:requestedRole,cards,docente}=req.body||{};
     if (!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({error:'Email non valida.'});
     const myLevel=ROLE_LEVEL[req.user.role]??0;
     const assignedRole=(ALL_ROLES.includes(requestedRole)&&ROLE_LEVEL[requestedRole]<=myLevel)?requestedRole:'user';
     const selectedCards = cards !== undefined ? sanitizeCards(cards) : defaultCardsForRole(assignedRole);
     if (!selectedCards) return res.status(400).json({error:'Seleziona almeno una scheda del portale.'});
+    const isDocente = normalizeDocente(assignedRole, docente);
     const ex=Users.findByEmail(email);
     if (ex&&!ex.revokedAt) return res.status(409).json({error:'Utente già registrato.'});
     Invitations.invalidateByEmail(email);
@@ -586,19 +633,24 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async(req,res)=>{
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now()+15*60*1000).toISOString(),
         allowedCards: cardsToStored(selectedCards),
+        docente: isDocente,
     });
     sendInviteEmail(email,token,assignedRole).catch(e=>console.error('[AUTH] Email invito:',e.message));
-    res.json({token,link:`/register?token=${token}`,role:assignedRole,cards:selectedCards,emailSent:!!transporter});
+    res.json({token,link:`/register?token=${token}`,role:assignedRole,cards:selectedCards,docente:isDocente,emailSent:!!transporter});
 });
 
 app.get('/api/auth/users', authenticate, requireAdmin,(req,res)=>{
     res.json(Users.findActive()
         .filter(u => u.email !== SUPERADMIN_EMAIL)  // il fondatore non compare nella lista
-        .map(({passwordHash, ...u}) => ({
-            ...u,
-            role: ALL_ROLES.includes(u.role) ? u.role : 'user',
-            cards: cardsFromStored(u.allowedCards, u.role),
-        })));
+        .map(({passwordHash, ...u}) => {
+            const role = ALL_ROLES.includes(u.role) ? u.role : 'user';
+            return {
+                ...u,
+                role,
+                cards: cardsFromStored(u.allowedCards, role),
+                docente: normalizeDocente(role, u.docente),
+            };
+        }));
 });
 
 app.delete('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
@@ -624,6 +676,7 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     if (ROLE_LEVEL[user.role]>=ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Permessi insufficienti.'});
     const prevRole = user.role;
     Users.updateRole(user.id,newRole);
+    if (!roleCanBeDocente(newRole)) Users.updateDocente(user.id, false);
     const actor = Users.findById(req.user.id) || req.user;
     notifyUser(
         user.id,
@@ -681,6 +734,7 @@ app.get('/api/auth/invitations', authenticate, requireAdmin,(req,res)=>{
     res.json(Invitations.findActive().map(i => ({
         ...i,
         cards: cardsFromStored(i.allowedCards, i.role),
+        docente: normalizeDocente(i.role, i.docente),
     })));
 });
 
@@ -718,11 +772,19 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
         Users.updateAllowedCards(user.id, cardsToStored(selected));
         afterCards = selected;
     }
+    let afterDocente = normalizeDocente(user.role, user.docente);
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'docente')) {
+        afterDocente = normalizeDocente(user.role, req.body.docente);
+        Users.updateDocente(user.id, afterDocente);
+    }
     if (user.id !== req.user.id) {
         const actor = Users.findById(req.user.id) || req.user;
         const changes = profileDiffLines(user, parsed.profile);
         const cardsLine = cardsDiffLine(beforeCards, afterCards);
         if (cardsLine) changes.push(cardsLine);
+        if (!!normalizeDocente(user.role, user.docente) !== afterDocente) {
+            changes.push(afterDocente ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
+        }
         notifyUser(
             user.id,
             'profile_updated',
@@ -735,6 +797,7 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
     res.json({
         success: true,
         cards: cardsFromStored(updated.allowedCards, updated.role),
+        docente: normalizeDocente(updated.role, updated.docente),
     });
 });
 
@@ -846,5 +909,8 @@ app.post('/api/auth/notifications/read-all', authenticate,(req,res)=>{
     Notifications.markAllRead(req.user.id);
     res.json({ success: true, unread: 0 });
 });
+
+// ── Corsi CMS (admin/superadmin = docenti) ────────────────────────────────────
+mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditors, actorLabel });
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`Auth service in ascolto su http://0.0.0.0:${PORT}`));

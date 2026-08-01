@@ -124,6 +124,19 @@ db.exec(`
         readAt    TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, createdAt);
+    CREATE TABLE IF NOT EXISTS corsi_versions (
+        id             TEXT PRIMARY KEY,
+        itemId         TEXT NOT NULL,
+        title          TEXT NOT NULL DEFAULT '',
+        kind           TEXT NOT NULL DEFAULT 'post',
+        content        TEXT NOT NULL DEFAULT '',
+        action         TEXT NOT NULL DEFAULT 'update',
+        editedById     TEXT NOT NULL DEFAULT '',
+        editedByEmail  TEXT NOT NULL DEFAULT '',
+        createdAt      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_corsi_versions_item ON corsi_versions(itemId, createdAt);
+    CREATE INDEX IF NOT EXISTS idx_corsi_versions_created ON corsi_versions(createdAt);
 `);
 
 // ── Migrazione da JSON (eseguita una sola volta) ──────────────────────────────
@@ -194,6 +207,7 @@ const USER_EXTRA_COLS = [
     ['telefono', "TEXT NOT NULL DEFAULT ''"],
     ['telefonoPrefisso', "TEXT NOT NULL DEFAULT '+39'"],
     ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
+    ['docente', 'INTEGER NOT NULL DEFAULT 0'],
     ['loginOtp', 'TEXT'],
     ['loginOtpExpiry', 'TEXT'],
 ];
@@ -204,6 +218,7 @@ USER_EXTRA_COLS.forEach(([col, def]) => {
 
 const INV_EXTRA_COLS = [
     ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
+    ['docente', 'INTEGER NOT NULL DEFAULT 0'],
 ];
 INV_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE invitations ADD COLUMN ${col} ${def}`); }
@@ -246,6 +261,7 @@ const fromRow = (r) => r ? {
     ...r,
     mustChangePassword: toBool(r.mustChangePassword),
     domicilioComeResidenza: toBool(r.domicilioComeResidenza),
+    docente: toBool(r.docente),
 } : null;
 
 function geoBlock(p, prefix, { withAddress = false } = {}) {
@@ -308,7 +324,7 @@ const Users = {
                 residenzaIndirizzo,residenzaCivico,
                 domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
                 domicilioIndirizzo,domicilioCivico,
-                domicilioComeResidenza,telefono,telefonoPrefisso,allowedCards
+                domicilioComeResidenza,telefono,telefonoPrefisso,allowedCards,docente
             ) VALUES (
                 @id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,
                 @nome,@cognome,@grado,@dataNascita,@luogoNascita,
@@ -317,7 +333,7 @@ const Users = {
                 @residenzaIndirizzo,@residenzaCivico,
                 @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
                 @domicilioIndirizzo,@domicilioCivico,
-                @domicilioComeResidenza,@telefono,@telefonoPrefisso,@allowedCards
+                @domicilioComeResidenza,@telefono,@telefonoPrefisso,@allowedCards,@docente
             )
         `).run({
             id: u.id,
@@ -327,6 +343,7 @@ const Users = {
             createdAt: u.createdAt,
             mustChangePassword: u.mustChangePassword ? 1 : 0,
             allowedCards: u.allowedCards || '',
+            docente: u.docente ? 1 : 0,
             ...p,
         });
     },
@@ -348,7 +365,7 @@ const Users = {
                 domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
                 domicilioIndirizzo=@domicilioIndirizzo, domicilioCivico=@domicilioCivico,
                 domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono, telefonoPrefisso=@telefonoPrefisso,
-                allowedCards=@allowedCards
+                allowedCards=@allowedCards, docente=@docente
             WHERE id=@id
         `).run({
             id,
@@ -357,11 +374,13 @@ const Users = {
             createdAt: u.createdAt,
             mustChangePassword: u.mustChangePassword ? 1 : 0,
             allowedCards: u.allowedCards || '',
+            docente: u.docente ? 1 : 0,
             ...p,
         });
     },
     updateRole: (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
     updateAllowedCards: (id, allowedCards) => db.prepare('UPDATE users SET allowedCards = ? WHERE id = ?').run(allowedCards || '', id),
+    updateDocente: (id, docente) => db.prepare('UPDATE users SET docente = ? WHERE id = ?').run(docente ? 1 : 0, id),
     updateProfile: (id, profile) => {
         const p = profileDefaults(profile);
         return db.prepare(`
@@ -435,14 +454,14 @@ const ProfileChangeRequests = {
 };
 
 // ── Invitations ───────────────────────────────────────────────────────────────
-const toInv = r => r ? { ...r, used: toBool(r.used), otpUsed: toBool(r.otpUsed) } : null;
+const toInv = r => r ? { ...r, used: toBool(r.used), otpUsed: toBool(r.otpUsed), docente: toBool(r.docente) } : null;
 const Invitations = {
     findByToken:      token => toInv(db.prepare('SELECT * FROM invitations WHERE token = ?').get(token)),
     findActive:       ()    => db.prepare("SELECT * FROM invitations WHERE used=0 AND expiresAt > datetime('now')").all().map(toInv),
     invalidateByEmail:email => db.prepare('UPDATE invitations SET used=1 WHERE email=? COLLATE NOCASE').run(email),
     insert: i => db.prepare(
-        'INSERT INTO invitations (token,email,role,invitedBy,createdAt,expiresAt,allowedCards) VALUES (@token,@email,@role,@invitedBy,@createdAt,@expiresAt,@allowedCards)'
-    ).run({ allowedCards: '', ...i }),
+        'INSERT INTO invitations (token,email,role,invitedBy,createdAt,expiresAt,allowedCards,docente) VALUES (@token,@email,@role,@invitedBy,@createdAt,@expiresAt,@allowedCards,@docente)'
+    ).run({ allowedCards: '', ...i, docente: i.docente ? 1 : 0 }),
     setOtp:  (token, hash, exp) => db.prepare('UPDATE invitations SET otp=?,otpExpiry=?,otpUsed=0 WHERE token=?').run(hash, exp, token),
     markUsed:token => db.prepare('UPDATE invitations SET used=1,otpUsed=1 WHERE token=?').run(token),
     cancel:  token => db.prepare('UPDATE invitations SET used=1 WHERE token=?').run(token),
@@ -467,4 +486,52 @@ const Notifications = {
     ).run(new Date().toISOString(), userId),
 };
 
-module.exports = { Users, Invitations, ProfileChangeRequests, Notifications, profileDefaults };
+// ── Corsi versions (storico Markdown) ─────────────────────────────────────────
+const CorsiVersions = {
+    insert: v => db.prepare(`
+        INSERT INTO corsi_versions (
+            id, itemId, title, kind, content, action, editedById, editedByEmail, createdAt
+        ) VALUES (
+            @id, @itemId, @title, @kind, @content, @action, @editedById, @editedByEmail, @createdAt
+        )
+    `).run({
+        title: '',
+        kind: 'post',
+        content: '',
+        action: 'update',
+        editedById: '',
+        editedByEmail: '',
+        ...v,
+    }),
+    list: ({ itemId, limit = 500 } = {}) => {
+        const lim = Math.min(Math.max(Number(limit) || 500, 1), 1000);
+        if (itemId) {
+            return db.prepare(`
+                SELECT id, itemId, title, kind, action, editedById, editedByEmail, createdAt,
+                       length(content) AS contentLength
+                FROM corsi_versions
+                WHERE itemId = ?
+                ORDER BY createdAt DESC
+                LIMIT ?
+            `).all(itemId, lim);
+        }
+        return db.prepare(`
+            SELECT id, itemId, title, kind, action, editedById, editedByEmail, createdAt,
+                   length(content) AS contentLength
+            FROM corsi_versions
+            ORDER BY createdAt DESC
+            LIMIT ?
+        `).all(lim);
+    },
+    findById: id => db.prepare('SELECT * FROM corsi_versions WHERE id = ?').get(id) || null,
+    remove: id => db.prepare('DELETE FROM corsi_versions WHERE id = ?').run(id),
+};
+
+module.exports = {
+    Users,
+    Invitations,
+    ProfileChangeRequests,
+    Notifications,
+    CorsiVersions,
+    profileDefaults,
+};

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Corsi — CryptocurrenciesSection</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Abril+Fatface">
+    <link rel="stylesheet" href="/corsi/css/poole.css">
+    <link rel="stylesheet" href="/corsi/css/hyde.css">
+    <link rel="stylesheet" href="/corsi/css/syntax.css">
+    <link rel="stylesheet" href="/corsi/corsi-app.css?v=13">
+</head>
+<body data-corsi-page="read">
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <div class="sidebar">
+        <div class="container">
+            <div class="sidebar-about">
+                <h1><a href="#home" id="siteTitle">Corsi</a></h1>
+                <p class="lead" id="siteDescription">Area formazione e materiali didattici.</p>
+            </div>
+
+            <nav class="sidebar-nav" id="sidebarNav" aria-label="Navigazione corsi"></nav>
+
+            <div class="sidebar-actions">
+                <a class="btn-portal" href="/portal">Torna al portale</a>
+                <a class="btn-portal" id="btnManage" href="/corsi-gestione" style="display:none;">Gestione contenuti</a>
+                <a class="btn-portal" id="btnStorico" href="/corsi-storico" style="display:none;">Storico versioni</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content container">
+        <div id="contentRoot" class="page">
+            <p>Caricamento contenuti...</p>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="corsi-modal" style="display:none;" role="dialog" aria-modal="true">
+        <div class="corsi-modal-box">
+            <p id="confirmMsg">Vuoi davvero disconnetterti?</p>
+            <div class="corsi-modal-actions">
+                <button type="button" id="confirmCancel">Annulla</button>
+                <button type="button" id="confirmOk">Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+    <script src="/corsi.js?v=15"></script>
+</body>
+</html>

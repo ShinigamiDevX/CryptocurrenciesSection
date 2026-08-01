@@ -4,7 +4,7 @@ RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
-COPY server.js db.js ./
+COPY server.js db.js corsi-content.js ./
 RUN mkdir -p data
 ENV PORT=4000
 EXPOSE 4000
