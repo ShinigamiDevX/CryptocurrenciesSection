@@ -2,9 +2,15 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const express = require('express');
 const { CorsiVersions, Users } = require('./db');
 
-const CORSI_DIR = process.env.CORSI_DIR || path.join(__dirname, 'corsi');
+// Default: cartella corsi/ nella root del progetto (sviluppo locale senza Docker);
+// in Docker la variabile CORSI_DIR è sempre impostata dal compose.
+const CORSI_DIR = process.env.CORSI_DIR
+    || (fs.existsSync(path.join(__dirname, '..', 'corsi'))
+        ? path.join(__dirname, '..', 'corsi')
+        : path.join(__dirname, 'corsi'));
 const MANIFEST_FILE = path.join(CORSI_DIR, 'manifest.json');
 const RESERVED_IDS = new Set(['home', 'manage', 'new', 'edit', 'view', 'storico']);
 /* Accetta underscore (nuovi) e trattini (contenuti legacy). */
@@ -248,6 +254,34 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
             res.status(500).json({ error: 'Impossibile leggere il manifesto corsi.' });
         }
     });
+
+    // Upload immagini per i contenuti (solo docenti). Body binario, nome nel query param.
+    const UPLOADS_DIR = path.join(CORSI_DIR, 'uploads');
+    const IMG_EXT = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp' };
+    app.post('/api/auth/corsi/upload', authenticate, requireDocente,
+        express.raw({ type: 'image/*', limit: '10mb' }),
+        (req, res) => {
+            try {
+                const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+                const ext = IMG_EXT[mime];
+                if (!ext) return res.status(400).json({ error: 'Formato non supportato: usa PNG, JPG, GIF o WebP.' });
+                if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'File vuoto o non valido.' });
+                const base = String(req.query.name || 'immagine')
+                    .replace(/\.[^.]*$/, '')
+                    .toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '')
+                    .slice(0, 40) || 'immagine';
+                const fname = `${base}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+                if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+                fs.writeFileSync(path.join(UPLOADS_DIR, fname), req.body);
+                res.json({ url: `/corsi/uploads/${fname}` });
+            } catch (e) {
+                console.error('[CORSI] upload:', e.message);
+                res.status(500).json({ error: 'Caricamento immagine non riuscito.' });
+            }
+        });
 
     app.get('/api/auth/corsi/versions', authenticate, requireDocente, (req, res) => {
         try {

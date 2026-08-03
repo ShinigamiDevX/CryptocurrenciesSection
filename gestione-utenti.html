@@ -334,6 +334,7 @@
             <button class="tab-btn" onclick="switchTab('invite')">Invita</button>
             <button class="tab-btn" onclick="switchTab('invitations')">Inviti in sospeso</button>
             <button class="tab-btn" onclick="switchTab('profiles')">Modifiche Profilo <span id="pcrBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
+            <button class="tab-btn" onclick="switchTab('approvals')">Approvazioni <span id="aarBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
         </div>
 
         <!-- Tab: Utenti -->
@@ -400,6 +401,13 @@
             <div class="feedback" id="profilesMsg"></div>
             <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.2rem;">Richieste di modifica profilo anagrafico inviate dagli utenti.</p>
             <div id="pcrList"></div>
+        </div>
+
+        <!-- Tab: Approvazioni azioni admin -->
+        <div class="tab-panel" id="tab-approvals">
+            <div class="feedback" id="approvalsMsg"></div>
+            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.2rem;">Modifiche ed eliminazioni richieste dagli admin. Vengono applicate con l'approvazione del <strong>Super Admin</strong> oppure di <strong>altri due admin</strong>.</p>
+            <div id="aarList"></div>
         </div>
     </main>
 
@@ -670,8 +678,10 @@
             const myLevel = ROLE_LEVEL[_currentUser.role] || 0;
             if (inviteRoleCs) inviteRoleCs.setOptions(RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value]||0) <= myLevel), 'user');
             refreshPcrTabBadge();
+            refreshAarTabBadge();
             loadUsers();
             if (location.hash === '#profiles') switchTab('profiles');
+            if (location.hash === '#approvals') switchTab('approvals');
         } catch {
             localStorage.removeItem('authToken');
             window.location.replace('/login');
@@ -700,13 +710,14 @@
 
     // ── Tab ───────────────────────────────────────────────────────────────────
     function switchTab(tab) {
-        ['users','invite','invitations','profiles'].forEach((t, i) => {
+        ['users','invite','invitations','profiles','approvals'].forEach((t, i) => {
             document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === tab);
             document.getElementById('tab-' + t).classList.toggle('active', t === tab);
         });
         if (tab === 'users')       loadUsers();
         if (tab === 'invitations') loadInvitations();
         if (tab === 'profiles')    loadProfileChangeRequests();
+        if (tab === 'approvals')   loadApprovals();
     }
 
     // ── Feedback ──────────────────────────────────────────────────────────────
@@ -845,10 +856,20 @@
     }
 
     function deleteUser(id, email) {
-        showConfirm(`Eliminare l'accesso a ${email}?`, async () => {
+        const ask = _currentUser.role === 'superadmin'
+            ? `Eliminare l'accesso a ${email}?`
+            : `Richiedere l'eliminazione di ${email}? Servirà l'approvazione del Super Admin o di altri due admin.`;
+        showConfirm(ask, async () => {
             const res = await fetch('/api/auth/users/' + id, { method: 'DELETE', headers: authHeader() });
-            if (res.ok) { showMsg('usersMsg', 'Utente rimosso.', 'success'); loadUsers(); }
-            else { const d = await res.json(); showMsg('usersMsg', d.error || 'Errore.', 'error'); }
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok) { showMsg('usersMsg', d.error || 'Errore.', 'error'); return; }
+            if (d.pending) {
+                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+                refreshAarTabBadge();
+            } else {
+                showMsg('usersMsg', 'Utente rimosso.', 'success');
+            }
+            loadUsers();
         });
     }
 
@@ -885,7 +906,12 @@
         showConfirm(`Cambiare il ruolo di ${email} in ${ROLE_LABEL[newRole]||newRole}?`, async () => {
             const res = await fetch('/api/auth/users/' + id, { method: 'PATCH', headers: authHeader(), body: JSON.stringify({ role: newRole }) });
             const d   = await res.json();
-            showMsg('usersMsg', res.ok ? `Ruolo aggiornato a ${ROLE_LABEL[newRole]||newRole}.` : (d.error||'Errore.'), res.ok ? 'success' : 'error');
+            if (res.ok && d.pending) {
+                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+                refreshAarTabBadge();
+            } else {
+                showMsg('usersMsg', res.ok ? `Ruolo aggiornato a ${ROLE_LABEL[newRole]||newRole}.` : (d.error||'Errore.'), res.ok ? 'success' : 'error');
+            }
             loadUsers();
         }, () => loadUsers());
     }
@@ -1081,7 +1107,12 @@
             body: JSON.stringify({ ...profile, cards, docente }),
         });
         const d = await res.json();
-        if (res.ok) { closeEditModal(); showMsg('usersMsg','Profilo aggiornato.','success'); loadUsers(); }
+        if (res.ok && d.pending) {
+            closeEditModal();
+            showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+            refreshAarTabBadge();
+        }
+        else if (res.ok) { closeEditModal(); showMsg('usersMsg','Profilo aggiornato.','success'); loadUsers(); }
         else { msgEl.className='feedback error'; msgEl.textContent=d.error||'Errore.'; msgEl.style.display='block'; }
     }
 
@@ -1133,6 +1164,88 @@
             const res = await fetch(`/api/auth/profile-change-requests/${id}`, { method:'DELETE', headers:authHeader() });
             if (res.ok) { showMsg('profilesMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); refreshNavBell(); refreshPcrTabBadge(); }
             else { const d=await res.json(); showMsg('profilesMsg',d.error||'Errore.','error'); }
+        });
+    }
+
+    // ── Approvazioni azioni admin (modifica/eliminazione utenti) ──────────────
+    async function refreshAarTabBadge() {
+        try {
+            const res = await fetch('/api/auth/admin-requests', { headers: authHeader() });
+            const data = res.ok ? await res.json() : [];
+            const badge = document.getElementById('aarBadge');
+            if (!badge) return;
+            if (data.length) { badge.textContent = data.length; badge.style.display = ''; }
+            else badge.style.display = 'none';
+        } catch {}
+    }
+
+    async function loadApprovals() {
+        const list = document.getElementById('aarList');
+        list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Caricamento...</div>';
+        try {
+            const res  = await fetch('/api/auth/admin-requests', { headers: authHeader() });
+            const data = await res.json();
+            const badge = document.getElementById('aarBadge');
+            if (data.length) { badge.textContent = data.length; badge.style.display = ''; }
+            else badge.style.display = 'none';
+            if (!data.length) { list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Nessuna richiesta in attesa.</div>'; return; }
+            list.innerHTML = data.map(r => {
+                const isMine = r.requestedById === _currentUser.id;
+                const approvals = r.approvals || [];
+                const alreadyApproved = approvals.some(a => a.id === _currentUser.id);
+                const canApprove = !isMine && !alreadyApproved;
+                const when = new Date(r.requestedAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+                const approvedBy = approvals.length
+                    ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.email).join(', ')}</small>`
+                    : '';
+                return `
+                <div class="pcr-item">
+                    <div class="pcr-info">
+                        <strong>${r.typeLabel} — ${r.targetEmail}</strong>
+                        <small>${r.summary}</small>
+                        <small style="color:#7ACCE0;">Richiesta da ${r.requestedByEmail}${isMine ? ' (tu)' : ''} · ${when}</small>
+                        ${approvedBy}
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                        ${canApprove ? `<button class="btn-ok-sm" onclick="approveAdminRequest('${r.id}')">✓ Approva</button>` : ''}
+                        ${alreadyApproved ? '<span style="font-size:0.78rem;color:#5ABBC8;">Già approvata da te</span>' : ''}
+                        <button class="btn-rej" onclick="rejectAdminRequest('${r.id}', ${isMine})">${isMine ? '✕ Annulla' : '✕ Rifiuta'}</button>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch { list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>'; }
+    }
+
+    function approveAdminRequest(id) {
+        showConfirm('Approvare questa richiesta?', async () => {
+            const res = await fetch(`/api/auth/admin-requests/${id}/approve`, { method: 'POST', headers: authHeader() });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok) {
+                showMsg(
+                    'approvalsMsg',
+                    d.executed
+                        ? 'Richiesta approvata: operazione applicata.'
+                        : `Approvazione registrata (${d.approvals}/${d.needed}). Serve un'altra approvazione.`,
+                    'success'
+                );
+                loadApprovals(); loadUsers(); refreshAarTabBadge();
+                if (typeof refreshNavBell === 'function') refreshNavBell();
+            } else {
+                showMsg('approvalsMsg', d.error || 'Errore.', 'error');
+                loadApprovals(); refreshAarTabBadge();
+            }
+        });
+    }
+
+    function rejectAdminRequest(id, isMine) {
+        showConfirm(isMine ? 'Annullare la tua richiesta?' : 'Rifiutare questa richiesta?', async () => {
+            const res = await fetch(`/api/auth/admin-requests/${id}`, { method: 'DELETE', headers: authHeader() });
+            if (res.ok) {
+                showMsg('approvalsMsg', isMine ? 'Richiesta annullata.' : 'Richiesta rifiutata.', 'success');
+                loadApprovals(); refreshAarTabBadge();
+                if (typeof refreshNavBell === 'function') refreshNavBell();
+            }
+            else { const d = await res.json(); showMsg('approvalsMsg', d.error || 'Errore.', 'error'); }
         });
     }
     </script>

@@ -1,24 +1,28 @@
 ---
 title: Sezione 1
 ---
-<span class="lead">
-Questa sezione è un’area di esempio per i corsi di formazione, costruita con la struttura e il tema di Hyde.
-</span>
+| Colonna 1 | Colonna 2 | Colonna 3 |
+| --- | --- | --- |
+| Valore 1 | Valore 2 | Valore 3 |
+| Valore 4 | Valore 5 | Valore 6 |
 
-Il layout riprende [Hyde](https://github.com/poole/hyde) di Mark Otto: sidebar fissa, contenuto a due colonne e tipografia Poole.
+{
+  "type": "bar",
+  "title": "Titolo del grafico",
+  "labels": ["Gennaio", "Febbraio", "Marzo"],
+  "datasets": [
+    { "label": "Serie 1", "data": [10, 25, 18] }
+  ]
+}
+```
+**testo in grassetto**
 
-## Struttura dei file
+*testo in corsivo*
 
-* `corsi/manifest.json` — elenco pagine e moduli
-* `corsi/*.md` — contenuti in Markdown
-* `corsi/css/` — fogli di stile Poole / Hyde / syntax
+<u>testo sottolineato</u>
 
-## Personalizzazione
+***<u><span style="color:#ac4142">testo </span>in <span style="color:#ac4142"><span style="color:#0000ff">grassetto</span></span>, corsivo, sottolineato e <span style="color:#31ce38">colorato</span></u>***
 
-1. Aggiungi un file `.md` in `corsi/`
-2. Registralo in `manifest.json` come `post` o `page`
-3. Ricarica `/corsi` per vederlo nella sidebar o in home
+inserisco un'immagine
 
-## Licenza del tema
-
-Hyde è rilasciato sotto licenza MIT. Maggiori dettagli su [github.com/poole/hyde](https://github.com/poole/hyde).
+![thumb-1920-1354199](/corsi/uploads/thumb-1920-1354199-b7d9d782.jpg)

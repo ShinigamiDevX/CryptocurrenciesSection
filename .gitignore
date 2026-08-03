@@ -7,6 +7,7 @@ __pycache__/
 *.pyc
 *.pyo
 cluster/**/__pycache__/
+analisi/.venv/
 
 # Upload temporanei (i file generati, non la cartella)
 cluster/dashboard/uploads/*.csv

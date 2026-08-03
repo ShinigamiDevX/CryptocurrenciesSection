@@ -11,6 +11,7 @@ const PORT      = 5201;
 const ROOT      = __dirname;
 const AUTH_PORT = 4000;
 const CLUSTER_PORT = 3000;
+const ANALISI_PORT = 5001;
 
 // Route "pulite" come in nginx.conf
 const PAGE_ROUTES = {
@@ -20,6 +21,10 @@ const PAGE_ROUTES = {
     '/portal':          '/portal.html',
     '/gestione-utenti': '/gestione-utenti.html',
     '/profilo':         '/profilo.html',
+    '/analisi-report':  '/analisi-report.html',
+    '/corsi':           '/corsi.html',
+    '/corsi-storico':   '/corsi-storico.html',
+    '/corsi-gestione':  '/corsi-gestione.html',
 };
 
 const MIME = {
@@ -81,6 +86,10 @@ const server = http.createServer((req, res) => {
         proxy(req, res, AUTH_PORT, req.url);
         return;
     }
+    if (urlPath.startsWith('/api/analisi/')) {
+        proxy(req, res, ANALISI_PORT, req.url);
+        return;
+    }
     if (urlPath.startsWith('/cluster/')) {
         proxy(req, res, CLUSTER_PORT, req.url.replace(/^\/cluster/, '') || '/');
         return;
@@ -90,5 +99,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
     console.log(`[DEV] Portale disponibile su http://localhost:${PORT}`);
-    console.log(`[DEV] Proxy /api/auth/ -> 127.0.0.1:${AUTH_PORT}, /cluster/ -> 127.0.0.1:${CLUSTER_PORT}`);
+    console.log(`[DEV] Proxy /api/auth/ -> :${AUTH_PORT}, /api/analisi/ -> :${ANALISI_PORT}, /cluster/ -> :${CLUSTER_PORT}`);
 });

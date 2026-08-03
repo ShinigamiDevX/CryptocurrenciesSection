@@ -7,7 +7,7 @@ const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { Users, Invitations, ProfileChangeRequests, Notifications, profileDefaults } = require('./db');
+const { Users, Invitations, ProfileChangeRequests, AdminActionRequests, Notifications, profileDefaults } = require('./db');
 const { mountCorsiRoutes } = require('./corsi-content');
 
 const app  = express();
@@ -317,6 +317,108 @@ function profileSnapshot(p) {
         formatTelDisplay(p) ? `tel: ${formatTelDisplay(p)}` : '',
     ].filter(Boolean);
     return parts.join(' · ');
+}
+
+// ── Approvazioni azioni admin ─────────────────────────────────────────────────
+// Il Super Admin agisce direttamente; gli admin hanno bisogno dell'approvazione
+// del Super Admin oppure di ADMIN_APPROVALS_NEEDED altri admin.
+const ADMIN_APPROVALS_NEEDED = 2;
+const ACTION_LABEL = { delete: 'Eliminazione utente', role: 'Cambio ruolo', profile: 'Modifica profilo' };
+
+function createAdminActionRequest(type, target, payload, summary, requester) {
+    const id = uuidv4();
+    AdminActionRequests.insert({
+        id,
+        type,
+        targetUserId: target.id,
+        targetEmail: target.email,
+        payload: JSON.stringify(payload || {}),
+        summary,
+        requestedById: requester.id,
+        requestedByEmail: requester.email,
+        requestedAt: new Date().toISOString(),
+    });
+    notifyAdmins(
+        'admin_action_request',
+        `Approvazione richiesta: ${ACTION_LABEL[type] || type}`,
+        `${actorLabel(requester)} ha richiesto: ${summary}. Serve l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+        '/gestione-utenti#approvals',
+        requester.id
+    );
+    notifyUser(
+        requester.id,
+        'admin_action_request_sent',
+        'Richiesta inviata',
+        `La tua richiesta (${summary}) è in attesa di approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+        '/gestione-utenti#approvals'
+    );
+    return id;
+}
+
+/** Applica una richiesta approvata. Ritorna null se ok, altrimenti il motivo dell'errore. */
+function executeAdminAction(r) {
+    const target = Users.findById(r.targetUserId);
+    const requester = Users.findById(r.requestedById) || { id: r.requestedById, email: r.requestedByEmail };
+    let payload = {};
+    try { payload = JSON.parse(r.payload || '{}'); } catch {}
+    if (!target || target.revokedAt) return 'l\'utente non è più attivo.';
+    if (target.role === 'superadmin') return 'l\'utente è diventato Super Admin.';
+
+    if (r.type === 'delete') {
+        Users.revoke(target.id);
+        return null;
+    }
+
+    if (r.type === 'role') {
+        const newRole = payload.newRole;
+        if (!ALL_ROLES.includes(newRole)) return 'il ruolo richiesto non è valido.';
+        const prevRole = target.role;
+        Users.updateRole(target.id, newRole);
+        if (!roleCanBeDocente(newRole)) Users.updateDocente(target.id, false);
+        notifyUser(
+            target.id,
+            'role_changed',
+            'Ruolo modificato',
+            `${actorLabel(requester)} ha cambiato il tuo ruolo da ${ROLE_LABEL[prevRole] || prevRole} a ${ROLE_LABEL[newRole] || newRole} (richiesta approvata).`,
+            '/profilo'
+        );
+        return null;
+    }
+
+    if (r.type === 'profile') {
+        if (!payload.profile) return 'dati della richiesta non validi.';
+        const beforeCards = cardsFromStored(target.allowedCards, target.role);
+        let afterCards = beforeCards;
+        Users.updateProfile(target.id, payload.profile);
+        if (Array.isArray(payload.cards) && payload.cards.length) {
+            Users.updateAllowedCards(target.id, cardsToStored(payload.cards));
+            afterCards = payload.cards;
+        }
+        const beforeDocente = normalizeDocente(target.role, target.docente);
+        let afterDocente = beforeDocente;
+        if (payload.docente !== undefined && payload.docente !== null) {
+            afterDocente = normalizeDocente(target.role, payload.docente);
+            Users.updateDocente(target.id, afterDocente);
+        }
+        if (target.id !== requester.id) {
+            const changes = profileDiffLines(target, payload.profile);
+            const cardsLine = cardsDiffLine(beforeCards, afterCards);
+            if (cardsLine) changes.push(cardsLine);
+            if (beforeDocente !== afterDocente) {
+                changes.push(afterDocente ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
+            }
+            notifyUser(
+                target.id,
+                'profile_updated',
+                'Profilo aggiornato da un amministratore',
+                `${actorLabel(requester)} ha modificato i tuoi dati (richiesta approvata). ${summarizeChanges(changes)}`,
+                '/profilo'
+            );
+        }
+        return null;
+    }
+
+    return 'tipo di richiesta sconosciuto.';
 }
 
 const SMTP_HOST = process.env.SMTP_HOST, SMTP_PORT = parseInt(process.env.SMTP_PORT||'587',10);
@@ -660,8 +762,20 @@ app.delete('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     if (req.user.id===user.id) return res.status(403).json({error:'Non puoi eliminare il tuo profilo.'});
     const myLevel=ROLE_LEVEL[req.user.role]??0, targetLevel=ROLE_LEVEL[user.role]??0;
     if (targetLevel>=myLevel) return res.status(403).json({error:'Permessi insufficienti.'});
-    Users.revoke(user.id);
-    res.json({success:true});
+    if (req.user.role==='superadmin') {
+        Users.revoke(user.id);
+        return res.json({success:true});
+    }
+    // Admin: serve l'approvazione del Super Admin o di altri due admin
+    if (AdminActionRequests.findPendingByTarget(user.id,'delete')) {
+        return res.status(409).json({error:'Esiste già una richiesta di eliminazione in attesa per questo utente.'});
+    }
+    const requester = Users.findById(req.user.id) || req.user;
+    createAdminActionRequest('delete', user, {}, `eliminazione dell'account ${user.email}`, requester);
+    res.json({
+        pending: true,
+        message: `Richiesta inviata: l'eliminazione sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+    });
 });
 
 app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
@@ -675,6 +789,22 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     if (ROLE_LEVEL[newRole]>ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Non puoi assegnare un ruolo superiore al tuo.'});
     if (ROLE_LEVEL[user.role]>=ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Permessi insufficienti.'});
     const prevRole = user.role;
+    if (req.user.role!=='superadmin') {
+        // Admin: serve l'approvazione del Super Admin o di altri due admin
+        if (AdminActionRequests.findPendingByTarget(user.id,'role')) {
+            return res.status(409).json({error:'Esiste già una richiesta di cambio ruolo in attesa per questo utente.'});
+        }
+        const requester = Users.findById(req.user.id) || req.user;
+        createAdminActionRequest(
+            'role', user, { newRole },
+            `cambio ruolo di ${user.email}: ${ROLE_LABEL[prevRole] || prevRole} → ${ROLE_LABEL[newRole] || newRole}`,
+            requester
+        );
+        return res.json({
+            pending: true,
+            message: `Richiesta inviata: il cambio ruolo sarà applicato dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+        });
+    }
     Users.updateRole(user.id,newRole);
     if (!roleCanBeDocente(newRole)) Users.updateDocente(user.id, false);
     const actor = Users.findById(req.user.id) || req.user;
@@ -756,7 +886,7 @@ app.post('/api/auth/change-password', authenticate, async(req,res)=>{
     res.json({success:true,token});
 });
 
-// ── PATCH /api/auth/users/:id/profile  (admin/superadmin — modifica diretta) ─
+// ── PATCH /api/auth/users/:id/profile  (superadmin: diretta, admin: con approvazione) ─
 app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
     const parsed = parseProfileBody(req.body);
     if (parsed.error) return res.status(400).json({error: parsed.error});
@@ -764,16 +894,50 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
     if (isLockedProfile(user.email)) return res.status(403).json({error:'Il profilo di sistema non può essere modificato.'});
     const beforeCards = cardsFromStored(user.allowedCards, user.role);
+    const hasCards = Object.prototype.hasOwnProperty.call(req.body || {}, 'cards');
+    let selectedCards = null;
+    if (hasCards) {
+        selectedCards = sanitizeCards(req.body.cards);
+        if (!selectedCards) return res.status(400).json({error:'Seleziona almeno una scheda del portale.'});
+    }
+    const hasDocente = Object.prototype.hasOwnProperty.call(req.body || {}, 'docente');
+
+    if (req.user.role!=='superadmin') {
+        // Admin: serve l'approvazione del Super Admin o di altri due admin
+        if (AdminActionRequests.findPendingByTarget(user.id,'profile')) {
+            return res.status(409).json({error:'Esiste già una richiesta di modifica in attesa per questo utente.'});
+        }
+        const changes = profileDiffLines(user, parsed.profile);
+        const cardsLine = cardsDiffLine(beforeCards, selectedCards || beforeCards);
+        if (cardsLine) changes.push(cardsLine);
+        if (hasDocente && normalizeDocente(user.role, user.docente) !== normalizeDocente(user.role, req.body.docente)) {
+            changes.push(normalizeDocente(user.role, req.body.docente) ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
+        }
+        const requester = Users.findById(req.user.id) || req.user;
+        createAdminActionRequest(
+            'profile', user,
+            {
+                profile: parsed.profile,
+                cards: selectedCards,
+                docente: hasDocente ? !!req.body.docente : null,
+            },
+            `modifica del profilo di ${user.email}. ${summarizeChanges(changes)}`,
+            requester
+        );
+        return res.json({
+            pending: true,
+            message: `Richiesta inviata: la modifica sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+        });
+    }
+
     let afterCards = beforeCards;
     Users.updateProfile(user.id, parsed.profile);
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'cards')) {
-        const selected = sanitizeCards(req.body.cards);
-        if (!selected) return res.status(400).json({error:'Seleziona almeno una scheda del portale.'});
-        Users.updateAllowedCards(user.id, cardsToStored(selected));
-        afterCards = selected;
+    if (hasCards) {
+        Users.updateAllowedCards(user.id, cardsToStored(selectedCards));
+        afterCards = selectedCards;
     }
     let afterDocente = normalizeDocente(user.role, user.docente);
-    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'docente')) {
+    if (hasDocente) {
         afterDocente = normalizeDocente(user.role, req.body.docente);
         Users.updateDocente(user.id, afterDocente);
     }
@@ -881,6 +1045,91 @@ app.delete('/api/auth/profile-change-requests/:id', authenticate, requireAdmin,(
         `${actorLabel(actor)} ha rifiutato la tua richiesta di modifica profilo (${profileSnapshot(pcr)}). Puoi inviarne una nuova dalla pagina Profilo.`,
         '/profilo'
     );
+    res.json({success:true});
+});
+
+// ── GET /api/auth/admin-requests  (azioni admin in attesa di approvazione) ────
+app.get('/api/auth/admin-requests', authenticate, requireAdmin,(req,res)=>{
+    res.json(AdminActionRequests.findPending().map(r => {
+        let approvals = [];
+        try { approvals = JSON.parse(r.approvals || '[]'); } catch {}
+        return {
+            id: r.id,
+            type: r.type,
+            typeLabel: ACTION_LABEL[r.type] || r.type,
+            targetEmail: r.targetEmail,
+            summary: r.summary,
+            requestedById: r.requestedById,
+            requestedByEmail: r.requestedByEmail,
+            requestedAt: r.requestedAt,
+            approvals: approvals.map(a => ({ id: a.id, email: a.email, at: a.at })),
+            needed: ADMIN_APPROVALS_NEEDED,
+        };
+    }));
+});
+
+// ── POST /api/auth/admin-requests/:id/approve ─────────────────────────────────
+app.post('/api/auth/admin-requests/:id/approve', authenticate, requireAdmin,(req,res)=>{
+    const r = AdminActionRequests.findById(req.params.id);
+    if (!r || r.status !== 'pending') return res.status(404).json({error:'Richiesta non trovata.'});
+    if (r.requestedById === req.user.id) return res.status(403).json({error:'Non puoi approvare una tua richiesta.'});
+    let approvals = [];
+    try { approvals = JSON.parse(r.approvals || '[]'); } catch {}
+    if (approvals.some(a => a.id === req.user.id)) return res.status(409).json({error:'Hai già approvato questa richiesta.'});
+    const approver = Users.findById(req.user.id) || req.user;
+
+    if (req.user.role !== 'superadmin') {
+        approvals.push({ id: req.user.id, email: req.user.email, at: new Date().toISOString() });
+        AdminActionRequests.setApprovals(r.id, JSON.stringify(approvals));
+        if (approvals.length < ADMIN_APPROVALS_NEEDED) {
+            notifyUser(
+                r.requestedById,
+                'admin_action_progress',
+                'Richiesta approvata parzialmente',
+                `${actorLabel(approver)} ha approvato la tua richiesta (${r.summary}). Approvazioni: ${approvals.length}/${ADMIN_APPROVALS_NEEDED}.`,
+                '/gestione-utenti#approvals'
+            );
+            return res.json({ success: true, executed: false, approvals: approvals.length, needed: ADMIN_APPROVALS_NEEDED });
+        }
+    }
+
+    const err = executeAdminAction(r);
+    if (err) {
+        AdminActionRequests.reject(r.id, 'system');
+        notifyUser(
+            r.requestedById,
+            'admin_action_rejected',
+            'Richiesta annullata',
+            `La tua richiesta (${r.summary}) non è più applicabile: ${err}`,
+            '/gestione-utenti#approvals'
+        );
+        return res.status(409).json({error:`Impossibile applicare la richiesta: ${err} La richiesta è stata annullata.`});
+    }
+    AdminActionRequests.approve(r.id, req.user.email);
+    notifyUser(
+        r.requestedById,
+        'admin_action_approved',
+        'Richiesta approvata ed eseguita',
+        `${actorLabel(approver)} ha approvato la tua richiesta: ${r.summary}. L'operazione è stata applicata.`,
+        '/gestione-utenti'
+    );
+    res.json({ success: true, executed: true });
+});
+
+// ── DELETE /api/auth/admin-requests/:id  (rifiuta o annulla) ──────────────────
+app.delete('/api/auth/admin-requests/:id', authenticate, requireAdmin,(req,res)=>{
+    const r = AdminActionRequests.findById(req.params.id);
+    if (!r || r.status !== 'pending') return res.status(404).json({error:'Richiesta non trovata.'});
+    AdminActionRequests.reject(r.id, req.user.email);
+    if (r.requestedById !== req.user.id) {
+        notifyUser(
+            r.requestedById,
+            'admin_action_rejected',
+            'Richiesta rifiutata',
+            `${actorLabel(Users.findById(req.user.id) || req.user)} ha rifiutato la tua richiesta: ${r.summary}.`,
+            '/gestione-utenti#approvals'
+        );
+    }
     res.json({success:true});
 });
 

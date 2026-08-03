@@ -113,6 +113,21 @@ db.exec(`
         reviewedBy             TEXT,
         reviewedAt             TEXT
     );
+    CREATE TABLE IF NOT EXISTS admin_action_requests (
+        id               TEXT PRIMARY KEY,
+        type             TEXT NOT NULL,
+        targetUserId     TEXT NOT NULL,
+        targetEmail      TEXT NOT NULL,
+        payload          TEXT NOT NULL DEFAULT '{}',
+        summary          TEXT NOT NULL DEFAULT '',
+        requestedById    TEXT NOT NULL,
+        requestedByEmail TEXT NOT NULL,
+        requestedAt      TEXT NOT NULL,
+        status           TEXT NOT NULL DEFAULT 'pending',
+        approvals        TEXT NOT NULL DEFAULT '[]',
+        resolvedByEmail  TEXT,
+        resolvedAt       TEXT
+    );
     CREATE TABLE IF NOT EXISTS notifications (
         id        TEXT PRIMARY KEY,
         userId    TEXT NOT NULL,
@@ -453,6 +468,26 @@ const ProfileChangeRequests = {
     reject:  (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='rejected',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
 };
 
+// ── Admin Action Requests (modifica/eliminazione utenti da parte di admin) ───
+const AdminActionRequests = {
+    findPending: () => db.prepare("SELECT * FROM admin_action_requests WHERE status='pending' ORDER BY requestedAt DESC").all(),
+    findById: id => db.prepare('SELECT * FROM admin_action_requests WHERE id=?').get(id) || null,
+    findPendingByTarget: (targetUserId, type) =>
+        db.prepare("SELECT * FROM admin_action_requests WHERE targetUserId=? AND type=? AND status='pending'").get(targetUserId, type) || null,
+    insert: r => db.prepare(`
+        INSERT INTO admin_action_requests (
+            id,type,targetUserId,targetEmail,payload,summary,
+            requestedById,requestedByEmail,requestedAt
+        ) VALUES (
+            @id,@type,@targetUserId,@targetEmail,@payload,@summary,
+            @requestedById,@requestedByEmail,@requestedAt
+        )
+    `).run(r),
+    setApprovals: (id, approvalsJson) => db.prepare('UPDATE admin_action_requests SET approvals=? WHERE id=?').run(approvalsJson, id),
+    approve: (id, byEmail) => db.prepare("UPDATE admin_action_requests SET status='approved', resolvedByEmail=?, resolvedAt=? WHERE id=?").run(byEmail, new Date().toISOString(), id),
+    reject: (id, byEmail) => db.prepare("UPDATE admin_action_requests SET status='rejected', resolvedByEmail=?, resolvedAt=? WHERE id=?").run(byEmail, new Date().toISOString(), id),
+};
+
 // ── Invitations ───────────────────────────────────────────────────────────────
 const toInv = r => r ? { ...r, used: toBool(r.used), otpUsed: toBool(r.otpUsed), docente: toBool(r.docente) } : null;
 const Invitations = {
@@ -531,6 +566,7 @@ module.exports = {
     Users,
     Invitations,
     ProfileChangeRequests,
+    AdminActionRequests,
     Notifications,
     CorsiVersions,
     profileDefaults,

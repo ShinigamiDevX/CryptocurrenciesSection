@@ -263,7 +263,7 @@
             const hasKids = kidsList.length > 0;
             const open = hasKids && isNodeOpen(n.id, expandState, forceOpen);
             const kids = hasKids
-                ? `<ul class="cs50-sub depth-${depth + 1}">${renderNavTree(n.children, depth + 1, manageMode, expandState, forceOpen)}</ul>`
+                ? `<div class="cs50-subwrap"><ul class="cs50-sub depth-${depth + 1}">${renderNavTree(n.children, depth + 1, manageMode, expandState, forceOpen)}</ul></div>`
                 : '';
             const toggle = hasKids
                 ? `<button type="button" class="cs50-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Comprimi' : 'Espandi'}">${open ? '−' : '+'}</button>`
@@ -335,7 +335,7 @@
                         <a href="${contentHref(section.id, manageMode)}">${escapeHtml(title)}</a>
                     </${titleTag}>
                     ${actions}
-                    <div class="manage-collapsible"><div class="post-excerpt">${excerptHtml}</div></div>
+                    <div class="manage-collapsible"><div class="collapsible-inner"><div class="post-excerpt">${excerptHtml}</div></div></div>
                 </article>
             `;
         } catch (_) {
@@ -345,7 +345,7 @@
                     <${titleTag} class="${titleClass}">
                         <a href="${contentHref(section.id, manageMode)}">${escapeHtml(section.title)}</a>
                     </${titleTag}>
-                    <div class="manage-collapsible"><p class="corsi-error">Contenuto non disponibile.</p></div>
+                    <div class="manage-collapsible"><div class="collapsible-inner"><p class="corsi-error">Contenuto non disponibile.</p></div></div>
                 </article>
             `;
         }
@@ -361,7 +361,7 @@
         if (hasKids) {
             const parts = [];
             for (const k of kids) parts.push(await renderTreeNode(k, depth + 1, expandState, manageMode));
-            nested = `<div class="manage-nest depth-${depth + 1}">${parts.join('')}</div>`;
+            nested = `<div class="manage-nest depth-${depth + 1}"><div class="collapsible-inner">${parts.join('')}</div></div>`;
         }
         return `
             <div class="manage-level depth-${depth} is-collapsible${open ? ' is-open' : ' is-collapsed'}" data-tree-id="${escapeHtml(node.id)}">
@@ -429,6 +429,7 @@
         }
         root.innerHTML = `<div class="posts-list manage-hierarchy">${blocks.join('')}</div>`;
         wireTreeToggles(root);
+        renderChartsIn(root);
     }
 
     async function renderDoc(entry, { manageMode }) {
@@ -453,15 +454,16 @@
                 </p>`;
             }
             const kids = (entry.children || []).filter((c) => c.type !== 'divider');
-            html += `<div class="manage-collapsible">`;
+            html += `<div class="manage-collapsible"><div class="collapsible-inner">`;
             if (kids.length) {
                 html += `<div class="section-toc"><strong>Sottosezioni</strong><ul>${
                     kids.map((c) => `<li><a href="${contentHref(c.id, manageMode)}">${escapeHtml(c.title)}</a></li>`).join('')
                 }</ul></div>`;
             }
-            html += `${renderMarkdown(body)}</div></div></div></div>`;
+            html += `${renderMarkdown(body)}</div></div></div></div></div>`;
             root.innerHTML = html;
             wireTreeToggles(root);
+            renderChartsIn(root);
             if (manageMode) wireDeleteLinks(root);
         } catch (_) {
             root.innerHTML = `<h1 class="page-title">Errore</h1><p class="corsi-error">Impossibile caricare il contenuto richiesto.</p>`;
@@ -503,6 +505,7 @@
         `;
         wireDeleteLinks(root);
         wireTreeToggles(root);
+        renderChartsIn(root);
     }
 
     async function renderManage(route) {
@@ -570,16 +573,17 @@
     }
 
     function editorHtml(state) {
-        return `
-            <h1 class="page-title">${state.mode === 'create' ? 'Nuova sezione' : 'Modifica sezione'}</h1>
-            <p><a href="${MANAGE_URL}">← Torna alla gestione</a></p>
-            <form id="editorForm" class="editor-form">
-                <input type="hidden" id="edId" value="${escapeHtml(state.id)}">
-
-                <label for="edTitle">Titolo</label>
-                <input type="text" id="edTitle" maxlength="120" value="${escapeHtml(state.title)}" required>
-                <p class="editor-hint">L’identificativo URL viene creato automaticamente dal titolo (spazi → underscore).</p>
-
+        // «Aggiungi sottosezione»: padre e tipo sono automatici, non modificabili
+        const lockedParent = state.mode === 'create' && state.parentId ? findNodeById(state.parentId) : null;
+        const childLevel = lockedParent ? levelLabel(ancestorIdsOf(lockedParent.id).length + 1) : '';
+        const heading = state.mode !== 'create'
+            ? 'Modifica sezione'
+            : (lockedParent ? 'Nuova sottosezione' : 'Nuova sezione');
+        const typeParentFields = lockedParent ? `
+                <input type="hidden" id="edType" value="section">
+                <input type="hidden" id="edParent" value="${escapeHtml(lockedParent.id)}">
+                <p class="editor-parent-info">Verrà aggiunta come <strong>${escapeHtml(childLevel)}</strong> di «<strong>${escapeHtml(lockedParent.title)}</strong>».</p>
+        ` : `
                 <label for="edType">Tipo</label>
                 <select id="edType">
                     <option value="course"${state.type === 'course' || state.type === 'page' ? ' selected' : ''}>Sezione di livello 1</option>
@@ -589,9 +593,33 @@
                 <label for="edParent">Posizione in sidebar (padre)</label>
                 <select id="edParent">${parentOptionsHtml(state.parentId || '', state.mode === 'edit' ? state.id : '')}</select>
                 <p class="editor-hint">Lascia vuoto per una sezione di livello 1; scegli un padre per le sottosezioni.</p>
+        `;
+        return `
+            <h1 class="page-title">${heading}</h1>
+            <p><a href="${MANAGE_URL}">← Torna alla gestione</a></p>
+            <form id="editorForm" class="editor-form">
+                <input type="hidden" id="edId" value="${escapeHtml(state.id)}">
+
+                <label for="edTitle">Titolo</label>
+                <input type="text" id="edTitle" maxlength="120" value="${escapeHtml(state.title)}" required>
+                <p class="editor-hint">L’identificativo URL viene creato automaticamente dal titolo (spazi → underscore).</p>
+                ${typeParentFields}
 
                 <label for="edContent">Contenuto Markdown</label>
+                <div class="editor-toolbar" id="edToolbar">
+                    <button type="button" data-md="bold" title="Grassetto"><b>G</b></button>
+                    <button type="button" data-md="italic" title="Corsivo"><i>C</i></button>
+                    <button type="button" data-md="underline" title="Sottolineato"><u>S</u></button>
+                    <input type="color" id="edColor" value="#ac4142" title="Colore testo: scegli il colore e viene applicato alla selezione">
+                    <button type="button" data-md="color" title="Applica il colore scelto alla selezione">A<span class="tb-color-bar" id="edColorBar"></span></button>
+                    <span class="tb-sep"></span>
+                    <button type="button" data-md="image" title="Carica e inserisci un'immagine">🖼 Immagine</button>
+                    <button type="button" data-md="chart" title="Inserisci un grafico">📊 Grafico</button>
+                    <button type="button" data-md="table" title="Inserisci una tabella">▦ Tabella</button>
+                    <input type="file" id="edImageFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;">
+                </div>
                 <textarea id="edContent" required>${escapeHtml(state.content)}</textarea>
+                <p class="editor-hint">Seleziona il testo e usa i pulsanti per formattarlo. «Grafico» e «Tabella» inseriscono un modello da compilare; usa «Anteprima» per vedere il risultato.</p>
 
                 <div class="editor-actions">
                     <button type="submit" class="btn-primary">Salva modifiche</button>
@@ -607,16 +635,174 @@
         `;
     }
 
+    // ── Toolbar editor ─────────────────────────────────────────────────────────
+    const CHART_TEMPLATE = [
+        '```chart',
+        '{',
+        '  "type": "bar",',
+        '  "title": "Titolo del grafico",',
+        '  "labels": ["Gennaio", "Febbraio", "Marzo"],',
+        '  "datasets": [',
+        '    { "label": "Serie 1", "data": [10, 25, 18] }',
+        '  ]',
+        '}',
+        '```',
+    ].join('\n');
+
+    const TABLE_TEMPLATE = [
+        '| Colonna 1 | Colonna 2 | Colonna 3 |',
+        '| --- | --- | --- |',
+        '| Valore 1 | Valore 2 | Valore 3 |',
+        '| Valore 4 | Valore 5 | Valore 6 |',
+    ].join('\n');
+
+    function wrapSelection(ta, before, after, placeholder) {
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const sel = ta.value.slice(start, end) || placeholder;
+        ta.setRangeText(before + sel + after, start, end);
+        ta.focus();
+        ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    }
+
+    function insertBlock(ta, text) {
+        const start = ta.selectionStart;
+        const needsNl = start > 0 && ta.value[start - 1] !== '\n';
+        const block = (needsNl ? '\n\n' : '') + text + '\n';
+        ta.setRangeText(block, start, ta.selectionEnd, 'end');
+        ta.focus();
+    }
+
+    function setEditorMsg(text, isError) {
+        const msg = document.getElementById('editorMsg');
+        if (!msg) return;
+        msg.textContent = text || '';
+        msg.className = 'editor-hint' + (isError ? ' corsi-error' : '');
+    }
+
+    async function uploadImage(file) {
+        const res = await fetch(API + '/upload?name=' + encodeURIComponent(file.name), {
+            method: 'POST',
+            headers: {
+                Authorization: 'Bearer ' + localStorage.getItem('authToken'),
+                'Content-Type': file.type || 'application/octet-stream',
+            },
+            body: file,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Caricamento non riuscito.');
+        return data.url;
+    }
+
+    function wireToolbar() {
+        const toolbar = document.getElementById('edToolbar');
+        const ta = document.getElementById('edContent');
+        if (!toolbar || !ta) return;
+        const colorInput = document.getElementById('edColor');
+        const colorBar = document.getElementById('edColorBar');
+        const fileInput = document.getElementById('edImageFile');
+        const syncColorBar = () => { if (colorBar) colorBar.style.background = colorInput.value; };
+        syncColorBar();
+        colorInput.addEventListener('input', syncColorBar);
+
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files && fileInput.files[0];
+            fileInput.value = '';
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { setEditorMsg('Immagine troppo grande (max 10 MB).', true); return; }
+            setEditorMsg('Caricamento immagine...');
+            try {
+                const url = await uploadImage(file);
+                const alt = file.name.replace(/\.[^.]*$/, '').replace(/[\[\]]/g, '');
+                insertBlock(ta, `![${alt}](${url})`);
+                setEditorMsg('Immagine inserita.');
+            } catch (err) {
+                setEditorMsg(err.message, true);
+            }
+        });
+
+        toolbar.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-md]');
+            if (!btn) return;
+            e.preventDefault();
+            const action = btn.dataset.md;
+            if (action === 'bold') wrapSelection(ta, '**', '**', 'testo in grassetto');
+            else if (action === 'italic') wrapSelection(ta, '*', '*', 'testo in corsivo');
+            else if (action === 'underline') wrapSelection(ta, '<u>', '</u>', 'testo sottolineato');
+            else if (action === 'color') wrapSelection(ta, `<span style="color:${colorInput.value}">`, '</span>', 'testo colorato');
+            else if (action === 'image') fileInput.click();
+            else if (action === 'chart') insertBlock(ta, CHART_TEMPLATE);
+            else if (action === 'table') insertBlock(ta, TABLE_TEMPLATE);
+        });
+    }
+
+    // ── Grafici nei contenuti (blocchi ```chart con JSON) ─────────────────────
+    const CHART_PALETTE = ['#268bd2', '#ac4142', '#90a959', '#f4bf75', '#aa759f', '#75b5aa', '#d28445', '#6a9fb5'];
+    const CHART_TYPES = new Set(['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea']);
+
+    function renderChartsIn(rootEl) {
+        if (!rootEl) return;
+        rootEl.querySelectorAll('pre > code.language-chart').forEach((code) => {
+            const pre = code.parentElement;
+            if (typeof Chart === 'undefined') {
+                pre.outerHTML = '<p class="corsi-error">Libreria grafici non disponibile.</p>';
+                return;
+            }
+            let cfg;
+            try { cfg = JSON.parse(code.textContent); }
+            catch (_) {
+                pre.outerHTML = '<p class="corsi-error">Grafico non valido: controlla la sintassi JSON del blocco chart.</p>';
+                return;
+            }
+            const wrap = document.createElement('div');
+            wrap.className = 'chart-block';
+            const canvas = document.createElement('canvas');
+            wrap.appendChild(canvas);
+            pre.replaceWith(wrap);
+            try {
+                const type = CHART_TYPES.has(cfg.type) ? cfg.type : 'bar';
+                const circular = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+                const datasets = (Array.isArray(cfg.datasets) ? cfg.datasets : []).map((d, i) => ({
+                    label: d.label || `Serie ${i + 1}`,
+                    data: Array.isArray(d.data) ? d.data : [],
+                    backgroundColor: d.backgroundColor || (circular
+                        ? (d.data || []).map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
+                        : CHART_PALETTE[i % CHART_PALETTE.length] + (type === 'line' || type === 'radar' ? '33' : '')),
+                    borderColor: d.borderColor || (circular ? '#fff' : CHART_PALETTE[i % CHART_PALETTE.length]),
+                    borderWidth: d.borderWidth ?? (type === 'line' || type === 'radar' ? 2 : 1),
+                    fill: d.fill,
+                    tension: d.tension ?? 0.25,
+                }));
+                new Chart(canvas, {
+                    type,
+                    data: { labels: Array.isArray(cfg.labels) ? cfg.labels : [], datasets },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: { display: !!cfg.title, text: cfg.title || '' },
+                            legend: { display: cfg.legend !== false },
+                        },
+                    },
+                });
+            } catch (err) {
+                wrap.outerHTML = '<p class="corsi-error">Impossibile disegnare il grafico: ' + escapeHtml(err.message) + '</p>';
+            }
+        });
+    }
+
     function wireEditor(mode, existingId) {
         const idInput = document.getElementById('edId');
         const titleInput = document.getElementById('edTitle');
+        wireToolbar();
         if (mode === 'create') {
             const syncId = () => { idInput.value = slugify(titleInput.value); };
             titleInput.addEventListener('input', syncId);
             syncId();
         }
         document.getElementById('btnPreview').addEventListener('click', () => {
-            document.getElementById('previewBody').innerHTML = renderMarkdown(document.getElementById('edContent').value);
+            const previewBody = document.getElementById('previewBody');
+            previewBody.innerHTML = renderMarkdown(document.getElementById('edContent').value);
+            renderChartsIn(previewBody);
             document.getElementById('previewBox').style.display = 'block';
         });
         const del = document.getElementById('btnDelete');
