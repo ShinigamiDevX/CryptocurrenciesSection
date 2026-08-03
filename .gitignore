@@ -1,5 +1,6 @@
 # Node
 cluster/dashboard/node_modules/
+auth/node_modules/
 
 # Python
 __pycache__/
