@@ -7,6 +7,8 @@
     <title>CryptocurrenciesSection — Portale Operativo Interno</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=1"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=1">
     <link rel="stylesheet" href="style.css?v=6">
     <link rel="stylesheet" href="custom-select.css?v=2">
     <style>
@@ -411,7 +413,7 @@
             const welcomeSub = document.getElementById('welcomeSub');
             if (_currentUser.role === 'superadmin') {
                 welcomeTitle.textContent = _currentUser.elevated
-                    ? 'Benvenuto Super Admin (sessione elevated)'
+                    ? 'Hai sbloccato i poteri operativi. Usa con giudizio.'
                     : 'Benvenuto Super Admin';
                 welcomeTitle.style.color = '#FF6B7A';
                 welcomeSub.style.display = 'none';
@@ -500,7 +502,7 @@
                     const welcomeTitle = document.getElementById('welcomeTitle');
                     const welcomeSub = document.getElementById('welcomeSub');
                     if (welcomeTitle) {
-                        welcomeTitle.textContent = 'Benvenuto Super Admin (sessione elevated)';
+                        welcomeTitle.textContent = 'Hai sbloccato i poteri operativi. Usa con giudizio.';
                         welcomeTitle.style.color = '#FF6B7A';
                     }
                     if (welcomeSub) welcomeSub.style.display = 'none';

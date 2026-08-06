@@ -1,0 +1,87 @@
+/* Temi festivi: tocco sobrio, senza rifare il look del portale */
+
+/* ── Natale (8 dic – 6 gen) ───────────────────────────────────────────────── */
+html[data-season="natale"] {
+    --color-primary: #7ec8c4;
+    --color-accent: #9a6b4f;
+    --season-warm: rgba(201, 166, 107, 0.22);
+    --season-ember: rgba(160, 50, 50, 0.10);
+}
+
+html[data-season="natale"] body {
+    background-color: #030E1C !important;
+    background-image:
+        radial-gradient(ellipse 70% 45% at 8% -10%, var(--season-warm), transparent 55%),
+        radial-gradient(ellipse 55% 40% at 96% 0%, var(--season-ember), transparent 50%) !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed;
+}
+
+html[data-season="natale"] header {
+    border-bottom-color: rgba(201, 166, 107, 0.28) !important;
+    box-shadow: 0 1px 0 rgba(160, 50, 50, 0.08);
+}
+
+html[data-season="natale"] header h1 span,
+html[data-season="natale"] .logo-text span,
+html[data-season="natale"] .page-title,
+html[data-season="natale"] h2.page-title {
+    color: #d4b87a !important;
+}
+
+/* Puntini “neve” molto discreti, statici */
+html[data-season="natale"] body::after {
+    content: '';
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.18;
+    background-image:
+        radial-gradient(1.5px 1.5px at 12% 18%, rgba(255,255,255,0.7), transparent),
+        radial-gradient(1px 1px at 28% 42%, rgba(255,255,255,0.55), transparent),
+        radial-gradient(1.5px 1.5px at 61% 22%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 78% 58%, rgba(255,255,255,0.45), transparent),
+        radial-gradient(1.5px 1.5px at 91% 31%, rgba(255,255,255,0.55), transparent),
+        radial-gradient(1px 1px at 44% 71%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 7% 82%, rgba(255,255,255,0.35), transparent);
+}
+
+html[data-season="natale"] body > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Pasqua (Palme → lunedì dell'Angelo) ──────────────────────────────────── */
+html[data-season="pasqua"] {
+    --color-primary: #7eb8d4;
+    --color-accent: #8f9bc7;
+    --season-spring: rgba(140, 190, 160, 0.16);
+    --season-lilac: rgba(160, 140, 200, 0.12);
+}
+
+html[data-season="pasqua"] body {
+    background-color: #030E1C !important;
+    background-image:
+        radial-gradient(ellipse 65% 40% at 0% 0%, var(--season-spring), transparent 55%),
+        radial-gradient(ellipse 50% 35% at 100% 5%, var(--season-lilac), transparent 50%) !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed;
+}
+
+html[data-season="pasqua"] header {
+    border-bottom-color: rgba(140, 190, 170, 0.32) !important;
+}
+
+html[data-season="pasqua"] header h1 span,
+html[data-season="pasqua"] .logo-text span,
+html[data-season="pasqua"] .page-title,
+html[data-season="pasqua"] h2.page-title {
+    color: #9fd0b8 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-season] body {
+        background-attachment: scroll;
+    }
+}
