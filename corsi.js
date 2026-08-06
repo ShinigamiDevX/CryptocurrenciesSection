@@ -13,14 +13,10 @@
     let currentUser = null;
     let canEdit = false;
 
-    function authHeaders() {
-        const token = (typeof getAuthToken === 'function')
-            ? getAuthToken()
-            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
-        return {
-            Authorization: 'Bearer ' + token,
-            'Content-Type': 'application/json',
-        };
+    function authHeaders(extra) {
+        if (typeof authHeader === 'function') return authHeader(extra);
+        const token = typeof getAuthToken === 'function' ? getAuthToken() : '';
+        return Object.assign({ Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, extra || {});
     }
 
     function showConfirm(message, onOk, onCancel, okLabel) {
@@ -686,12 +682,7 @@
     async function uploadImage(file) {
         const res = await fetch(API + '/upload?name=' + encodeURIComponent(file.name), {
             method: 'POST',
-            headers: {
-                Authorization: 'Bearer ' + ((typeof getAuthToken === 'function')
-                    ? getAuthToken()
-                    : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'))),
-                'Content-Type': file.type || 'application/octet-stream',
-            },
+            headers: authHeaders({ 'Content-Type': file.type || 'application/octet-stream' }),
             body: file,
         });
         const data = await res.json().catch(() => ({}));
@@ -904,9 +895,7 @@
     }
 
     async function initAuth() {
-        const token = (typeof getAuthToken === 'function')
-            ? getAuthToken()
-            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
+        const token = typeof getAuthToken === 'function' ? getAuthToken() : '';
         if (!token) { window.location.replace('/login'); return false; }
         try {
             const res = await fetch('/api/auth/verify', {
@@ -930,7 +919,6 @@
             return true;
         } catch (_) {
             if (typeof clearAuth === 'function') clearAuth();
-            else localStorage.removeItem('authToken');
             window.location.replace('/login');
             return false;
         }

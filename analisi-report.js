@@ -9,14 +9,8 @@
     let _activeIdx = 0;
     let _charts = [];
 
-    function authHeader() {
-        const token = (typeof getAuthToken === 'function')
-            ? getAuthToken()
-            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
-        return {
-            Authorization: 'Bearer ' + token,
-            'Content-Type': 'application/json',
-        };
+    function tokenOrEmpty() {
+        return typeof getAuthToken === 'function' ? getAuthToken() : '';
     }
 
     function showConfirm(message, onOk, onCancel) {
@@ -37,7 +31,6 @@
     window.logout = function logout() {
         showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
             if (typeof clearAuth === 'function') clearAuth();
-            else localStorage.removeItem('authToken');
             window.location.replace('/login');
         });
     };
@@ -286,11 +279,7 @@
         try {
             const res = await fetch('/api/analisi/analyze', {
                 method: 'POST',
-                headers: {
-                    Authorization: 'Bearer ' + ((typeof getAuthToken === 'function')
-                        ? getAuthToken()
-                        : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'))),
-                },
+                headers: { Authorization: 'Bearer ' + tokenOrEmpty() },
                 body: form,
             });
             let data = {};
@@ -324,9 +313,7 @@
     }
 
     async function initAuth() {
-        const token = (typeof getAuthToken === 'function')
-            ? getAuthToken()
-            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
+        const token = tokenOrEmpty();
         if (!token) {
             window.location.replace('/login');
             return;
@@ -347,7 +334,6 @@
             if (typeof initNavBell === 'function') initNavBell();
         } catch (_) {
             if (typeof clearAuth === 'function') clearAuth();
-            else localStorage.removeItem('authToken');
             window.location.replace('/login');
         }
     }

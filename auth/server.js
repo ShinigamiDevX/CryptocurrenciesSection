@@ -465,7 +465,7 @@ if (!JWT_SECRET) {
             cognome: SUPERADMIN_COGNOME,
             grado: '',
         });
-        console.log('[AUTH] Superadmin creato con password iniziale: 1234');
+        console.log('[AUTH] Superadmin creato (password iniziale da cambiare al primo accesso)');
     } else {
         // Profilo di sistema fisso: Super Admin, senza cognome né grado
         Users.updateProfile(existing.id, { nome: SUPERADMIN_NOME, cognome: SUPERADMIN_COGNOME, grado: '' });
@@ -477,7 +477,7 @@ async function sendInviteEmail(toEmail, inviteToken, assignedRole) {
     const rLabel={reader:'Reader',user:'Utente',admin:'Admin',superadmin:'Super Admin'}[assignedRole]||assignedRole;
     const html=`<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Sei stato invitato</h2><p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Ruolo: <strong>${rLabel}</strong>. Link valido <strong>15 minuti</strong>.</p><a href="${link}" style="display:inline-block;margin-top:20px;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;">Registrati</a><p style="color:#a0aec0;font-size:0.8rem;margin-top:16px;word-break:break-all;">${link}</p></td></tr></table></td></tr></table></body></html>`;
     if (transporter) { await transporter.sendMail({from:SMTP_FROM,to:toEmail,subject:`[CryptocurrenciesSection] Invito come ${rLabel}`,html}); console.log(`[AUTH] Email invito → ${toEmail}`); }
-    else { console.log(`[AUTH] Invito (${rLabel}) per ${toEmail}: ${link}`); }
+    else { console.log(`[AUTH] Invito (${rLabel}) per ${toEmail}: email non inviata (SMTP non configurato).`); }
 }
 
 async function sendPasswordResetEmail(toEmail, tempPassword) {
@@ -485,7 +485,7 @@ async function sendPasswordResetEmail(toEmail, tempPassword) {
     const safePass = String(tempPassword).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const html = `<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Reset password</h2><p style="color:#4a5568;line-height:1.6;margin:0 0 12px;">Un super amministratore ha resettato la password del tuo account.</p><p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Password temporanea:</p><p style="margin:0 0 16px;padding:12px 16px;background:#f0f7fa;border-radius:8px;font-family:Consolas,Monaco,monospace;font-size:1.05rem;font-weight:700;color:#030E1C;letter-spacing:0.04em;">${safePass}</p><p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Al primo accesso ti verrà chiesto di impostare una nuova password.</p><a href="${link}" style="display:inline-block;margin-top:20px;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;">Accedi al portale</a><p style="color:#a0aec0;font-size:0.8rem;margin-top:16px;word-break:break-all;">${link}</p></td></tr></table></td></tr></table></body></html>`;
     if (!transporter) {
-        console.log(`[AUTH] Reset password per ${toEmail} (SMTP off): ${tempPassword}`);
+        console.log(`[AUTH] Reset password per ${toEmail}: email non inviata (SMTP non configurato).`);
         return false;
     }
     await transporter.sendMail({
@@ -558,7 +558,7 @@ async function sendVerificationOtpEmail(toEmail, otp) {
         console.log(`[AUTH] OTP email → ${toEmail}`);
         return true;
     }
-    console.log(`[AUTH] OTP per ${toEmail}: ${otp}`);
+    console.log(`[AUTH] OTP per ${toEmail}: non inviato (SMTP non configurato).`);
     return false;
 }
 

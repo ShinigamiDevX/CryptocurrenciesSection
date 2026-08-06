@@ -6,14 +6,12 @@
 (function (global) {
     let _fullscreen = false;
 
-    function authHeader() {
+    function authHeader(extra) {
+        if (typeof global.authHeader === 'function') return global.authHeader(extra);
         const token = (typeof getAuthToken === 'function')
             ? getAuthToken()
-            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
-        return {
-            Authorization: 'Bearer ' + token,
-            'Content-Type': 'application/json',
-        };
+            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken') || '');
+        return Object.assign({ Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, extra || {});
     }
 
     function positionNavBellPanel() {
