@@ -113,6 +113,33 @@
             margin-bottom: 1.2rem;
             display: none;
         }
+        .success-msg {
+            background: rgba(0,230,118,0.12);
+            border: 1px solid rgba(0,230,118,0.35);
+            border-radius: 8px;
+            color: #00E676;
+            font-size: 0.85rem;
+            padding: 0.7rem 1rem;
+            margin-bottom: 1.2rem;
+            display: none;
+        }
+        .forgot-row {
+            display: flex;
+            justify-content: flex-end;
+            margin: 0.35rem 0 0.6rem;
+        }
+        .forgot-link {
+            background: none;
+            border: none;
+            color: #5ABBC8;
+            font-size: 0.8rem;
+            font-family: inherit;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .forgot-link:hover { color: #00C8FF; }
         footer {
             margin-top: 2rem;
             font-size: 0.75rem;
@@ -157,6 +184,9 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
                 </div>
+                <div class="forgot-row">
+                    <button type="button" class="forgot-link" onclick="openForgotModal()">Password dimenticata?</button>
+                </div>
             </div>
             <div id="otpStep" style="display:none;">
                 <div class="field">
@@ -171,6 +201,22 @@
         </form>
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
+
+    <!-- Modale reset password -->
+    <div class="modal-bg" id="forgotModal" style="display:none;" onclick="if(event.target===this)closeForgotModal()">
+        <div class="modal-box">
+            <h3>Reset password</h3>
+            <p>Inserisci l'email dell'account. Se è registrata, riceverai un link per impostare una nuova password.</p>
+            <div class="error-msg" id="forgotError" style="margin-bottom:1rem;"></div>
+            <div class="success-msg" id="forgotSuccess" style="margin-bottom:1rem;"></div>
+            <div class="field">
+                <label for="forgotEmail">Email</label>
+                <input type="email" id="forgotEmail" placeholder="nome@dominio.com" autocomplete="email">
+            </div>
+            <button class="btn-login" id="forgotBtn" onclick="submitForgotPassword()">Invia link di reset</button>
+            <button type="button" class="forgot-link" style="display:block;width:100%;text-align:center;margin-top:1rem;text-decoration:none;" onclick="closeForgotModal()">Torna al login</button>
+        </div>
+    </div>
 
     <!-- Modale cambio password obbligatorio -->
     <div class="modal-bg" id="changePwdModal" style="display:none;">
@@ -403,10 +449,63 @@
             }
         }
 
+        function openForgotModal() {
+            const email = document.getElementById('email').value.trim();
+            document.getElementById('forgotEmail').value = email;
+            document.getElementById('forgotError').style.display = 'none';
+            document.getElementById('forgotSuccess').style.display = 'none';
+            document.getElementById('forgotModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('forgotEmail').focus(), 100);
+        }
+
+        function closeForgotModal() {
+            document.getElementById('forgotModal').style.display = 'none';
+        }
+
+        async function submitForgotPassword() {
+            const errEl = document.getElementById('forgotError');
+            const okEl = document.getElementById('forgotSuccess');
+            const btn = document.getElementById('forgotBtn');
+            const email = document.getElementById('forgotEmail').value.trim();
+            errEl.style.display = 'none';
+            okEl.style.display = 'none';
+            if (!email) {
+                errEl.textContent = 'Inserisci un\'email.';
+                errEl.style.display = 'block';
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = 'Invio in corso...';
+            try {
+                const res = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    errEl.textContent = data.error || 'Errore. Riprovare.';
+                    errEl.style.display = 'block';
+                } else {
+                    okEl.textContent = data.message || 'Se l\'email è registrata, riceverai un link di reset.';
+                    okEl.style.display = 'block';
+                }
+            } catch {
+                errEl.textContent = 'Errore di rete. Riprovare.';
+                errEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Invia link di reset';
+            }
+        }
+
         // Invio con Enter dalla modale
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && document.getElementById('changePwdModal').style.display !== 'none') {
+            if (e.key !== 'Enter') return;
+            if (document.getElementById('changePwdModal').style.display !== 'none') {
                 submitPasswordChange();
+            } else if (document.getElementById('forgotModal').style.display !== 'none') {
+                submitForgotPassword();
             }
         });
     </script>

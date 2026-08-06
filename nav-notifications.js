@@ -7,8 +7,11 @@
     let _fullscreen = false;
 
     function authHeader() {
+        const token = (typeof getAuthToken === 'function')
+            ? getAuthToken()
+            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
         return {
-            Authorization: 'Bearer ' + localStorage.getItem('authToken'),
+            Authorization: 'Bearer ' + token,
             'Content-Type': 'application/json',
         };
     }

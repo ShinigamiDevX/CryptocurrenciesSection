@@ -39,6 +39,7 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-}
+      - ELEVATE_PHRASE_HASH=${ELEVATE_PHRASE_HASH:-}
     volumes:
       - ./auth/data:/app/data
       - ./corsi:/app/corsi

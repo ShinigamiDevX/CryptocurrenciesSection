@@ -219,7 +219,7 @@
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
 
-    <script src="custom-select.js?v=10"></script>
+    <script src="custom-select.js?v=12"></script>
     <script src="custom-date.js?v=6"></script>
     <script src="luogo-nascita.js?v=9"></script>
     <script src="telefono-field.js?v=7"></script>
@@ -249,7 +249,7 @@
             gradoCs = new CustomSelect(
                 document.getElementById('gradoSelect'),
                 GRADI_OPTIONS, () => {},
-                { placeholder: '— Seleziona il grado —' }
+                { placeholder: 'Cerca grado…' }
             );
             dataNascitaCd = new CustomDate(document.getElementById('dataNascita'), {
                 placeholder: 'gg / mm / aaaa',

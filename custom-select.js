@@ -18,7 +18,8 @@ class CustomSelect {
         this.onChange    = onChange || (() => {});
         this.placeholder = cfg.placeholder || '— Seleziona —';
         this.showImages  = cfg.showImages !== false;
-        this.searchable  = !!cfg.searchable;
+        // Di default tutti i menu sono digitabili (filtro mentre si scrive)
+        this.searchable  = cfg.searchable !== false;
         this.showBtnSublabel = cfg.showBtnSublabel !== false;
         this.showOptionSublabel = cfg.showOptionSublabel !== false;
         this._value      = cfg.value || '';
@@ -91,6 +92,7 @@ class CustomSelect {
         if (!this.searchable || !this._filter.trim()) return this.options;
         const q = CustomSelect._norm(this._filter.trim());
         const qDigits = q.replace(/^\+/, '');
+        const wordStarts = (text) => text.split(/[\s"'./\-+]+/).some(w => w && w.startsWith(q));
         return this.options.filter(o => {
             const label = CustomSelect._norm(o.label);
             const value = CustomSelect._norm(o.value);
@@ -98,7 +100,9 @@ class CustomSelect {
             const labelDigits = label.replace(/^\+/, '');
             return label.startsWith(q)
                 || value.startsWith(q)
-                || (sub && (sub.startsWith(q) || sub.split(/\s+/).some(w => w.startsWith(q))))
+                || wordStarts(label)
+                || wordStarts(value)
+                || (sub && (sub.startsWith(q) || wordStarts(sub)))
                 || (qDigits && labelDigits.startsWith(qDigits));
         });
     }
@@ -251,7 +255,12 @@ class CustomSelect {
         this._isOpen = true;
         this.btn.classList.add('active');
         this.el.classList.add('csel-open');
-        this._filter = '';
+        // Se il testo è solo l'etichetta già selezionata, mostra TUTTE le opzioni
+        // (altrimenti "Amministratore" filtrerebbe via Reader/Utente/ecc.)
+        const typed = this.searchable ? String(this.input.value || '') : '';
+        const selectedOpt = this.options.find(o => o.value === this._value);
+        const isJustSelectedLabel = !!(selectedOpt && typed === selectedOpt.label);
+        this._filter = (typed && !isJustSelectedLabel) ? typed : '';
         this._renderOptions();
         // ogni opzione con sfondo pieno
         this.panel.querySelectorAll('.csel-option, .csel-group, .csel-empty').forEach(n => {
@@ -265,7 +274,12 @@ class CustomSelect {
         if (sel) sel.scrollIntoView({ block: 'nearest' });
         if (this.searchable) {
             this.input.focus();
-            this.input.select();
+            if (!typed || isJustSelectedLabel) {
+                this.input.select();
+            } else {
+                const len = this.input.value.length;
+                try { this.input.setSelectionRange(len, len); } catch {}
+            }
         }
     }
 

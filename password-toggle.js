@@ -72,4 +72,16 @@
     } else {
         init();
     }
+
+    // Campi password aggiunti dopo il load (modali, form dinamici)
+    const mo = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                if (node.matches && node.matches('input[type="password"]')) enhance(node);
+                if (node.querySelectorAll) node.querySelectorAll('input[type="password"]').forEach(enhance);
+            }
+        }
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
 })();

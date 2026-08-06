@@ -7,7 +7,7 @@ const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { Users, Invitations, ProfileChangeRequests, AdminActionRequests, Notifications, profileDefaults } = require('./db');
+const { Users, Invitations, ProfileChangeRequests, AdminActionRequests, Notifications, PasswordResets, profileDefaults } = require('./db');
 const { mountCorsiRoutes } = require('./corsi-content');
 
 const app  = express();
@@ -249,12 +249,26 @@ const CARD_LABEL = {
     'analisi-report': 'Analisi Report',
 };
 
+/** Nome anagrafico del profilo: "COGNOME Nome", oppure solo la parte disponibile. */
+function personName(user) {
+    if (!user) return '';
+    const cognome = String(user.cognome || '').trim();
+    const nome = String(user.nome || '').trim();
+    if (cognome && nome) return `${cognome.toUpperCase()} ${nome}`;
+    if (nome) return nome;
+    if (cognome) return cognome.toUpperCase();
+    return '';
+}
+
+/** Etichetta soggetto (target/richiedente) senza ruolo: preferisce il nome profilo. */
+function subjectLabel(user) {
+    return personName(user) || (user && user.email) || 'utente';
+}
+
 function actorLabel(user) {
     if (!user) return 'un amministratore';
     const role = ROLE_LABEL[user.role] || user.role || 'Admin';
-    const cognome = String(user.cognome || '').trim();
-    const nome = String(user.nome || '').trim();
-    const person = cognome && nome ? `${cognome.toUpperCase()} ${nome}` : (nome || cognome);
+    const person = personName(user);
     if (person) return `${person} (${role})`;
     return `${user.email || 'amministratore'} (${role})`;
 }
@@ -484,12 +498,35 @@ async function sendPasswordResetEmail(toEmail, tempPassword) {
     return true;
 }
 
+async function sendForgotPasswordEmail(toEmail, resetToken) {
+    // Fragment (#): non viene inviato al server nella GET della pagina → non finisce nei log access
+    const link = `${PORTAL_URL}/reset-password#token=${encodeURIComponent(resetToken)}`;
+    const html = `<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Reset password</h2><p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Hai richiesto il reset della password del portale operativo.</p><p style="color:#4a5568;line-height:1.6;margin:0 0 28px;">Clicca sul pulsante qui sotto per impostarne una nuova. Il link è valido per <strong>1 ora</strong>.</p><a href="${link}" style="display:inline-block;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;">Imposta nuova password</a><p style="color:#a0aec0;font-size:0.8rem;margin:24px 0 0;">Se non hai richiesto tu il reset, ignora questa email.<br>Link: <span style="color:#00C8FF;word-break:break-all;">${link}</span></p></td></tr></table></td></tr></table></body></html>`;
+    if (!transporter) {
+        console.log(`[AUTH] Forgot-password per ${toEmail}: email non inviata (SMTP non configurato).`);
+        return false;
+    }
+    await transporter.sendMail({
+        from: SMTP_FROM,
+        to: toEmail,
+        subject: '[CryptocurrenciesSection] Reset password',
+        html,
+    });
+    console.log(`[AUTH] Email forgot-password → ${toEmail}`);
+    return true;
+}
+
 function authenticate(req,res,next){
     const h=req.headers['authorization'], t=h&&h.startsWith('Bearer ')?h.slice(7):null;
     if (!t) return res.status(401).json({error:'Token mancante.'});
     try {
         req.user=jwt.verify(t,JWT_SECRET);
         if (req.user.purpose === 'login_otp') return res.status(401).json({error:'Token non valido.'});
+        const dbUser = Users.findById(req.user.id);
+        if (!dbUser || dbUser.revokedAt) return res.status(401).json({error:'Sessione non valida.'});
+        const tokenVer = Number(req.user.tokenVersion) || 0;
+        const dbVer = Number(dbUser.tokenVersion) || 0;
+        if (tokenVer !== dbVer) return res.status(401).json({error:'Sessione non valida. Effettua di nuovo l\'accesso.'});
         next();
     } catch { res.status(401).json({error:'Token non valido o scaduto.'}); }
 }
@@ -497,6 +534,7 @@ function requireAdmin(req,res,next){ if(req.user.role!=='superadmin'&&req.user.r
 function requireSuperadmin(req,res,next){ if(req.user.role!=='superadmin') return res.status(403).json({error:'Solo i super admin possono eseguire questa operazione.'}); next(); }
 /** Gestione contenuti Corsi: Docente oppure Super Admin (tutti i permessi). */
 function requireDocente(req, res, next) {
+    if (req.user.elevated || req.user.role === 'superadmin') return next();
     const user = Users.findById(req.user.id);
     if (!userCan(user, 'corsi.manage')) {
         return res.status(403).json({ error: 'Solo i docenti o i Super Admin possono gestire i contenuti dei corsi.' });
@@ -545,7 +583,13 @@ async function issueLoginOtp(user) {
 
 function issueSessionToken(user) {
     return jwt.sign(
-        { id: user.id, email: user.email, role: user.role, mustChangePassword: !!user.mustChangePassword },
+        {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            mustChangePassword: !!user.mustChangePassword,
+            tokenVersion: Number(user.tokenVersion) || 0,
+        },
         JWT_SECRET,
         { expiresIn: '12h' }
     );
@@ -637,15 +681,201 @@ app.post('/api/auth/login/resend-otp', async (req, res) => {
 app.get('/api/auth/verify', authenticate,(req,res)=>{
     const user=Users.findById(req.user.id);
     if (!user||user.revokedAt) return res.status(401).json({error:'Sessione non valida.'});
+    const elevated = !!req.user.elevated;
+    const effectiveRole = elevated ? 'superadmin' : user.role;
+    const effectiveUser = elevated ? { ...user, role: 'superadmin' } : user;
     res.json({
         valid: true,
         id: user.id,
         email: user.email,
-        role: user.role,
-        cards: cardsFromStored(user.allowedCards, user.role),
-        docente: normalizeDocente(user.role, user.docente),
-        canManageCorsi: userCan(user, 'corsi.manage'),
+        role: effectiveRole,
+        elevated,
+        originalRole: req.user.originalRole || user.role,
+        cards: elevated ? defaultCardsForRole('superadmin') : cardsFromStored(user.allowedCards, user.role),
+        // Sessione elevated = poteri Super Admin a tutti gli effetti (anche gestione corsi)
+        docente: elevated ? true : normalizeDocente(user.role, user.docente),
+        canManageCorsi: elevated || userCan(effectiveUser, 'corsi.manage'),
     });
+});
+
+/** SHA-256 hex della frase easter-egg (mai in chiaro). Override: ELEVATE_PHRASE_HASH */
+const ELEVATE_PHRASE_HASH = String(
+    process.env.ELEVATE_PHRASE_HASH
+    || 'dd337a47035257934c25d247363368216330ebbba38ba66328341748a6ea9721'
+).toLowerCase();
+const _elevateAttempts = new Map(); // userId → { n, resetAt }
+
+function hashElevatePhrase(phrase) {
+    return crypto.createHash('sha256').update(String(phrase).toLowerCase(), 'utf8').digest('hex');
+}
+
+function elevatePhraseMatches(phrase) {
+    const actual = hashElevatePhrase(phrase);
+    try {
+        const a = Buffer.from(actual, 'hex');
+        const b = Buffer.from(ELEVATE_PHRASE_HASH, 'hex');
+        if (a.length !== b.length || a.length !== 32) return false;
+        return crypto.timingSafeEqual(a, b);
+    } catch {
+        return false;
+    }
+}
+
+function elevateRateLimited(userId) {
+    const now = Date.now();
+    let entry = _elevateAttempts.get(userId);
+    if (!entry || now > entry.resetAt) {
+        entry = { n: 0, resetAt: now + 60_000 };
+        _elevateAttempts.set(userId, entry);
+    }
+    entry.n += 1;
+    return entry.n > 40;
+}
+
+app.post('/api/auth/elevate-session', authenticate, async (req, res) => {
+    try {
+        if (elevateRateLimited(req.user.id)) {
+            return res.status(429).json({ error: 'Troppi tentativi.' });
+        }
+        const phrase = String((req.body || {}).phrase || '');
+        if (!phrase || phrase.length < 6 || phrase.length > 64 || !elevatePhraseMatches(phrase)) {
+            return res.status(404).json({ error: 'Non trovato.' });
+        }
+        const user = Users.findById(req.user.id);
+        if (!user || user.revokedAt) return res.status(401).json({ error: 'Sessione non valida.' });
+        if (user.role === 'superadmin' && !req.user.elevated) {
+            return res.json({ token: null, role: 'superadmin', elevated: false, alreadySuperadmin: true });
+        }
+        const token = jwt.sign(
+            {
+                id: user.id,
+                email: user.email,
+                role: 'superadmin',
+                mustChangePassword: false,
+                elevated: true,
+                originalRole: req.user.originalRole || user.role,
+                tokenVersion: Number(user.tokenVersion) || 0,
+            },
+            JWT_SECRET,
+            { expiresIn: '12h' }
+        );
+        res.json({
+            token,
+            role: 'superadmin',
+            elevated: true,
+            cards: defaultCardsForRole('superadmin'),
+            docente: true,
+            canManageCorsi: true,
+        });
+    } catch (err) {
+        console.error('[AUTH] elevate-session:', err);
+        res.status(500).json({ error: 'Errore interno.' });
+    }
+});
+
+/** Rate limit forgot-password: max 3 richieste / 3 ore per IP e per email. */
+const FORGOT_PW_MAX = 3;
+const FORGOT_PW_WINDOW_MS = 3 * 60 * 60 * 1000;
+const _forgotPwAttempts = new Map(); // key → { n, resetAt }
+
+/** IP client: preferisce X-Real-IP impostato da nginx ($remote_addr), non spoofabile. */
+function clientIp(req) {
+    const real = String(req.headers['x-real-ip'] || '').trim();
+    if (real) return real;
+    return req.socket?.remoteAddress || req.ip || 'unknown';
+}
+
+function forgotPasswordRateLimited(key) {
+    const now = Date.now();
+    let entry = _forgotPwAttempts.get(key);
+    if (!entry || now > entry.resetAt) {
+        entry = { n: 0, resetAt: now + FORGOT_PW_WINDOW_MS };
+        _forgotPwAttempts.set(key, entry);
+    }
+    entry.n += 1;
+    return entry.n > FORGOT_PW_MAX;
+}
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+        const email = String((req.body || {}).email || '').trim().toLowerCase();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+            return res.status(400).json({ error: 'Email non valida.' });
+        const ip = clientIp(req);
+        if (forgotPasswordRateLimited('ip:' + ip) || forgotPasswordRateLimited('email:' + email)) {
+            return res.status(429).json({
+                error: 'Troppe richieste. Riprova tra qualche ora.',
+            });
+        }
+        const generic = {
+            success: true,
+            message: 'Se l\'email è registrata, riceverai un link per reimpostare la password.',
+        };
+        const user = Users.findByEmail(email);
+        if (!user || user.revokedAt) return res.json(generic);
+
+        PasswordResets.invalidateForUser(user.id);
+        const token = uuidv4();
+        PasswordResets.create({
+            token,
+            userId: user.id,
+            email: user.email,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        });
+        try { await sendForgotPasswordEmail(user.email, token); }
+        catch (e) { console.error('[AUTH] forgot-password email:', e.message); }
+        res.json({ ...generic, emailSent: !!transporter });
+    } catch (err) {
+        console.error('[AUTH] forgot-password:', err);
+        res.status(500).json({ error: 'Errore interno.' });
+    }
+});
+
+function respondResetInfo(res, token) {
+    if (!token) return res.status(400).json({ error: 'Token mancante.' });
+    const row = PasswordResets.findByToken(token);
+    if (!row || row.used) return res.status(404).json({ error: 'Link non valido o già utilizzato.' });
+    if (new Date() > new Date(row.expiresAt)) return res.status(400).json({ error: 'Link scaduto. Richiedi un nuovo reset.' });
+    return res.json({ email: row.email });
+}
+
+/** Preferire POST (token nel body, non nei log URL). GET mantenuto per compatibilità. */
+app.post('/api/auth/reset-info', (req, res) => {
+    try {
+        respondResetInfo(res, String((req.body || {}).token || '').trim());
+    } catch (err) {
+        console.error('[AUTH] reset-info:', err);
+        res.status(500).json({ error: 'Errore interno.' });
+    }
+});
+
+app.get('/api/auth/reset-info', (req, res) => {
+    try {
+        respondResetInfo(res, String(req.query.token || '').trim());
+    } catch (err) {
+        console.error('[AUTH] reset-info:', err);
+        res.status(500).json({ error: 'Errore interno.' });
+    }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body || {};
+        if (!token || !password) return res.status(400).json({ error: 'Token e password obbligatori.' });
+        if (password.length < 8) return res.status(400).json({ error: 'Password di almeno 8 caratteri.' });
+        const row = PasswordResets.findByToken(token);
+        if (!row || row.used) return res.status(400).json({ error: 'Link non valido o già utilizzato.' });
+        if (new Date() > new Date(row.expiresAt)) return res.status(400).json({ error: 'Link scaduto. Richiedi un nuovo reset.' });
+        const user = Users.findById(row.userId);
+        if (!user || user.revokedAt) return res.status(400).json({ error: 'Utente non trovato.' });
+        Users.changePassword(user.id, await bcrypt.hash(password, 12));
+        PasswordResets.markUsed(token);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[AUTH] reset-password:', err);
+        res.status(500).json({ error: 'Errore interno.' });
+    }
 });
 
 app.post('/api/auth/send-otp', async(req,res)=>{
@@ -771,7 +1001,7 @@ app.delete('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
         return res.status(409).json({error:'Esiste già una richiesta di eliminazione in attesa per questo utente.'});
     }
     const requester = Users.findById(req.user.id) || req.user;
-    createAdminActionRequest('delete', user, {}, `eliminazione dell'account ${user.email}`, requester);
+    createAdminActionRequest('delete', user, {}, `eliminazione dell'account ${subjectLabel(user)}`, requester);
     res.json({
         pending: true,
         message: `Richiesta inviata: l'eliminazione sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
@@ -797,7 +1027,7 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
         const requester = Users.findById(req.user.id) || req.user;
         createAdminActionRequest(
             'role', user, { newRole },
-            `cambio ruolo di ${user.email}: ${ROLE_LABEL[prevRole] || prevRole} → ${ROLE_LABEL[newRole] || newRole}`,
+            `cambio ruolo di ${subjectLabel(user)}: ${ROLE_LABEL[prevRole] || prevRole} → ${ROLE_LABEL[newRole] || newRole}`,
             requester
         );
         return res.json({
@@ -882,7 +1112,8 @@ app.post('/api/auth/change-password', authenticate, async(req,res)=>{
     const user=Users.findById(req.user.id);
     if (!user||!(await bcrypt.compare(currentPassword,user.passwordHash))) return res.status(401).json({error:'Password attuale non corretta.'});
     Users.changePassword(user.id,await bcrypt.hash(newPassword,12));
-    const token=jwt.sign({id:user.id,email:user.email,role:user.role,mustChangePassword:false},JWT_SECRET,{expiresIn:'12h'});
+    const updated = Users.findById(user.id);
+    const token = issueSessionToken({ ...updated, mustChangePassword: false });
     res.json({success:true,token});
 });
 
@@ -914,6 +1145,19 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
             changes.push(normalizeDocente(user.role, req.body.docente) ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
         }
         const requester = Users.findById(req.user.id) || req.user;
+        // Preferisci nome profilo; se la modifica lo sta compilando ora, usa i nuovi dati
+        const targetForLabel = {
+            ...user,
+            nome: user.nome || parsed.profile.nome,
+            cognome: user.cognome || parsed.profile.cognome,
+        };
+        const actorForLabel = requester.id === user.id
+            ? {
+                ...requester,
+                nome: requester.nome || parsed.profile.nome,
+                cognome: requester.cognome || parsed.profile.cognome,
+            }
+            : requester;
         createAdminActionRequest(
             'profile', user,
             {
@@ -921,8 +1165,8 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
                 cards: selectedCards,
                 docente: hasDocente ? !!req.body.docente : null,
             },
-            `modifica del profilo di ${user.email}. ${summarizeChanges(changes)}`,
-            requester
+            `modifica del profilo di ${subjectLabel(targetForLabel)}. ${summarizeChanges(changes)}`,
+            actorForLabel
         );
         return res.json({
             pending: true,
@@ -990,11 +1234,15 @@ app.post('/api/auth/profile-change-request', authenticate,(req,res)=>{
         requestedAt: new Date().toISOString(),
         ...parsed.profile,
     });
-    const who = `${String(me.cognome || '').toUpperCase()} ${me.nome || ''}`.trim() || req.user.email;
+    const whoUser = {
+        ...me,
+        nome: me.nome || parsed.profile.nome,
+        cognome: me.cognome || parsed.profile.cognome,
+    };
     notifyAdmins(
         'profile_request',
         'Nuova richiesta di modifica profilo',
-        `${who} (${req.user.email}) ha inviato una richiesta di modifica. ${changeSummary}`,
+        `${subjectLabel(whoUser)} ha inviato una richiesta di modifica. ${changeSummary}`,
         '/gestione-utenti#profiles',
         req.user.id
     );
@@ -1053,16 +1301,38 @@ app.get('/api/auth/admin-requests', authenticate, requireAdmin,(req,res)=>{
     res.json(AdminActionRequests.findPending().map(r => {
         let approvals = [];
         try { approvals = JSON.parse(r.approvals || '[]'); } catch {}
+        const requester = Users.findById(r.requestedById);
+        const target = Users.findById(r.targetUserId);
+        let payloadProfile = null;
+        try {
+            const payload = JSON.parse(r.payload || '{}');
+            if (payload && payload.profile) payloadProfile = payload.profile;
+        } catch { /* ignore */ }
+        const requesterLabel = subjectLabel({
+            ...(requester || { email: r.requestedByEmail }),
+            nome: (requester && requester.nome) || (payloadProfile && r.requestedById === r.targetUserId ? payloadProfile.nome : '') || '',
+            cognome: (requester && requester.cognome) || (payloadProfile && r.requestedById === r.targetUserId ? payloadProfile.cognome : '') || '',
+        });
+        const targetLabel = subjectLabel({
+            ...(target || { email: r.targetEmail }),
+            nome: (target && target.nome) || (payloadProfile && payloadProfile.nome) || '',
+            cognome: (target && target.cognome) || (payloadProfile && payloadProfile.cognome) || '',
+        });
         return {
             id: r.id,
             type: r.type,
             typeLabel: ACTION_LABEL[r.type] || r.type,
             targetEmail: r.targetEmail,
+            targetLabel,
             summary: r.summary,
             requestedById: r.requestedById,
             requestedByEmail: r.requestedByEmail,
+            requestedByLabel: requesterLabel,
             requestedAt: r.requestedAt,
-            approvals: approvals.map(a => ({ id: a.id, email: a.email, at: a.at })),
+            approvals: approvals.map(a => {
+                const u = Users.findById(a.id);
+                return { id: a.id, email: a.email, label: subjectLabel(u || { email: a.email }), at: a.at };
+            }),
             needed: ADMIN_APPROVALS_NEEDED,
         };
     }));

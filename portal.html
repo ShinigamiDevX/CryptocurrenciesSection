@@ -221,7 +221,7 @@
 
     <header>
         <div class="header-inner">
-            <h1><img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">Cryptocurrencies<span>Section</span> <small>Portale Interno</small></h1>
+            <h1><img id="headerLogo" src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">Cryptocurrencies<span>Section</span> <small>Portale Interno</small></h1>
             <nav>
                 <ul>
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
@@ -390,13 +390,15 @@
         </div>
     </div>
 
-    <script src="custom-select.js"></script>
-    <script src="nav-notifications.js?v=3"></script>
+    <script src="auth-token.js?v=1"></script>
+    <script src="custom-select.js?v=12"></script>
+    <script src="nav-notifications.js?v=4"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
+
     (async function() {
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         if (!token) { window.location.replace('/login'); return; }
         try {
             const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -408,7 +410,9 @@
             const welcomeTitle = document.getElementById('welcomeTitle');
             const welcomeSub = document.getElementById('welcomeSub');
             if (_currentUser.role === 'superadmin') {
-                welcomeTitle.textContent = 'Benvenuto Super Admin';
+                welcomeTitle.textContent = _currentUser.elevated
+                    ? 'Benvenuto Super Admin (sessione elevated)'
+                    : 'Benvenuto Super Admin';
                 welcomeTitle.style.color = '#FF6B7A';
                 welcomeSub.style.display = 'none';
             } else {
@@ -429,34 +433,95 @@
             }
             initNavBell();
         } catch {
-            localStorage.removeItem('authToken');
+            clearAuth();
             window.location.replace('/login');
         }
     })();
 
     function logout() {
         showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
-            localStorage.removeItem('authToken');
+            clearAuth();
             window.location.replace('/login');
         });
     }
 
-    /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin */
+    /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin.
+     *  Super Admin / sessione elevated: tutte le schede. */
     function applyDashboardCards(user) {
-        const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+        const isSuper = user.role === 'superadmin' || !!user.elevated;
+        const isAdmin = isSuper || user.role === 'admin';
         const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
         document.querySelectorAll('#dashboardCards .card[data-card]').forEach(card => {
             const id = card.getAttribute('data-card');
             let show;
             if (id === 'gestione-utenti') show = isAdmin;
-            else show = allowed.has(id);
+            else show = isSuper || allowed.has(id);
             card.style.display = show ? '' : 'none';
         });
     }
 
-    function authHeader() {
-        return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' };
-    }
+    // ── Easter egg: logo hover + frase → superadmin di sessione ──
+    // La frase NON è nel client: si digita a memoria; il server verifica lo SHA-256.
+    (function setupElevateEasterEgg() {
+        const logo = document.getElementById('headerLogo');
+        if (!logo) return;
+        let hovering = false;
+        let buffer = '';
+        let elevating = false;
+        let timer = null;
+        logo.addEventListener('mouseenter', () => { hovering = true; });
+        logo.addEventListener('mouseleave', () => {
+            hovering = false;
+            buffer = '';
+            if (timer) { clearTimeout(timer); timer = null; }
+        });
+        async function tryElevate(attempt) {
+            if (!hovering || elevating) return;
+            elevating = true;
+            try {
+                const res = await fetch('/api/auth/elevate-session', {
+                    method: 'POST',
+                    headers: authHeader(),
+                    body: JSON.stringify({ phrase: attempt })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) return;
+                if (data.token) {
+                    sessionStorage.setItem('elevatedAuthToken', data.token);
+                    _currentUser = {
+                        ..._currentUser,
+                        role: 'superadmin',
+                        elevated: true,
+                        cards: Array.isArray(data.cards) ? data.cards : (_currentUser.cards || []),
+                        docente: true,
+                        canManageCorsi: true,
+                    };
+                    applyDashboardCards(_currentUser);
+                    const welcomeTitle = document.getElementById('welcomeTitle');
+                    const welcomeSub = document.getElementById('welcomeSub');
+                    if (welcomeTitle) {
+                        welcomeTitle.textContent = 'Benvenuto Super Admin (sessione elevated)';
+                        welcomeTitle.style.color = '#FF6B7A';
+                    }
+                    if (welcomeSub) welcomeSub.style.display = 'none';
+                    window.location.replace('/portal?e=' + Date.now());
+                    return;
+                }
+                if (data.alreadySuperadmin) applyDashboardCards(_currentUser);
+            } catch { /* silenzioso */ }
+            finally { elevating = false; }
+        }
+        window.addEventListener('keydown', (e) => {
+            if (!hovering || elevating) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (e.key.length !== 1) return;
+            buffer = (buffer + e.key.toLowerCase()).slice(-64);
+            if (buffer.length < 6) return;
+            if (timer) clearTimeout(timer);
+            const attempt = buffer;
+            timer = setTimeout(() => tryElevate(attempt), 140);
+        });
+    })();
 
     // ── Modale di conferma custom (sostituisce window.confirm) ───────────────────
     function showConfirm(message, onOk, onCancel) {

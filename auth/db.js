@@ -152,6 +152,15 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_corsi_versions_item ON corsi_versions(itemId, createdAt);
     CREATE INDEX IF NOT EXISTS idx_corsi_versions_created ON corsi_versions(createdAt);
+    CREATE TABLE IF NOT EXISTS password_resets (
+        token      TEXT PRIMARY KEY,
+        userId     TEXT NOT NULL,
+        email      TEXT NOT NULL,
+        createdAt  TEXT NOT NULL,
+        expiresAt  TEXT NOT NULL,
+        used       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_password_resets_active ON password_resets(used, expiresAt);
 `);
 
 // ── Migrazione da JSON (eseguita una sola volta) ──────────────────────────────
@@ -225,6 +234,7 @@ const USER_EXTRA_COLS = [
     ['docente', 'INTEGER NOT NULL DEFAULT 0'],
     ['loginOtp', 'TEXT'],
     ['loginOtpExpiry', 'TEXT'],
+    ['tokenVersion', 'INTEGER NOT NULL DEFAULT 0'],
 ];
 USER_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
@@ -277,6 +287,7 @@ const fromRow = (r) => r ? {
     mustChangePassword: toBool(r.mustChangePassword),
     domicilioComeResidenza: toBool(r.domicilioComeResidenza),
     docente: toBool(r.docente),
+    tokenVersion: Number(r.tokenVersion) || 0,
 } : null;
 
 function geoBlock(p, prefix, { withAddress = false } = {}) {
@@ -414,10 +425,11 @@ const Users = {
             WHERE id=@id
         `).run({ id, ...p });
     },
-    revoke: id => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '' WHERE id = ?").run(new Date().toISOString(), id),
-    changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0 WHERE id = ?').run(hash, id),
-    /** Reset admin: nuova password e obbligo di cambio al prossimo accesso. */
-    resetPassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 1 WHERE id = ?').run(hash, id),
+    revoke: id => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '', tokenVersion = tokenVersion + 1 WHERE id = ?").run(new Date().toISOString(), id),
+    /** Aggiorna password e invalida tutte le sessioni JWT precedenti (tokenVersion++). */
+    changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0, tokenVersion = tokenVersion + 1 WHERE id = ?').run(hash, id),
+    /** Reset admin: nuova password, obbligo cambio, invalida sessioni JWT. */
+    resetPassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 1, tokenVersion = tokenVersion + 1 WHERE id = ?').run(hash, id),
     setLoginOtp: (id, hash, exp) => db.prepare('UPDATE users SET loginOtp = ?, loginOtpExpiry = ? WHERE id = ?').run(hash, exp, id),
     clearLoginOtp: id => db.prepare('UPDATE users SET loginOtp = NULL, loginOtpExpiry = NULL WHERE id = ?').run(id),
 };
@@ -521,6 +533,23 @@ const Notifications = {
     ).run(new Date().toISOString(), userId),
 };
 
+// ── Password resets (self-service) ────────────────────────────────────────────
+const PasswordResets = {
+    invalidateForUser: userId => db.prepare(
+        'UPDATE password_resets SET used = 1 WHERE userId = ? AND used = 0'
+    ).run(userId),
+    create: ({ token, userId, email, createdAt, expiresAt }) => db.prepare(`
+        INSERT INTO password_resets (token, userId, email, createdAt, expiresAt, used)
+        VALUES (?, ?, ?, ?, ?, 0)
+    `).run(token, userId, email, createdAt, expiresAt),
+    findByToken: token => db.prepare(
+        'SELECT * FROM password_resets WHERE token = ?'
+    ).get(token) || null,
+    markUsed: token => db.prepare(
+        'UPDATE password_resets SET used = 1 WHERE token = ?'
+    ).run(token),
+};
+
 // ── Corsi versions (storico Markdown) ─────────────────────────────────────────
 const CorsiVersions = {
     insert: v => db.prepare(`
@@ -568,6 +597,7 @@ module.exports = {
     ProfileChangeRequests,
     AdminActionRequests,
     Notifications,
+    PasswordResets,
     CorsiVersions,
     profileDefaults,
 };

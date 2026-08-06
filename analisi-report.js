@@ -10,8 +10,11 @@
     let _charts = [];
 
     function authHeader() {
+        const token = (typeof getAuthToken === 'function')
+            ? getAuthToken()
+            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
         return {
-            Authorization: 'Bearer ' + localStorage.getItem('authToken'),
+            Authorization: 'Bearer ' + token,
             'Content-Type': 'application/json',
         };
     }
@@ -33,7 +36,8 @@
 
     window.logout = function logout() {
         showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
-            localStorage.removeItem('authToken');
+            if (typeof clearAuth === 'function') clearAuth();
+            else localStorage.removeItem('authToken');
             window.location.replace('/login');
         });
     };
@@ -282,7 +286,11 @@
         try {
             const res = await fetch('/api/analisi/analyze', {
                 method: 'POST',
-                headers: { Authorization: 'Bearer ' + localStorage.getItem('authToken') },
+                headers: {
+                    Authorization: 'Bearer ' + ((typeof getAuthToken === 'function')
+                        ? getAuthToken()
+                        : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'))),
+                },
                 body: form,
             });
             let data = {};
@@ -316,7 +324,9 @@
     }
 
     async function initAuth() {
-        const token = localStorage.getItem('authToken');
+        const token = (typeof getAuthToken === 'function')
+            ? getAuthToken()
+            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
         if (!token) {
             window.location.replace('/login');
             return;
@@ -336,7 +346,8 @@
             document.getElementById('authOverlay').style.display = 'none';
             if (typeof initNavBell === 'function') initNavBell();
         } catch (_) {
-            localStorage.removeItem('authToken');
+            if (typeof clearAuth === 'function') clearAuth();
+            else localStorage.removeItem('authToken');
             window.location.replace('/login');
         }
     }

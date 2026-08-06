@@ -10,8 +10,11 @@
     };
 
     function authHeaders() {
+        const token = (typeof getAuthToken === 'function')
+            ? getAuthToken()
+            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
         return {
-            Authorization: 'Bearer ' + localStorage.getItem('authToken'),
+            Authorization: 'Bearer ' + token,
             'Content-Type': 'application/json',
         };
     }
@@ -332,7 +335,9 @@
     }
 
     async function initAuth() {
-        const token = localStorage.getItem('authToken');
+        const token = (typeof getAuthToken === 'function')
+            ? getAuthToken()
+            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken'));
         if (!token) {
             window.location.replace('/login');
             return false;
@@ -356,7 +361,8 @@
             document.getElementById('authOverlay').style.display = 'none';
             return true;
         } catch (_) {
-            localStorage.removeItem('authToken');
+            if (typeof clearAuth === 'function') clearAuth();
+            else localStorage.removeItem('authToken');
             window.location.replace('/login');
             return false;
         }

@@ -84,8 +84,14 @@
         #authOverlay { position:fixed;inset:0;background:#030E1C;z-index:9999;display:flex;align-items:center;justify-content:center; }
         #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
 
-        /* ── Layout pagina ── */
-        main { max-width: 1100px; width: 100%; padding: 1.5rem 2rem; margin: 0 auto; box-sizing: border-box; }
+        /* ── Layout pagina: piena larghezza, contenuto centrato ── */
+        main {
+            max-width: 100%;
+            width: 100%;
+            padding: 1.5rem clamp(1rem, 2.5vw, 2.5rem) 2rem;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
         .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; }
         .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 2rem; text-align: center; }
         .tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(0,200,255,0.15); margin-bottom: 1.8rem; justify-content: center; }
@@ -100,7 +106,7 @@
 
         /* ── Tabella utenti ── */
         .users-table { width:100%; border-collapse:collapse; font-size:0.88rem; table-layout:fixed; }
-        .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.6rem 0.9rem; border-bottom:1px solid rgba(0,200,255,0.15); white-space:nowrap; }
+        .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.65rem 0.85rem; border-bottom:1px solid rgba(0,200,255,0.15); white-space:nowrap; }
         .users-table th.sortable {
             cursor: pointer; user-select: none;
             transition: color 0.15s;
@@ -115,20 +121,52 @@
         .users-table th.sortable.sorted-asc .sort-ind::after { content: '▲'; }
         .users-table th.sortable.sorted-desc .sort-ind::after { content: '▼'; }
         .users-table th.sortable:not(.sorted-asc):not(.sorted-desc) .sort-ind::after { content: '⇅'; }
-        .users-table td { padding:0.55rem 0.9rem; color:#C8F0E8; border-bottom:1px solid rgba(0,200,255,0.06); vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .users-table td {
+            padding: 0.65rem 0.85rem; color: #C8F0E8;
+            border-bottom: 1px solid rgba(0,200,255,0.06);
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .users-table tr:last-child td { border-bottom: none; }
-        /* Larghezze colonne */
-        .users-table th:nth-child(1), .users-table td:nth-child(1) { width:13%; } /* Grado */
-        .users-table th:nth-child(2), .users-table td:nth-child(2) { width:15%; } /* Nome */
-        .users-table th:nth-child(3), .users-table td:nth-child(3) { width:20%; } /* Email */
-        .users-table th:nth-child(4), .users-table td:nth-child(4) { width:16%; white-space:normal; overflow:visible; text-overflow:clip; } /* Ruolo */
-        .users-table th:nth-child(5), .users-table td:nth-child(5) { width:10%; } /* Registrato */
-        .users-table th:nth-child(6), .users-table td:nth-child(6) { width:26%; } /* Azioni */
-        .role-cell { display:flex; flex-wrap:wrap; gap:0.3rem; align-items:center; }
+        /* Larghezze: tutto su una riga, più spazio alla pagina */
+        .users-table th:nth-child(1), .users-table td:nth-child(1) { width: 16%; } /* Grado */
+        .users-table th:nth-child(2), .users-table td:nth-child(2) { width: 14%; } /* Nome */
+        .users-table th:nth-child(3), .users-table td:nth-child(3) { width: 20%; } /* Email */
+        .users-table th:nth-child(4), .users-table td:nth-child(4) {
+            width: 16%;
+            overflow: visible;
+            text-overflow: clip;
+        } /* Ruolo */
+        .users-table th:nth-child(5), .users-table td:nth-child(5) {
+            width: 10%;
+            overflow: visible;
+            text-overflow: clip;
+        } /* Registrato */
+        .users-table th:nth-child(6), .users-table td:nth-child(6),
+        .users-table td.actions-cell {
+            width: 24%;
+            overflow: visible;
+            text-overflow: clip;
+        } /* Azioni */
+        .actions-cell {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.4rem;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .role-cell {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.35rem;
+            align-items: center;
+        }
         .grado-badge { font-size:0.75rem; color:#5ABBC8; font-style:italic; }
-        .btn-edit { background:rgba(0,200,255,0.1); border:1px solid rgba(0,200,255,0.3); color:#00C8FF; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin-left:0.35rem; }
+        .btn-edit { background:rgba(0,200,255,0.1); border:1px solid rgba(0,200,255,0.3); color:#00C8FF; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-edit:hover { background:rgba(0,200,255,0.22); }
-        .btn-reset { background:rgba(255,184,77,0.12); border:1px solid rgba(255,184,77,0.35); color:#FFB84D; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin-left:0.35rem; }
+        .btn-reset { background:rgba(255,184,77,0.12); border:1px solid rgba(255,184,77,0.35); color:#FFB84D; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-reset:hover { background:rgba(255,184,77,0.25); }
         .btn-ok-sm  { padding:0.45rem 1rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:6px; color:#030E1C; font-weight:700; font-size:0.85rem; cursor:pointer; }
         .btn-rej { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; }
@@ -220,7 +258,7 @@
         .badge-admin { background:rgba(0,200,255,0.15); color:#00C8FF; }
         .badge-user  { background:rgba(0,230,118,0.12); color:#00E676; }
         .badge-docente { background:rgba(255,184,77,0.14); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
-        .btn-del { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; }
+        .btn-del { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-del:hover { background:rgba(255,71,87,0.28); }
         .role-select { display:none; } /* rimpiazzato da CustomSelect */
         .empty-state { color:#5ABBC8; font-size:0.88rem; padding:1rem 0; }
@@ -461,6 +499,11 @@
                 <label>Grado *</label>
                 <div id="editGradoSel" class="csel"></div>
             </div>
+            <div class="edit-field" id="editRoleWrap" style="display:none;">
+                <label>Ruolo</label>
+                <div id="editRoleSel" class="csel"></div>
+                <p class="cards-pick-hint" style="margin-top:0.4rem;">Come Super Admin il cambio è immediato. Come Admin richiede approvazione.</p>
+            </div>
             <div class="edit-row">
                 <div class="edit-field"><label>Data di nascita</label><div id="editDataNascita" class="cdate"></div></div>
             </div>
@@ -517,12 +560,13 @@
 
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
-    <script src="custom-select.js?v=10"></script>
+    <script src="auth-token.js?v=1"></script>
+    <script src="custom-select.js?v=12"></script>
     <script src="custom-date.js?v=6"></script>
     <script src="luogo-nascita.js?v=9"></script>
     <script src="telefono-field.js?v=7"></script>
     <script src="profile-fields.js?v=5"></script>
-    <script src="nav-notifications.js?v=3"></script>
+    <script src="nav-notifications.js?v=4"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -587,6 +631,8 @@
     // ── Inizializzazione CustomSelect (dopo DOMContentLoaded) ─────────────────
     let inviteRoleCs = null;
     let editGradoCs  = null;
+    let editRoleCs   = null;
+    let _editOriginalRole = '';
     let editDataNascitaCd = null;
     let editLuogoNascitaLn = null;
     let editResidenzaLn = null;
@@ -613,7 +659,19 @@
         editGradoCs = new CustomSelect(
             document.getElementById('editGradoSel'),
             GRADI_OPTIONS, () => {},
-            { placeholder: '— Seleziona il grado —' }
+            { placeholder: 'Cerca grado…' }
+        );
+        editRoleCs = new CustomSelect(
+            document.getElementById('editRoleSel'),
+            RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value] || 0) <= (ROLE_LEVEL[_currentUser?.role] || 0)),
+            (val) => {
+                const role = val || 'user';
+                setCardsForRole('editCard', role);
+                const canDoc = roleCanBeDocente(role);
+                document.getElementById('editDocentePick').style.display = canDoc ? '' : 'none';
+                if (!canDoc) document.getElementById('editDocente').checked = false;
+            },
+            { placeholder: 'Seleziona ruolo', value: 'user' }
         );
         editDataNascitaCd = new CustomDate(document.getElementById('editDataNascita'), {
             placeholder: 'gg / mm / aaaa',
@@ -662,7 +720,7 @@
     }
 
     (async function() {
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         if (!token) { window.location.replace('/login'); return; }
         try {
             const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -683,18 +741,17 @@
             if (location.hash === '#profiles') switchTab('profiles');
             if (location.hash === '#approvals') switchTab('approvals');
         } catch {
-            localStorage.removeItem('authToken');
+            clearAuth();
             window.location.replace('/login');
         }
     })();
 
     function logout() {
         showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
-            localStorage.removeItem('authToken');
+            clearAuth();
             window.location.replace('/login');
         });
     }
-    function authHeader() { return { 'Authorization': 'Bearer ' + localStorage.getItem('authToken'), 'Content-Type': 'application/json' }; }
 
     // Campanella: nav-notifications.js — aggiorna anche badge tab Modifiche Profilo
     async function refreshPcrTabBadge() {
@@ -831,7 +888,7 @@
                 <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
                 <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}</div></td>
                 <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
-                <td class="actions-cell" style="white-space:nowrap;" onclick="event.stopPropagation()">
+                <td class="actions-cell" onclick="event.stopPropagation()">
                     ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
                     ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${u.email.replace(/'/g, "\\'")}')">Reset password</button>` : ''}
                     ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Elimina</button>` : ''}
@@ -1051,10 +1108,21 @@
         openEditModal(id);
     }
 
+    function canChangeUserRole(u) {
+        if (!u || !_currentUser) return false;
+        const isSelf = u.id === _currentUser.id;
+        const isFounder = u.email === 'portalecrypto@proton.me';
+        const isSuperadmin = u.role === 'superadmin';
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        const targetLevel = ROLE_LEVEL[u.role] ?? 0;
+        return !isSelf && !isFounder && !isSuperadmin && targetLevel < myLevel;
+    }
+
     async function openEditModal(userId) {
         const u = _usersCache.find(x => x.id === userId);
         if (!u) return;
         document.getElementById('editUserId').value = userId;
+        _editOriginalRole = u.role || 'user';
         if (!editLuogoNascitaLn) {
             editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
         }
@@ -1067,6 +1135,15 @@
         const canDoc = roleCanBeDocente(u.role);
         document.getElementById('editDocentePick').style.display = canDoc ? '' : 'none';
         document.getElementById('editDocente').checked = canDoc && !!u.docente;
+
+        const canRole = canChangeUserRole(u);
+        document.getElementById('editRoleWrap').style.display = canRole ? '' : 'none';
+        if (canRole && editRoleCs) {
+            const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+            const roleOpts = RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value] || 0) <= myLevel);
+            editRoleCs.setOptions(roleOpts, u.role);
+        }
+
         document.getElementById('editMsg').style.display = 'none';
         document.getElementById('editModal').style.display = 'flex';
         setTimeout(() => document.getElementById('editNome').focus(), 100);
@@ -1100,7 +1177,45 @@
             return;
         }
         const u = _usersCache.find(x => x.id === id);
-        const docente = roleCanBeDocente(u?.role) && !!document.getElementById('editDocente')?.checked;
+        const newRole = (canChangeUserRole(u) && editRoleCs) ? (editRoleCs.getValue() || u.role) : u.role;
+        const docente = roleCanBeDocente(newRole) && !!document.getElementById('editDocente')?.checked;
+
+        // Cambio ruolo (se consentito e diverso)
+        if (canChangeUserRole(u) && newRole && newRole !== _editOriginalRole) {
+            const roleRes = await fetch('/api/auth/users/' + id, {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ role: newRole }),
+            });
+            const roleData = await roleRes.json().catch(() => ({}));
+            if (!roleRes.ok) {
+                msgEl.className = 'feedback error';
+                msgEl.textContent = roleData.error || 'Errore nel cambio ruolo.';
+                msgEl.style.display = 'block';
+                return;
+            }
+            if (roleData.pending) {
+                // Profilo può comunque essere aggiornato; avvisa sul ruolo in attesa
+                const res = await fetch(`/api/auth/users/${id}/profile`, {
+                    method: 'PATCH',
+                    headers: authHeader(),
+                    body: JSON.stringify({ ...profile, cards, docente }),
+                });
+                const d = await res.json().catch(() => ({}));
+                closeEditModal();
+                if (res.ok && d.pending) {
+                    showMsg('usersMsg', (roleData.message || 'Cambio ruolo in approvazione.') + ' ' + (d.message || ''), 'success');
+                } else if (res.ok) {
+                    showMsg('usersMsg', (roleData.message || 'Cambio ruolo in approvazione.') + ' Profilo aggiornato.', 'success');
+                } else {
+                    showMsg('usersMsg', roleData.message || 'Cambio ruolo in approvazione. Errore sul profilo: ' + (d.error || ''), 'error');
+                }
+                refreshAarTabBadge();
+                loadUsers();
+                return;
+            }
+        }
+
         const res = await fetch(`/api/auth/users/${id}/profile`, {
             method: 'PATCH',
             headers: authHeader(),
@@ -1112,7 +1227,14 @@
             showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
             refreshAarTabBadge();
         }
-        else if (res.ok) { closeEditModal(); showMsg('usersMsg','Profilo aggiornato.','success'); loadUsers(); }
+        else if (res.ok) {
+            closeEditModal();
+            const roleNote = (newRole && newRole !== _editOriginalRole)
+                ? ` Ruolo aggiornato a ${ROLE_LABEL[newRole] || newRole}.`
+                : '';
+            showMsg('usersMsg', 'Profilo aggiornato.' + roleNote, 'success');
+            loadUsers();
+        }
         else { msgEl.className='feedback error'; msgEl.textContent=d.error||'Errore.'; msgEl.style.display='block'; }
     }
 
@@ -1135,10 +1257,11 @@
                     r.domicilioComeResidenza ? 'Domicilio: come residenza' : (r.domicilio ? `Domicilio: ${r.domicilio}` : null),
                     r.telefono ? `Tel: ${formatTelefonoDisplay(r)}` : null,
                 ].filter(Boolean).join(' · ');
+                const pcrName = [r.cognome, r.nome].filter(Boolean).map((s, i) => i === 0 ? String(s).toUpperCase() : s).join(' ') || r.userEmail;
                 return `
                 <div class="pcr-item">
                     <div class="pcr-info">
-                        <strong>${r.userEmail}</strong>
+                        <strong>${pcrName}</strong>
                         <small>Richiesta: ${gradoImgTag(r.grado)} ${r.cognome.toUpperCase()} ${r.nome} — ${r.grado}</small>
                         ${extras ? `<small>${extras}</small>` : ''}
                         <small style="color:#7ACCE0;">Inviata: ${new Date(r.requestedAt).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small>
@@ -1196,14 +1319,16 @@
                 const canApprove = !isMine && !alreadyApproved;
                 const when = new Date(r.requestedAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
                 const approvedBy = approvals.length
-                    ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.email).join(', ')}</small>`
+                    ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.label || a.email).join(', ')}</small>`
                     : '';
+                const targetName = r.targetLabel || r.targetEmail;
+                const requesterName = r.requestedByLabel || r.requestedByEmail;
                 return `
                 <div class="pcr-item">
                     <div class="pcr-info">
-                        <strong>${r.typeLabel} — ${r.targetEmail}</strong>
+                        <strong>${r.typeLabel} — ${targetName}</strong>
                         <small>${r.summary}</small>
-                        <small style="color:#7ACCE0;">Richiesta da ${r.requestedByEmail}${isMine ? ' (tu)' : ''} · ${when}</small>
+                        <small style="color:#7ACCE0;">Richiesta da ${requesterName}${isMine ? ' (tu)' : ''} · ${when}</small>
                         ${approvedBy}
                     </div>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
