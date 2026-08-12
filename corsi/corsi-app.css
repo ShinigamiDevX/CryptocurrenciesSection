@@ -1150,6 +1150,37 @@ body.is-table-resizing-row * {
     gap: 0.25rem;
 }
 
+.chart-data-table input[type="color"].chart-series-color,
+.chart-data-table input[type="color"].chart-cat-color {
+    flex: 0 0 auto;
+    width: 1.7rem;
+    height: 1.7rem;
+    min-width: 1.7rem;
+    padding: 0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.chart-corner-series,
+.chart-corner-circular {
+    display: none;
+}
+
+.chart-modal[data-chart-kind="series"] .chart-corner-series,
+.chart-modal[data-chart-kind="circular"] .chart-corner-circular {
+    display: inline;
+}
+
+.chart-modal[data-chart-kind="series"] .chart-cat-color {
+    display: none;
+}
+
+.chart-modal[data-chart-kind="circular"] .chart-series-color {
+    display: none;
+}
+
 .chart-data-table input {
     font: inherit;
     width: 100%;

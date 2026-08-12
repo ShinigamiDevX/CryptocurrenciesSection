@@ -453,7 +453,7 @@
 
     function inlineEditChromeHtml() {
         return `
-            <p class="inline-edit-hint">Clicca su titolo o testo per modificare. Nelle tabelle: trascina il bordo destro di una cella per la larghezza colonna, il bordo inferiore per l’altezza riga. «Salva» (o Ctrl+S) salva la sezione attiva.</p>
+            <p class="inline-edit-hint">Clicca su titolo o testo per modificare. «Salva» (o Ctrl+S) salva tutte le sezioni e sottosezioni.</p>
             <div class="inline-edit-bar">
                 ${toolbarHtml()}
                 <div class="inline-edit-actions">
@@ -487,8 +487,8 @@
         for (const art of articles) {
             const id = art.getAttribute('data-edit-id');
             const node = findNodeById(id);
-            const titleEl = art.querySelector(':scope > [data-edit-title]');
-            const bodyEl = art.querySelector(':scope > [data-edit-body]');
+            const titleEl = directEditChild(art, 'data-edit-title');
+            const bodyEl = directEditChild(art, 'data-edit-body');
             if (!titleEl || !bodyEl) continue;
             if (!node) {
                 titleEl.textContent = id || 'Sezione';
@@ -522,7 +522,7 @@
     function getActiveEditSurface() {
         const art = getActiveEditArticle();
         if (art) {
-            const body = art.querySelector(':scope > [data-edit-body]');
+            const body = directEditChild(art, 'data-edit-body');
             if (body) return body;
         }
         return document.getElementById('edWysiwyg');
@@ -608,55 +608,96 @@
         }
     }
 
+    function directEditChild(art, attr) {
+        if (!art) return null;
+        return [...art.children].find((el) => el.hasAttribute && el.hasAttribute(attr)) || null;
+    }
+
+    function todayIsoDate() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function collectEditableArticles() {
+        return [...document.querySelectorAll('.inline-edit-tree [data-edit-id], [data-edit-id]')];
+    }
+
+    function payloadFromEditableArticle(art) {
+        const id = art.getAttribute('data-edit-id');
+        const entry = findNodeById(id);
+        const titleEl = directEditChild(art, 'data-edit-title');
+        const bodyEl = directEditChild(art, 'data-edit-body');
+        const title = (titleEl?.textContent || '').trim();
+        const content = editorHtmlToStored(bodyEl);
+        const type = (entry && entry.type) || art.getAttribute('data-edit-type') || 'section';
+        const date = (entry && entry.date) || todayIsoDate();
+        return {
+            id,
+            entry,
+            title,
+            bodyEl,
+            payload: {
+                id,
+                title,
+                type,
+                date,
+                content,
+            },
+        };
+    }
+
+    async function saveAllEditableArticles() {
+        const seen = new Set();
+        const articles = collectEditableArticles().filter((art) => {
+            const id = art.getAttribute('data-edit-id');
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
+        if (!articles.length) {
+            setEditorMsg('Nessuna sezione da salvare.', true);
+            return;
+        }
+
+        const prepared = articles.map(payloadFromEditableArticle);
+        for (const item of prepared) {
+            if (!item.title) {
+                setEditorMsg('Ogni sezione deve avere un titolo. Controlla: ' + (item.id || 'senza id'), true);
+                item.bodyEl?.closest('[data-edit-id]')?.querySelector('[data-edit-title]')?.focus();
+                return;
+            }
+        }
+
+        const btn = document.getElementById('btnInlineSave');
+        if (btn) btn.disabled = true;
+        setEditorMsg('Salvataggio di ' + prepared.length + ' sezioni...');
+        try {
+            const data = await apiJson(API + '/bulk', {
+                method: 'PUT',
+                headers: authHeaders(),
+                body: JSON.stringify({ items: prepared.map((item) => item.payload) }),
+            });
+            invalidateCache();
+            if (data && data.manifest) manifest = data.manifest;
+            prepared.forEach((item) => {
+                if (item.entry) item.entry.title = item.title;
+            });
+            buildSidebar(true);
+            setActiveNav(currentRoute());
+            setEditorMsg('Salvato tutto (' + (data.count || prepared.length) + ' sezioni).');
+        } catch (err) {
+            setEditorMsg(err.message, true);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
     function wireInlineTreeSave() {
         const btn = document.getElementById('btnInlineSave');
         if (!btn) return;
-        const save = async () => {
-            const art = getActiveEditArticle();
-            if (!art) {
-                setEditorMsg('Seleziona una sezione da salvare.', true);
-                return;
-            }
-            const id = art.getAttribute('data-edit-id');
-            const entry = findNodeById(id);
-            const titleEl = art.querySelector(':scope > [data-edit-title]');
-            const bodyEl = art.querySelector(':scope > [data-edit-body]');
-            const title = (titleEl?.textContent || '').trim();
-            if (!title) {
-                setEditorMsg('Il titolo non può essere vuoto.', true);
-                return;
-            }
-            const md = editorHtmlToMarkdown(bodyEl);
-            if (!md.trim()) {
-                setEditorMsg('Il contenuto non può essere vuoto.', true);
-                return;
-            }
-            setEditorMsg('Salvataggio...');
-            try {
-                const path = ancestorIdsOf(id);
-                await apiJson(API + '/items/' + encodeURIComponent(id), {
-                    method: 'PUT',
-                    headers: authHeaders(),
-                    body: JSON.stringify({
-                        id,
-                        title,
-                        type: (entry && entry.type) || art.getAttribute('data-edit-type') || 'section',
-                        content: md,
-                        parentId: path.length ? path[path.length - 1] : null,
-                    }),
-                });
-                invalidateCache();
-                if (entry && entry.title !== title) {
-                    entry.title = title;
-                    buildSidebar(true);
-                    setActiveNav(currentRoute());
-                }
-                setEditorMsg('Salvato: ' + title);
-            } catch (err) {
-                setEditorMsg(err.message, true);
-            }
+        btn.onclick = (e) => {
+            e.preventDefault();
+            saveAllEditableArticles();
         };
-        btn.addEventListener('click', (e) => { e.preventDefault(); save(); });
         if (window._corsiInlineSaveKey) {
             document.removeEventListener('keydown', window._corsiInlineSaveKey);
         }
@@ -668,7 +709,7 @@
                 return;
             }
             e.preventDefault();
-            save();
+            saveAllEditableArticles();
         };
         document.addEventListener('keydown', window._corsiInlineSaveKey);
     }
@@ -716,22 +757,6 @@
         const { segs, qs } = parseRoute(route === 'index' ? '' : route);
         const action = segs[0] || '';
 
-        if (!action || action === 'index') {
-            await renderManageIndex();
-            return;
-        }
-
-        if (action === 'view' && segs[1]) {
-            const node = findNodeById(segs[1]);
-            if (!node) {
-                document.getElementById('contentRoot').innerHTML =
-                    `<div class="page"><h1 class="page-title">Non trovato</h1><p><a href="${MANAGE_URL}">Torna alla gestione</a></p></div>`;
-                return;
-            }
-            await renderDoc(node, { manageMode: true });
-            return;
-        }
-
         if (action === 'new') {
             const parentId = qs.get('parent') || '';
             document.getElementById('contentRoot').className = 'page';
@@ -753,10 +778,29 @@
             return;
         }
 
-        // compat: #<id> → view (modifica in-page)
-        if (action && action !== 'view' && action !== 'edit' && action !== 'new') {
-            window.location.hash = 'view/' + action;
+        const focusId = (action === 'view' && segs[1])
+            ? segs[1]
+            : (action && action !== 'index' && action !== 'view' && action !== 'edit' && action !== 'new' ? action : null);
+
+        const treeReady = document.querySelector('.inline-edit-tree [data-edit-id]');
+        if (treeReady) {
+            highlightAndScrollEdit(focusId);
+            return;
         }
+
+        await renderManageIndex();
+        highlightAndScrollEdit(focusId);
+    }
+
+    function highlightAndScrollEdit(id) {
+        const root = document.getElementById('contentRoot');
+        if (!root) return;
+        root.querySelectorAll('.inline-doc.is-active').forEach((el) => el.classList.remove('is-active'));
+        if (!id) return;
+        const art = [...root.querySelectorAll('[data-edit-id]')].find((el) => el.getAttribute('data-edit-id') === id);
+        if (!art) return;
+        art.classList.add('is-active');
+        art.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
 
     function editorHtml(state) {
@@ -829,6 +873,29 @@
         { value: 'polarArea', label: 'Area polare' },
     ];
 
+    function normalizeHexColor(value, fallback) {
+        const raw = String(value || '').trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
+        if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+            return ('#' + raw[1] + raw[1] + raw[2] + raw[2] + raw[3] + raw[3]).toLowerCase();
+        }
+        if (/^#[0-9a-fA-F]{8}$/.test(raw)) return ('#' + raw.slice(1, 7)).toLowerCase();
+        return fallback;
+    }
+
+    function defaultSeriesColor(i) {
+        return CHART_PALETTE[i % CHART_PALETTE.length];
+    }
+
+    function isCircularChartType(type) {
+        return type === 'pie' || type === 'doughnut' || type === 'polarArea';
+    }
+
+    function withAlpha(hex, alpha) {
+        const c = normalizeHexColor(hex, '#268bd2');
+        return c + alpha;
+    }
+
     function normalizeChartConfig(cfg) {
         const src = cfg && typeof cfg === 'object' ? cfg : {};
         const type = CHART_TYPES.has(src.type) ? src.type : 'bar';
@@ -836,22 +903,65 @@
             ? src.labels.map(String)
             : [...CHART_DEFAULT.labels];
         const datasets = (Array.isArray(src.datasets) && src.datasets.length ? src.datasets : CHART_DEFAULT.datasets)
-            .map((d, i) => ({
-                label: (d && d.label) ? String(d.label) : `Serie ${i + 1}`,
-                data: Array.isArray(d && d.data) ? d.data.map((n) => Number(n) || 0) : [],
-            }));
-        // allinea lunghezze dati ↔ etichette
+            .map((d, i) => {
+                const fallback = defaultSeriesColor(i);
+                let color = fallback;
+                if (d && d.color) color = normalizeHexColor(d.color, fallback);
+                else if (d && typeof d.borderColor === 'string') color = normalizeHexColor(d.borderColor, fallback);
+                else if (d && typeof d.backgroundColor === 'string') color = normalizeHexColor(d.backgroundColor, fallback);
+                return {
+                    label: (d && d.label) ? String(d.label) : `Serie ${i + 1}`,
+                    data: Array.isArray(d && d.data) ? d.data.map((n) => Number(n) || 0) : [],
+                    color,
+                };
+            });
         datasets.forEach((d) => {
             while (d.data.length < labels.length) d.data.push(0);
             if (d.data.length > labels.length) d.data = d.data.slice(0, labels.length);
         });
+        let categoryColors = Array.isArray(src.categoryColors) ? src.categoryColors.map((c, j) => normalizeHexColor(c, defaultSeriesColor(j))) : null;
+        if (!categoryColors || categoryColors.length !== labels.length) {
+            const fromFirst = src.datasets && src.datasets[0] && Array.isArray(src.datasets[0].backgroundColor)
+                ? src.datasets[0].backgroundColor
+                : null;
+            categoryColors = labels.map((_, j) => normalizeHexColor(
+                (categoryColors && categoryColors[j]) || (fromFirst && fromFirst[j]) || defaultSeriesColor(j),
+                defaultSeriesColor(j),
+            ));
+        }
         return {
             type,
             title: src.title != null ? String(src.title) : '',
             labels,
             datasets,
+            categoryColors,
             legend: src.legend !== false,
         };
+    }
+
+    function styleChartDatasets(type, cfg) {
+        const circular = isCircularChartType(type);
+        const categoryColors = Array.isArray(cfg.categoryColors) ? cfg.categoryColors : [];
+        return (Array.isArray(cfg.datasets) ? cfg.datasets : []).map((d, i) => {
+            const color = normalizeHexColor(d.color, defaultSeriesColor(i));
+            const styled = {
+                label: d.label || `Serie ${i + 1}`,
+                data: Array.isArray(d.data) ? d.data : [],
+                color,
+                borderWidth: d.borderWidth ?? (type === 'line' || type === 'radar' ? 2 : 1),
+                tension: d.tension ?? 0.25,
+            };
+            if (circular) {
+                styled.backgroundColor = styled.data.map((_, j) => normalizeHexColor(categoryColors[j], defaultSeriesColor(j)));
+                styled.borderColor = '#ffffff';
+                styled.borderWidth = 1;
+            } else {
+                styled.backgroundColor = type === 'line' || type === 'radar' ? withAlpha(color, '33') : color;
+                styled.borderColor = color;
+                if (type === 'radar') styled.fill = true;
+            }
+            return styled;
+        });
     }
 
     function destroyChartPreview() {
@@ -863,18 +973,21 @@
 
     function readChartDataGrid(modal) {
         const table = modal.querySelector('#chartDataTable');
-        if (!table) return { labels: [], datasets: [] };
+        if (!table) return { labels: [], datasets: [], categoryColors: [] };
         const labels = [...table.querySelectorAll('thead .chart-cat-label')]
             .map((inp) => (inp.value || '').trim() || 'Categoria');
+        const categoryColors = [...table.querySelectorAll('thead .chart-cat-color')]
+            .map((inp, j) => normalizeHexColor(inp.value, defaultSeriesColor(j)));
         const datasets = [...table.querySelectorAll('tbody tr')].map((tr, i) => {
             const name = (tr.querySelector('.chart-series-name')?.value || '').trim() || `Serie ${i + 1}`;
+            const color = normalizeHexColor(tr.querySelector('.chart-series-color')?.value, defaultSeriesColor(i));
             const data = [...tr.querySelectorAll('.chart-cell-value')].map((inp) => {
                 const n = Number(String(inp.value || '0').replace(',', '.'));
                 return Number.isFinite(n) ? n : 0;
             });
-            return { label: name, data };
+            return { label: name, data, color };
         });
-        return { labels, datasets };
+        return { labels, datasets, categoryColors };
     }
 
     function refreshChartPreview(modal) {
@@ -883,23 +996,12 @@
         if (!canvas) return;
         const type = modal.querySelector('#chartType')?.value || 'bar';
         const title = (modal.querySelector('#chartTitle')?.value || '').trim();
-        const { labels, datasets: rawDs } = readChartDataGrid(modal);
-        const circular = type === 'pie' || type === 'doughnut' || type === 'polarArea';
-        const datasets = rawDs.map((d, i) => ({
-            label: d.label,
-            data: d.data,
-            backgroundColor: circular
-                ? d.data.map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
-                : CHART_PALETTE[i % CHART_PALETTE.length] + (type === 'line' || type === 'radar' ? '33' : ''),
-            borderColor: circular ? '#fff' : CHART_PALETTE[i % CHART_PALETTE.length],
-            borderWidth: type === 'line' || type === 'radar' ? 2 : 1,
-            fill: type === 'radar' ? true : undefined,
-            tension: 0.25,
-        }));
+        const grid = readChartDataGrid(modal);
+        const cfg = { labels: grid.labels, datasets: grid.datasets, categoryColors: grid.categoryColors };
         destroyChartPreview();
         modal._previewChart = new Chart(canvas, {
             type: CHART_TYPES.has(type) ? type : 'bar',
-            data: { labels, datasets },
+            data: { labels: grid.labels, datasets: styleChartDatasets(type, cfg) },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
@@ -911,12 +1013,19 @@
         });
     }
 
+    function updateChartModalKind(modal) {
+        const type = modal.querySelector('#chartType')?.value || 'bar';
+        modal.dataset.chartKind = isCircularChartType(type) ? 'circular' : 'series';
+    }
+
     function buildChartDataTableHtml(cfg) {
         const labels = cfg.labels.length ? cfg.labels : ['Categoria 1'];
-        const datasets = cfg.datasets.length ? cfg.datasets : [{ label: 'Serie 1', data: labels.map(() => 0) }];
+        const datasets = cfg.datasets.length ? cfg.datasets : [{ label: 'Serie 1', data: labels.map(() => 0), color: defaultSeriesColor(0) }];
+        const categoryColors = cfg.categoryColors || labels.map((_, j) => defaultSeriesColor(j));
         const headCells = labels.map((lab, i) => `
             <th>
                 <div class="chart-cat-cell">
+                    <input type="color" class="chart-cat-color" value="${escapeHtml(normalizeHexColor(categoryColors[i], defaultSeriesColor(i)))}" title="Colore categoria" aria-label="Colore categoria ${i + 1}">
                     <input type="text" class="chart-cat-label" value="${escapeHtml(lab)}" aria-label="Categoria ${i + 1}">
                     <button type="button" class="chart-cat-remove" title="Rimuovi categoria" data-cat="${i}" ${labels.length <= 1 ? 'disabled' : ''}>×</button>
                 </div>
@@ -930,6 +1039,7 @@
                 <tr>
                     <th scope="row">
                         <div class="chart-series-cell">
+                            <input type="color" class="chart-series-color" value="${escapeHtml(normalizeHexColor(d.color, defaultSeriesColor(ri)))}" title="Colore serie" aria-label="Colore serie">
                             <input type="text" class="chart-series-name" value="${escapeHtml(d.label)}" aria-label="Nome serie">
                             <button type="button" class="chart-series-remove" title="Rimuovi serie" ${datasets.length <= 1 ? 'disabled' : ''}>×</button>
                         </div>
@@ -942,7 +1052,10 @@
             <table id="chartDataTable" class="chart-data-table">
                 <thead>
                     <tr>
-                        <th class="chart-corner">Serie ↓ / Categorie →</th>
+                        <th class="chart-corner">
+                            <span class="chart-corner-series">Colore + serie</span>
+                            <span class="chart-corner-circular">Categorie (colore fetta)</span>
+                        </th>
                         ${headCells}
                     </tr>
                 </thead>
@@ -955,12 +1068,13 @@
         const wrap = modal.querySelector('#chartDataWrap');
         if (!wrap || !modal._chartGrid) return;
         wrap.innerHTML = buildChartDataTableHtml(modal._chartGrid);
+        updateChartModalKind(modal);
         refreshChartPreview(modal);
     }
 
     function ensureChartModal() {
         let modal = document.getElementById('chartModal');
-        if (modal && !modal.querySelector('#chartDataWrap')) {
+        if (modal && modal.dataset.chartUi !== 'colors-1') {
             destroyChartPreview();
             modal.remove();
             modal = null;
@@ -969,6 +1083,7 @@
         modal = document.createElement('div');
         modal.id = 'chartModal';
         modal.className = 'corsi-modal chart-modal';
+        modal.dataset.chartUi = 'colors-1';
         modal.style.display = 'none';
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
@@ -976,7 +1091,7 @@
         modal.innerHTML = `
             <div class="corsi-modal-box chart-modal-box">
                 <h2 id="chartModalTitle" class="chart-modal-title">Inserisci grafico</h2>
-                <p class="chart-modal-help">Compila la tabella come in un foglio: le colonne sono le categorie, le righe le serie di valori.</p>
+                <p class="chart-modal-help">Compila la tabella come in un foglio. Usa i quadratini colore per le serie (barre/linee) o per le categorie (torta/ciambella).</p>
                 <div class="chart-modal-grid">
                     <label class="chart-modal-field">
                         <span>Titolo</span>
@@ -1022,12 +1137,15 @@
             const read = readChartDataGrid(modal);
             modal._chartGrid.labels = read.labels;
             modal._chartGrid.datasets = read.datasets;
+            modal._chartGrid.categoryColors = read.categoryColors;
         };
 
         modal.querySelector('#chartAddCategory').addEventListener('click', () => {
             commitGridEdits();
             const g = modal._chartGrid;
+            if (!Array.isArray(g.categoryColors)) g.categoryColors = g.labels.map((_, j) => defaultSeriesColor(j));
             g.labels.push(`Categoria ${g.labels.length + 1}`);
+            g.categoryColors.push(defaultSeriesColor(g.labels.length - 1));
             g.datasets.forEach((d) => d.data.push(0));
             syncChartGridFromState(modal);
         });
@@ -1037,6 +1155,7 @@
             g.datasets.push({
                 label: `Serie ${g.datasets.length + 1}`,
                 data: g.labels.map(() => 0),
+                color: defaultSeriesColor(g.datasets.length),
             });
             syncChartGridFromState(modal);
         });
@@ -1049,6 +1168,7 @@
                 const g = modal._chartGrid;
                 if (g.labels.length <= 1) return;
                 g.labels.splice(idx, 1);
+                if (Array.isArray(g.categoryColors)) g.categoryColors.splice(idx, 1);
                 g.datasets.forEach((d) => d.data.splice(idx, 1));
                 syncChartGridFromState(modal);
                 return;
@@ -1068,7 +1188,10 @@
             schedulePreview();
         });
         modal.querySelector('#chartTitle').addEventListener('input', schedulePreview);
-        modal.querySelector('#chartType').addEventListener('change', schedulePreview);
+        modal.querySelector('#chartType').addEventListener('change', () => {
+            updateChartModalKind(modal);
+            schedulePreview();
+        });
         modal.querySelector('#chartModalCancel').addEventListener('click', () => closeChartModal());
         modal.addEventListener('click', (e) => {
             if (e.target === modal) closeChartModal();
@@ -1100,7 +1223,8 @@
         modal.querySelector('#chartType').value = cfg.type;
         modal._chartGrid = {
             labels: [...cfg.labels],
-            datasets: cfg.datasets.map((d) => ({ label: d.label, data: [...d.data] })),
+            datasets: cfg.datasets.map((d) => ({ label: d.label, data: [...d.data], color: d.color })),
+            categoryColors: [...(cfg.categoryColors || cfg.labels.map((_, j) => defaultSeriesColor(j)))],
         };
         syncChartGridFromState(modal);
 
@@ -1112,7 +1236,7 @@
         function commitAndApply() {
             const title = (modal.querySelector('#chartTitle').value || '').trim();
             const type = modal.querySelector('#chartType').value;
-            const { labels, datasets } = readChartDataGrid(modal);
+            const { labels, datasets, categoryColors } = readChartDataGrid(modal);
             if (!labels.length) {
                 errEl.hidden = false;
                 errEl.textContent = 'Aggiungi almeno una categoria.';
@@ -1123,7 +1247,7 @@
                 errEl.textContent = 'Aggiungi almeno una serie di dati.';
                 return;
             }
-            const next = normalizeChartConfig({ type, title, labels, datasets });
+            const next = normalizeChartConfig({ type, title, labels, datasets, categoryColors });
             const apply = modal._onApply;
             closeChartModal();
             if (typeof apply === 'function') apply(next);
@@ -1257,42 +1381,41 @@
         let cfg;
         try { cfg = JSON.parse(block.getAttribute('data-chart') || '{}'); }
         catch (_) { return; }
-        const type = CHART_TYPES.has(cfg.type) ? cfg.type : 'bar';
-        const circular = type === 'pie' || type === 'doughnut' || type === 'polarArea';
-        const datasets = (Array.isArray(cfg.datasets) ? cfg.datasets : []).map((d, i) => ({
-            label: d.label || `Serie ${i + 1}`,
-            data: Array.isArray(d.data) ? d.data : [],
-            backgroundColor: d.backgroundColor || (circular
-                ? (d.data || []).map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
-                : CHART_PALETTE[i % CHART_PALETTE.length] + (type === 'line' || type === 'radar' ? '33' : '')),
-            borderColor: d.borderColor || (circular ? '#fff' : CHART_PALETTE[i % CHART_PALETTE.length]),
-            borderWidth: d.borderWidth ?? (type === 'line' || type === 'radar' ? 2 : 1),
-            fill: d.fill,
-            tension: d.tension ?? 0.25,
-        }));
+        const normalized = normalizeChartConfig(cfg);
+        const type = normalized.type;
         block._chartInstance = new Chart(canvas, {
             type,
-            data: { labels: Array.isArray(cfg.labels) ? cfg.labels : [], datasets },
+            data: {
+                labels: normalized.labels,
+                datasets: styleChartDatasets(type, normalized),
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    title: { display: !!cfg.title, text: cfg.title || '' },
-                    legend: { display: cfg.legend !== false },
+                    title: { display: !!normalized.title, text: normalized.title || '' },
+                    legend: { display: normalized.legend !== false },
                 },
             },
         });
     }
 
+    function looksLikeHtml(md) {
+        return /<(p|div|table|h[1-6]|ul|ol|li|img|span|blockquote|pre|figure|thead|tbody|tr|td|th)\b/i.test(md || '');
+    }
+
     function markdownToEditorHtml(md) {
         const wrap = document.createElement('div');
-        wrap.innerHTML = renderMarkdown(md || '') || '<p></p>';
+        const raw = md || '';
+        wrap.innerHTML = looksLikeHtml(raw)
+            ? raw
+            : (renderMarkdown(raw) || '<p></p>');
         wrap.querySelectorAll('pre > code.language-chart').forEach((code) => {
             const pre = code.parentElement;
             if (!pre) return;
             pre.replaceWith(buildChartEditBlock(code.textContent.trim()));
         });
-        return wrap.innerHTML;
+        return wrap.innerHTML || '<p></p>';
     }
 
     function fillWysiwyg(md) {
@@ -1303,18 +1426,25 @@
         prepareEditableTables(surface);
     }
 
-    function editorHtmlToMarkdown(surfaceEl) {
+    function editorHtmlToStored(surfaceEl) {
         const surface = surfaceEl || getActiveEditSurface() || document.getElementById('edWysiwyg');
         if (!surface) return '';
-        const td = getTurndown();
-        if (!td) {
-            return surface.innerText || '';
-        }
         const clone = surface.cloneNode(true);
         clone.querySelectorAll('.chart-edit-block').forEach((el) => {
-            el.querySelectorAll('canvas, .chart-edit-head, .chart-edit-canvas').forEach((n) => n.remove());
+            let raw = el.getAttribute('data-chart') || '{}';
+            try { raw = JSON.stringify(JSON.parse(raw), null, 2); } catch (_) { /* keep */ }
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            code.className = 'language-chart';
+            code.textContent = raw;
+            pre.appendChild(code);
+            el.replaceWith(pre);
         });
-        return td.turndown(clone.innerHTML).trim() + '\n';
+        return (clone.innerHTML || '').trim() + '\n';
+    }
+
+    function editorHtmlToMarkdown(surfaceEl) {
+        return editorHtmlToStored(surfaceEl);
     }
 
     function insertHtmlAtCursor(html) {
@@ -1724,27 +1854,18 @@
             wrap.appendChild(canvas);
             pre.replaceWith(wrap);
             try {
-                const type = CHART_TYPES.has(cfg.type) ? cfg.type : 'bar';
-                const circular = type === 'pie' || type === 'doughnut' || type === 'polarArea';
-                const datasets = (Array.isArray(cfg.datasets) ? cfg.datasets : []).map((d, i) => ({
-                    label: d.label || `Serie ${i + 1}`,
-                    data: Array.isArray(d.data) ? d.data : [],
-                    backgroundColor: d.backgroundColor || (circular
-                        ? (d.data || []).map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
-                        : CHART_PALETTE[i % CHART_PALETTE.length] + (type === 'line' || type === 'radar' ? '33' : '')),
-                    borderColor: d.borderColor || (circular ? '#fff' : CHART_PALETTE[i % CHART_PALETTE.length]),
-                    borderWidth: d.borderWidth ?? (type === 'line' || type === 'radar' ? 2 : 1),
-                    fill: d.fill,
-                    tension: d.tension ?? 0.25,
-                }));
+                const normalized = normalizeChartConfig(cfg);
                 new Chart(canvas, {
-                    type,
-                    data: { labels: Array.isArray(cfg.labels) ? cfg.labels : [], datasets },
+                    type: normalized.type,
+                    data: {
+                        labels: normalized.labels,
+                        datasets: styleChartDatasets(normalized.type, normalized),
+                    },
                     options: {
                         responsive: true,
                         plugins: {
-                            title: { display: !!cfg.title, text: cfg.title || '' },
-                            legend: { display: cfg.legend !== false },
+                            title: { display: !!normalized.title, text: normalized.title || '' },
+                            legend: { display: normalized.legend !== false },
                         },
                     },
                 });

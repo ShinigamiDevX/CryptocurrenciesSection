@@ -492,78 +492,112 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
         }
     });
 
+    function applyItemUpdate(manifest, id, b, user, { moveParent = false } = {}) {
+        const title = String(b.title || '').trim();
+        if (!title) return { error: 'Il titolo è obbligatorio.', status: 400 };
+        let type = String(b.type || b.kind || 'course');
+        if (type === 'post') type = 'course';
+        if (!NODE_TYPES.has(type)) type = 'course';
+        let date = String(b.date || '').trim();
+        const content = String(b.content ?? '');
+        if (content.length > MAX_CONTENT) return { error: 'Contenuto troppo lungo.', status: 400 };
+
+        const found = findNode(manifest, id);
+        if (!found || found.node.type === 'divider') {
+            return { error: 'Modulo non trovato.', status: 404 };
+        }
+
+        const previous = readExistingSnapshot(id, found.node);
+        if (previous) snapshotVersion({ ...previous, action: 'update', user });
+
+        if (moveParent && Object.prototype.hasOwnProperty.call(b, 'parentId')) {
+            const newParentId = b.parentId ? safeId(b.parentId) : null;
+            if (b.parentId && !newParentId) return { error: 'Parent non valido.', status: 400 };
+            if (newParentId === id) return { error: 'Un elemento non può essere padre di se stesso.', status: 400 };
+            const currentParentId = found.parent ? found.parent.id : null;
+            if (newParentId !== currentParentId) {
+                if (newParentId) {
+                    const descendants = collectContentNodes(found.node).map((n) => n.id);
+                    if (descendants.includes(newParentId)) {
+                        return { error: 'Non puoi spostare un elemento sotto una sua sottosezione.', status: 400 };
+                    }
+                }
+                const dest = parentContainer(manifest, newParentId);
+                if (!dest) return { error: 'Nodo padre non trovato.', status: 404 };
+                found.siblings.splice(found.index, 1);
+                dest.siblings.push(found.node);
+                const again = findNode(manifest, id);
+                Object.assign(found, again);
+            }
+        }
+
+        if (found.parent && type === 'page') {
+            return { error: 'Le pagine possono stare solo alla radice della sidebar.', status: 400 };
+        }
+        if (found.parent && type === 'course') type = 'section';
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isIsoDate(date)) {
+            date = found.node.date || new Date().toISOString().slice(0, 10);
+        }
+
+        const raw = buildFrontMatter({
+            title,
+            date: type === 'course' ? date : undefined,
+            layout: type === 'page' ? 'page' : undefined,
+        }) + content.replace(/^\uFEFF/, '');
+        fs.writeFileSync(mdPath(id), raw, 'utf8');
+
+        found.node.title = title;
+        found.node.type = type;
+        found.node.file = `${id}.md`;
+        if (type === 'course') found.node.date = date;
+        else delete found.node.date;
+
+        return { ok: true, id, type, title, previous };
+    }
+
+    app.put('/api/auth/corsi/bulk', authenticate, requireDocente, (req, res) => {
+        try {
+            const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+            if (!items.length) return res.status(400).json({ error: 'Nessuna sezione da salvare.' });
+            const manifest = readManifest();
+            const saved = [];
+            let archived = 0;
+            for (const b of items) {
+                const id = safeId(b && b.id);
+                if (!id) {
+                    return res.status(400).json({ error: 'Identificativo non valido.', id: b && b.id });
+                }
+                const result = applyItemUpdate(manifest, id, b, req.user, { moveParent: false });
+                if (result.error) return res.status(result.status).json({ error: result.error, id });
+                saved.push(id);
+                if (result.previous) archived += 1;
+            }
+            writeManifest(manifest);
+            if (archived) {
+                notifyEditors(req, 'corsi_version_archived', 'Nuova versione corso archiviata',
+                    `ha salvato ${saved.length} sezioni corsi (versioni precedenti nello storico).`);
+            }
+            res.json({ success: true, saved, count: saved.length, manifest: publicNav(manifest) });
+        } catch (e) {
+            console.error('[CORSI] bulk:', e.message);
+            res.status(500).json({ error: 'Impossibile salvare i contenuti.' });
+        }
+    });
+
     app.put('/api/auth/corsi/items/:id', authenticate, requireDocente, (req, res) => {
         try {
             const id = safeId(req.params.id);
             if (!id) return res.status(400).json({ error: 'Identificativo non valido.' });
-            const b = req.body || {};
-            const title = String(b.title || '').trim();
-            if (!title) return res.status(400).json({ error: 'Il titolo è obbligatorio.' });
-            let type = String(b.type || b.kind || 'course');
-            if (type === 'post') type = 'course';
-            if (!NODE_TYPES.has(type)) type = 'course';
-            const date = String(b.date || '').trim();
-            if (!isIsoDate(date)) return res.status(400).json({ error: 'Data non valida (YYYY-MM-DD).' });
-            const content = String(b.content ?? '');
-            if (content.length > MAX_CONTENT) return res.status(400).json({ error: 'Contenuto troppo lungo.' });
-
             const manifest = readManifest();
-            const found = findNode(manifest, id);
-            if (!found || found.node.type === 'divider') {
-                return res.status(404).json({ error: 'Modulo non trovato.' });
-            }
-
-            const previous = readExistingSnapshot(id, found.node);
-            if (previous) snapshotVersion({ ...previous, action: 'update', user: req.user });
-
-            // Sposta sotto altro parent se richiesto
-            if (Object.prototype.hasOwnProperty.call(b, 'parentId')) {
-                const newParentId = b.parentId ? safeId(b.parentId) : null;
-                if (b.parentId && !newParentId) return res.status(400).json({ error: 'Parent non valido.' });
-                if (newParentId === id) return res.status(400).json({ error: 'Un elemento non può essere padre di se stesso.' });
-                const currentParentId = found.parent ? found.parent.id : null;
-                if (newParentId !== currentParentId) {
-                    // impedisci spostare sotto un proprio discendente
-                    if (newParentId) {
-                        const descendants = collectContentNodes(found.node).map((n) => n.id);
-                        if (descendants.includes(newParentId)) {
-                            return res.status(400).json({ error: 'Non puoi spostare un elemento sotto una sua sottosezione.' });
-                        }
-                    }
-                    const dest = parentContainer(manifest, newParentId);
-                    if (!dest) return res.status(404).json({ error: 'Nodo padre non trovato.' });
-                    found.siblings.splice(found.index, 1);
-                    dest.siblings.push(found.node);
-                    // refresh location
-                    const again = findNode(manifest, id);
-                    Object.assign(found, again);
-                }
-            }
-
-            if (found.parent && type === 'page') {
-                return res.status(400).json({ error: 'Le pagine possono stare solo alla radice della sidebar.' });
-            }
-            if (found.parent && type === 'course') type = 'section';
-
-            const raw = buildFrontMatter({
-                title,
-                date: type === 'course' ? (date || found.node.date || '') : date || undefined,
-                layout: type === 'page' ? 'page' : undefined,
-            }) + content.replace(/^\uFEFF/, '');
-            fs.writeFileSync(mdPath(id), raw, 'utf8');
-
-            found.node.title = title;
-            found.node.type = type;
-            found.node.file = `${id}.md`;
-            if (type === 'course') found.node.date = date || found.node.date || '';
-            else delete found.node.date;
-
+            const result = applyItemUpdate(manifest, id, req.body || {}, req.user, { moveParent: true });
+            if (result.error) return res.status(result.status).json({ error: result.error });
             writeManifest(manifest);
-            if (previous) {
+            if (result.previous) {
                 notifyEditors(req, 'corsi_version_archived', 'Nuova versione corso archiviata',
-                    `ha modificato «${title}» (${id}): la versione precedente è nello storico.`);
+                    `ha modificato «${result.title}» (${id}): la versione precedente è nello storico.`);
             }
-            res.json({ success: true, id, type, manifest: publicNav(manifest) });
+            res.json({ success: true, id, type: result.type, manifest: publicNav(manifest) });
         } catch (e) {
             console.error('[CORSI] update:', e.message);
             res.status(500).json({ error: 'Impossibile aggiornare il modulo.' });
