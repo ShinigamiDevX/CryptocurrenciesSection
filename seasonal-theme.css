@@ -24,7 +24,10 @@ html[data-season="natale"] header {
 
 html[data-season="natale"] header h1 span,
 html[data-season="natale"] .logo-text span,
-html[data-season="natale"] .login-logo-text span,
+html[data-season="natale"] .login-logo-text span {
+    color: #C62828 !important;
+}
+
 html[data-season="natale"] .page-title,
 html[data-season="natale"] h2.page-title {
     color: #d4b87a !important;
@@ -37,6 +40,19 @@ html[data-season="natale"] h2.page-title {
     z-index: 40;
     pointer-events: none;
     overflow: hidden;
+}
+
+/* Decorazione angolo in alto a destra */
+#season-corner {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 45;
+    width: min(300px, 40vw);
+    height: auto;
+    pointer-events: none;
+    user-select: none;
+    display: block;
 }
 
 .season-snow {
@@ -156,6 +172,10 @@ html[data-season="pasqua"] header {
 
 html[data-season="pasqua"] header h1 span,
 html[data-season="pasqua"] .logo-text span,
+html[data-season="pasqua"] .login-logo-text span {
+    color: #F48FB1 !important;
+}
+
 html[data-season="pasqua"] .page-title,
 html[data-season="pasqua"] h2.page-title {
     color: #9fd0b8 !important;

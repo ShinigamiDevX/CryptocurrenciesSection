@@ -84,6 +84,16 @@
         });
     }
 
+    function injectCornerDecor() {
+        if (document.getElementById('season-corner')) return;
+        const corner = document.createElement('img');
+        corner.id = 'season-corner';
+        corner.src = '/immagini/angolonatale.png';
+        corner.alt = '';
+        corner.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(corner);
+    }
+
     function injectFxLayer() {
         if (document.getElementById('season-fx')) return;
         const layer = document.createElement('div');
@@ -127,6 +137,7 @@
 
     function initChristmasExtras() {
         decorateLogos();
+        injectCornerDecor();
         if (!reduceMotion()) injectFxLayer();
     }
 
