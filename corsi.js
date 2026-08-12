@@ -321,19 +321,12 @@
             const { meta, body } = await loadMarkdown(section.file || `${section.id}.md`);
             const title = meta.title || section.title;
             const excerptHtml = renderMarkdown(excerptFromBody(body));
-            const actions = manageMode ? `
-                <p class="doc-actions">
-                    <a href="#edit/${escapeHtml(section.id)}">Modifica</a>
-                    · <a href="#new?parent=${escapeHtml(section.id)}">Aggiungi sottosezione</a>
-                    · <a href="#" class="link-del" data-del="${escapeHtml(section.id)}">Elimina</a>
-                </p>` : '';
             return `
                 <article class="${cardClass}">
                     ${badge}
                     <${titleTag} class="${titleClass}">
                         <a href="${contentHref(section.id, manageMode)}">${escapeHtml(title)}</a>
                     </${titleTag}>
-                    ${actions}
                     <div class="manage-collapsible"><div class="collapsible-inner"><div class="post-excerpt">${excerptHtml}</div></div></div>
                 </article>
             `;
@@ -431,6 +424,142 @@
         renderChartsIn(root);
     }
 
+    function toolbarHtml() {
+        return `
+            <div class="editor-toolbar" id="edToolbar">
+                <button type="button" data-cmd="bold" title="Grassetto"><b>G</b></button>
+                <button type="button" data-cmd="italic" title="Corsivo"><i>C</i></button>
+                <button type="button" data-cmd="underline" title="Sottolineato"><u>S</u></button>
+                <input type="color" id="edColor" value="#ff0000" title="Colore testo">
+                <button type="button" data-cmd="foreColor" title="Applica colore">A<span class="tb-color-bar" id="edColorBar"></span></button>
+                <span class="tb-sep"></span>
+                <button type="button" data-cmd="insertUnorderedList" title="Elenco puntato">• Elenco</button>
+                <button type="button" data-cmd="insertOrderedList" title="Elenco numerato">1. Elenco</button>
+                <span class="tb-sep"></span>
+                <button type="button" data-cmd="image" title="Carica e inserisci un'immagine">🖼 Immagine</button>
+                <button type="button" data-cmd="chart" title="Inserisci un grafico">📊 Grafico</button>
+                <button type="button" data-cmd="table" title="Inserisci una tabella">▦ Tabella</button>
+                <span class="tb-table-tools" id="edTableTools" hidden>
+                    <span class="tb-sep"></span>
+                    <button type="button" data-cmd="tableAddRow" title="Aggiungi riga sotto">+ Riga</button>
+                    <button type="button" data-cmd="tableDelRow" title="Elimina riga">− Riga</button>
+                    <button type="button" data-cmd="tableAddCol" title="Aggiungi colonna a destra">+ Col</button>
+                    <button type="button" data-cmd="tableDelCol" title="Elimina colonna">− Col</button>
+                </span>
+                <input type="file" id="edImageFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;">
+            </div>
+        `;
+    }
+
+    function inlineEditChromeHtml() {
+        return `
+            <p class="inline-edit-hint">Clicca su titolo o testo per modificare. Nelle tabelle: trascina il bordo destro di una cella per la larghezza colonna, il bordo inferiore per l’altezza riga. «Salva» (o Ctrl+S) salva la sezione attiva.</p>
+            <div class="inline-edit-bar">
+                ${toolbarHtml()}
+                <div class="inline-edit-actions">
+                    <button type="button" class="btn-primary" id="btnInlineSave">Salva</button>
+                    <span id="editorMsg" class="editor-hint"></span>
+                </div>
+            </div>
+        `;
+    }
+
+    async function renderEditableTree(node, depth) {
+        const titleTag = depth <= 0 ? 'h1' : (depth === 1 ? 'h2' : 'h3');
+        const kids = contentNodes(node.children);
+        let childrenHtml = '';
+        if (kids.length) {
+            const parts = [];
+            for (const k of kids) parts.push(await renderEditableTree(k, depth + 1));
+            childrenHtml = `<div class="inline-doc-children">${parts.join('')}</div>`;
+        }
+        return `
+            <article class="inline-doc depth-${depth}" data-edit-id="${escapeHtml(node.id)}" data-edit-type="${escapeHtml(node.type || 'section')}">
+                <${titleTag} class="post-title inline-edit-title" contenteditable="true" spellcheck="true" data-edit-title></${titleTag}>
+                <div class="wysiwyg-surface inline-wysiwyg" contenteditable="true" role="textbox" aria-multiline="true" data-edit-body></div>
+                ${childrenHtml}
+            </article>
+        `;
+    }
+
+    async function hydrateEditableTree(rootEl) {
+        const articles = [...rootEl.querySelectorAll('[data-edit-id]')];
+        for (const art of articles) {
+            const id = art.getAttribute('data-edit-id');
+            const node = findNodeById(id);
+            const titleEl = art.querySelector(':scope > [data-edit-title]');
+            const bodyEl = art.querySelector(':scope > [data-edit-body]');
+            if (!titleEl || !bodyEl) continue;
+            if (!node) {
+                titleEl.textContent = id || 'Sezione';
+                bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
+                continue;
+            }
+            try {
+                const { meta, body } = await loadMarkdown(node.file || `${node.id}.md`);
+                titleEl.textContent = meta.title || node.title || id;
+                bodyEl.innerHTML = markdownToEditorHtml(body);
+                bodyEl.querySelectorAll('.chart-edit-block').forEach(paintChartBlock);
+            } catch (_) {
+                titleEl.textContent = node.title || id;
+                bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
+            }
+        }
+        if (articles[0]) articles[0].classList.add('is-active');
+        prepareEditableTables(rootEl);
+    }
+
+    function getActiveEditArticle() {
+        const sel = window.getSelection();
+        let node = sel && sel.anchorNode;
+        if (node && node.nodeType === 3) node = node.parentElement;
+        const fromSel = node && node.closest ? node.closest('[data-edit-id]') : null;
+        if (fromSel) return fromSel;
+        return document.querySelector('.inline-doc.is-active[data-edit-id]')
+            || document.querySelector('[data-edit-id]');
+    }
+
+    function getActiveEditSurface() {
+        const art = getActiveEditArticle();
+        if (art) {
+            const body = art.querySelector(':scope > [data-edit-body]');
+            if (body) return body;
+        }
+        return document.getElementById('edWysiwyg');
+    }
+
+    function wireEditFocusTracking(rootEl) {
+        rootEl.addEventListener('focusin', (e) => {
+            const art = e.target.closest && e.target.closest('[data-edit-id]');
+            if (!art) return;
+            rootEl.querySelectorAll('.inline-doc.is-active').forEach((el) => el.classList.remove('is-active'));
+            art.classList.add('is-active');
+        });
+    }
+
+    function ensureChartEditDelegation() {
+        const root = document.getElementById('contentRoot');
+        if (!root || root.dataset.chartWired) return;
+        root.dataset.chartWired = '1';
+        root.addEventListener('click', (e) => {
+            const btn = e.target.closest && e.target.closest('.chart-edit-btn');
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const block = btn.closest('.chart-edit-block');
+            if (!block) return;
+            let current = CHART_DEFAULT;
+            try {
+                current = JSON.parse(block.getAttribute('data-chart') || '{}');
+            } catch (_) { /* keep default */ }
+            openChartBuilder(current, (cfg) => {
+                block.setAttribute('data-chart', JSON.stringify(cfg, null, 2));
+                paintChartBlock(block);
+                setEditorMsg('Grafico aggiornato.');
+            }, { title: 'Modifica grafico', okLabel: 'Aggiorna' });
+        });
+    }
+
     async function renderDoc(entry, { manageMode }) {
         const root = document.getElementById('contentRoot');
         root.className = 'post';
@@ -438,6 +567,21 @@
             const { meta, body } = await loadMarkdown(entry.file || `${entry.id}.md`);
             const title = meta.title || entry.title;
             const open = isNodeOpen(entry.id, loadTreeExpandState());
+            const entryDepth = ancestorIdsOf(entry.id).length;
+            const kids = contentNodes(entry.children);
+
+            if (manageMode) {
+                root.innerHTML = `
+                    ${inlineEditChromeHtml()}
+                    <div class="inline-edit-tree">${await renderEditableTree(entry, entryDepth)}</div>
+                `;
+                await hydrateEditableTree(root);
+                wireToolbar();
+                wireInlineTreeSave();
+                wireEditFocusTracking(root);
+                return;
+            }
+
             let html = `
                 <div class="manage-level is-collapsible${open ? ' is-open' : ' is-collapsed'}" data-tree-id="${escapeHtml(entry.id)}">
                     <div class="manage-level-row">
@@ -445,28 +589,88 @@
                         <div class="manage-level-body">
                             <h1 class="post-title">${escapeHtml(title)}</h1>
             `;
-            if (manageMode) {
-                html += `<p class="doc-actions">
-                    <a href="#edit/${escapeHtml(entry.id)}">Modifica</a>
-                    · <a href="#new?parent=${escapeHtml(entry.id)}">Aggiungi sottosezione</a>
-                    · <a href="#" class="link-del" data-del="${escapeHtml(entry.id)}">Elimina</a>
-                </p>`;
-            }
-            const kids = (entry.children || []).filter((c) => c.type !== 'divider');
             html += `<div class="manage-collapsible"><div class="collapsible-inner">`;
+            html += `${renderMarkdown(body)}`;
             if (kids.length) {
-                html += `<div class="section-toc"><strong>Sottosezioni</strong><ul>${
-                    kids.map((c) => `<li><a href="${contentHref(c.id, manageMode)}">${escapeHtml(c.title)}</a></li>`).join('')
-                }</ul></div>`;
+                const expandState = loadTreeExpandState();
+                const nested = [];
+                for (const k of kids) {
+                    nested.push(await renderTreeNode(k, entryDepth + 1, expandState, false));
+                }
+                html += `<div class="posts-list manage-hierarchy section-children">${nested.join('')}</div>`;
             }
-            html += `${renderMarkdown(body)}</div></div></div></div></div>`;
+            html += `</div></div></div></div></div>`;
             root.innerHTML = html;
             wireTreeToggles(root);
             renderChartsIn(root);
-            if (manageMode) wireDeleteLinks(root);
         } catch (_) {
             root.innerHTML = `<h1 class="page-title">Errore</h1><p class="corsi-error">Impossibile caricare il contenuto richiesto.</p>`;
         }
+    }
+
+    function wireInlineTreeSave() {
+        const btn = document.getElementById('btnInlineSave');
+        if (!btn) return;
+        const save = async () => {
+            const art = getActiveEditArticle();
+            if (!art) {
+                setEditorMsg('Seleziona una sezione da salvare.', true);
+                return;
+            }
+            const id = art.getAttribute('data-edit-id');
+            const entry = findNodeById(id);
+            const titleEl = art.querySelector(':scope > [data-edit-title]');
+            const bodyEl = art.querySelector(':scope > [data-edit-body]');
+            const title = (titleEl?.textContent || '').trim();
+            if (!title) {
+                setEditorMsg('Il titolo non può essere vuoto.', true);
+                return;
+            }
+            const md = editorHtmlToMarkdown(bodyEl);
+            if (!md.trim()) {
+                setEditorMsg('Il contenuto non può essere vuoto.', true);
+                return;
+            }
+            setEditorMsg('Salvataggio...');
+            try {
+                const path = ancestorIdsOf(id);
+                await apiJson(API + '/items/' + encodeURIComponent(id), {
+                    method: 'PUT',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        id,
+                        title,
+                        type: (entry && entry.type) || art.getAttribute('data-edit-type') || 'section',
+                        content: md,
+                        parentId: path.length ? path[path.length - 1] : null,
+                    }),
+                });
+                invalidateCache();
+                if (entry && entry.title !== title) {
+                    entry.title = title;
+                    buildSidebar(true);
+                    setActiveNav(currentRoute());
+                }
+                setEditorMsg('Salvato: ' + title);
+            } catch (err) {
+                setEditorMsg(err.message, true);
+            }
+        };
+        btn.addEventListener('click', (e) => { e.preventDefault(); save(); });
+        if (window._corsiInlineSaveKey) {
+            document.removeEventListener('keydown', window._corsiInlineSaveKey);
+        }
+        window._corsiInlineSaveKey = function onKey(e) {
+            if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;
+            if (!document.querySelector('[data-edit-body]')) {
+                document.removeEventListener('keydown', window._corsiInlineSaveKey);
+                window._corsiInlineSaveKey = null;
+                return;
+            }
+            e.preventDefault();
+            save();
+        };
+        document.addEventListener('keydown', window._corsiInlineSaveKey);
     }
 
     function parentOptionsHtml(selected, excludeId) {
@@ -487,24 +691,24 @@
         const root = document.getElementById('contentRoot');
         root.className = 'posts';
         const roots = contentNodes(navNodes());
-        const expandState = loadTreeExpandState();
         const blocks = [];
         for (const section of roots) {
-            blocks.push(await renderTreeNode(section, 0, expandState, true));
+            blocks.push(await renderEditableTree(section, 0));
         }
         root.innerHTML = `
-            <div class="page" style="margin-bottom:1.5rem;">
+            <div class="page" style="margin-bottom:1rem;">
                 <h1 class="page-title">Gestione contenuti</h1>
-                <p>Struttura gerarchica delle sezioni. Usa +/− per espandere o comprimere. Dopo il salvataggio tornerai ai corsi in sola lettura.</p>
-                <div class="editor-actions" style="margin-top:0.75rem;">
+                <div class="editor-actions" style="margin:0.5rem 0 0.75rem;">
                     <a class="btn-sm btn-primary" href="#new" style="display:inline-block;padding:0.45rem 0.9rem;border:1px solid #000;background:#000;color:#fff;border-radius:3px;text-decoration:none;">Nuova sezione</a>
                 </div>
             </div>
-            <div class="posts-list manage-hierarchy">${blocks.join('') || '<p>Nessuna sezione. Crea la prima.</p>'}</div>
+            ${inlineEditChromeHtml()}
+            <div class="inline-edit-tree">${blocks.join('') || '<p>Nessuna sezione. Crea la prima.</p>'}</div>
         `;
-        wireDeleteLinks(root);
-        wireTreeToggles(root);
-        renderChartsIn(root);
+        await hydrateEditableTree(root);
+        wireToolbar();
+        wireInlineTreeSave();
+        wireEditFocusTracking(root);
     }
 
     async function renderManage(route) {
@@ -538,36 +742,20 @@
                 date: new Date().toISOString().slice(0, 10),
                 type: parentId ? 'section' : 'course',
                 parentId,
-                content: '# Nuova sezione\n\nScrivi qui il contenuto in Markdown.\n',
+                content: 'Scrivi qui il contenuto della sezione.\n',
             });
-            wireEditor('create');
+            wireEditor('create', null, 'Scrivi qui il contenuto della sezione.\n');
             return;
         }
 
         if (action === 'edit' && segs[1]) {
-            try {
-                const item = await apiJson(API + '/items/' + encodeURIComponent(segs[1]), { headers: authHeaders() });
-                document.getElementById('contentRoot').className = 'page';
-                document.getElementById('contentRoot').innerHTML = editorHtml({
-                    mode: 'edit',
-                    id: item.id,
-                    title: item.title,
-                    date: item.date || '',
-                    type: item.type || item.kind || 'course',
-                    parentId: item.parentId || '',
-                    content: item.content,
-                });
-                wireEditor('edit', item.id);
-            } catch (err) {
-                document.getElementById('contentRoot').innerHTML =
-                    `<h1 class="page-title">Errore</h1><p class="corsi-error">${escapeHtml(err.message)}</p><p><a href="${MANAGE_URL}">Torna alla gestione</a></p>`;
-            }
+            window.location.hash = 'view/' + segs[1];
             return;
         }
 
-        // compat: #<id> → edit
+        // compat: #<id> → view (modifica in-page)
         if (action && action !== 'view' && action !== 'edit' && action !== 'new') {
-            window.location.hash = 'edit/' + action;
+            window.location.hash = 'view/' + action;
         }
     }
 
@@ -596,80 +784,432 @@
         return `
             <h1 class="page-title">${heading}</h1>
             <p><a href="${MANAGE_URL}">← Torna alla gestione</a></p>
-            <form id="editorForm" class="editor-form">
+            <form id="editorForm" class="editor-form editor-form--wysiwyg">
                 <input type="hidden" id="edId" value="${escapeHtml(state.id)}">
+                <input type="hidden" id="edContent" value="">
 
-                <label for="edTitle">Titolo</label>
-                <input type="text" id="edTitle" maxlength="120" value="${escapeHtml(state.title)}" required>
-                <p class="editor-hint">L’identificativo URL viene creato automaticamente dal titolo (spazi → underscore).</p>
-                ${typeParentFields}
-
-                <label for="edContent">Contenuto Markdown</label>
-                <div class="editor-toolbar" id="edToolbar">
-                    <button type="button" data-md="bold" title="Grassetto"><b>G</b></button>
-                    <button type="button" data-md="italic" title="Corsivo"><i>C</i></button>
-                    <button type="button" data-md="underline" title="Sottolineato"><u>S</u></button>
-                    <input type="color" id="edColor" value="#ac4142" title="Colore testo: scegli il colore e viene applicato alla selezione">
-                    <button type="button" data-md="color" title="Applica il colore scelto alla selezione">A<span class="tb-color-bar" id="edColorBar"></span></button>
-                    <span class="tb-sep"></span>
-                    <button type="button" data-md="image" title="Carica e inserisci un'immagine">🖼 Immagine</button>
-                    <button type="button" data-md="chart" title="Inserisci un grafico">📊 Grafico</button>
-                    <button type="button" data-md="table" title="Inserisci una tabella">▦ Tabella</button>
-                    <input type="file" id="edImageFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;">
+                <div class="editor-meta">
+                    <label for="edTitle">Titolo</label>
+                    <input type="text" id="edTitle" maxlength="120" value="${escapeHtml(state.title)}" required>
+                    <p class="editor-hint">L’identificativo URL viene creato automaticamente dal titolo (spazi → underscore).</p>
+                    ${typeParentFields}
                 </div>
-                <textarea id="edContent" required>${escapeHtml(state.content)}</textarea>
-                <p class="editor-hint">Seleziona il testo e usa i pulsanti per formattarlo. «Grafico» e «Tabella» inseriscono un modello da compilare; usa «Anteprima» per vedere il risultato.</p>
+
+                <label class="editor-content-label">Contenuto</label>
+                <div class="wysiwyg-shell">
+                    ${toolbarHtml()}
+                    <div id="edWysiwyg" class="wysiwyg-surface post" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Scrivi qui come in un documento Word…"></div>
+                </div>
+                <p class="editor-hint">Modifica direttamente il testo formattato. Il risultato è quello che vedranno gli studenti.</p>
 
                 <div class="editor-actions">
                     <button type="submit" class="btn-primary">Salva modifiche</button>
-                    <button type="button" id="btnPreview">Anteprima</button>
                     ${state.mode === 'edit' ? '<button type="button" class="btn-danger" id="btnDelete">Elimina</button>' : ''}
                 </div>
                 <p id="editorMsg" class="editor-hint"></p>
             </form>
-            <div id="previewBox" class="editor-preview" style="display:none;">
-                <h2>Anteprima</h2>
-                <div id="previewBody"></div>
-            </div>
         `;
     }
 
-    // ── Toolbar editor ─────────────────────────────────────────────────────────
-    const CHART_TEMPLATE = [
-        '```chart',
-        '{',
-        '  "type": "bar",',
-        '  "title": "Titolo del grafico",',
-        '  "labels": ["Gennaio", "Febbraio", "Marzo"],',
-        '  "datasets": [',
-        '    { "label": "Serie 1", "data": [10, 25, 18] }',
-        '  ]',
-        '}',
-        '```',
-    ].join('\n');
+    // ── Toolbar / WYSIWYG ──────────────────────────────────────────────────────
+    const CHART_DEFAULT = {
+        type: 'bar',
+        title: 'Titolo del grafico',
+        labels: ['Gennaio', 'Febbraio', 'Marzo'],
+        datasets: [{ label: 'Serie 1', data: [10, 25, 18] }],
+    };
+    const CHART_PALETTE = ['#268bd2', '#ac4142', '#90a959', '#f4bf75', '#aa759f', '#75b5aa', '#d28445', '#6a9fb5'];
+    const CHART_TYPES = new Set(['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea']);
+    const CHART_TYPE_OPTIONS = [
+        { value: 'bar', label: 'Barre' },
+        { value: 'line', label: 'Linee' },
+        { value: 'pie', label: 'Torta' },
+        { value: 'doughnut', label: 'Ciambella' },
+        { value: 'radar', label: 'Radar' },
+        { value: 'polarArea', label: 'Area polare' },
+    ];
 
-    const TABLE_TEMPLATE = [
-        '| Colonna 1 | Colonna 2 | Colonna 3 |',
-        '| --- | --- | --- |',
-        '| Valore 1 | Valore 2 | Valore 3 |',
-        '| Valore 4 | Valore 5 | Valore 6 |',
-    ].join('\n');
-
-    function wrapSelection(ta, before, after, placeholder) {
-        const start = ta.selectionStart;
-        const end = ta.selectionEnd;
-        const sel = ta.value.slice(start, end) || placeholder;
-        ta.setRangeText(before + sel + after, start, end);
-        ta.focus();
-        ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    function normalizeChartConfig(cfg) {
+        const src = cfg && typeof cfg === 'object' ? cfg : {};
+        const type = CHART_TYPES.has(src.type) ? src.type : 'bar';
+        const labels = Array.isArray(src.labels) && src.labels.length
+            ? src.labels.map(String)
+            : [...CHART_DEFAULT.labels];
+        const datasets = (Array.isArray(src.datasets) && src.datasets.length ? src.datasets : CHART_DEFAULT.datasets)
+            .map((d, i) => ({
+                label: (d && d.label) ? String(d.label) : `Serie ${i + 1}`,
+                data: Array.isArray(d && d.data) ? d.data.map((n) => Number(n) || 0) : [],
+            }));
+        // allinea lunghezze dati ↔ etichette
+        datasets.forEach((d) => {
+            while (d.data.length < labels.length) d.data.push(0);
+            if (d.data.length > labels.length) d.data = d.data.slice(0, labels.length);
+        });
+        return {
+            type,
+            title: src.title != null ? String(src.title) : '',
+            labels,
+            datasets,
+            legend: src.legend !== false,
+        };
     }
 
-    function insertBlock(ta, text) {
-        const start = ta.selectionStart;
-        const needsNl = start > 0 && ta.value[start - 1] !== '\n';
-        const block = (needsNl ? '\n\n' : '') + text + '\n';
-        ta.setRangeText(block, start, ta.selectionEnd, 'end');
-        ta.focus();
+    function destroyChartPreview() {
+        const modal = document.getElementById('chartModal');
+        if (!modal || !modal._previewChart) return;
+        try { modal._previewChart.destroy(); } catch (_) { /* ignore */ }
+        modal._previewChart = null;
+    }
+
+    function readChartDataGrid(modal) {
+        const table = modal.querySelector('#chartDataTable');
+        if (!table) return { labels: [], datasets: [] };
+        const labels = [...table.querySelectorAll('thead .chart-cat-label')]
+            .map((inp) => (inp.value || '').trim() || 'Categoria');
+        const datasets = [...table.querySelectorAll('tbody tr')].map((tr, i) => {
+            const name = (tr.querySelector('.chart-series-name')?.value || '').trim() || `Serie ${i + 1}`;
+            const data = [...tr.querySelectorAll('.chart-cell-value')].map((inp) => {
+                const n = Number(String(inp.value || '0').replace(',', '.'));
+                return Number.isFinite(n) ? n : 0;
+            });
+            return { label: name, data };
+        });
+        return { labels, datasets };
+    }
+
+    function refreshChartPreview(modal) {
+        if (!modal || typeof Chart === 'undefined') return;
+        const canvas = modal.querySelector('#chartPreviewCanvas');
+        if (!canvas) return;
+        const type = modal.querySelector('#chartType')?.value || 'bar';
+        const title = (modal.querySelector('#chartTitle')?.value || '').trim();
+        const { labels, datasets: rawDs } = readChartDataGrid(modal);
+        const circular = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+        const datasets = rawDs.map((d, i) => ({
+            label: d.label,
+            data: d.data,
+            backgroundColor: circular
+                ? d.data.map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
+                : CHART_PALETTE[i % CHART_PALETTE.length] + (type === 'line' || type === 'radar' ? '33' : ''),
+            borderColor: circular ? '#fff' : CHART_PALETTE[i % CHART_PALETTE.length],
+            borderWidth: type === 'line' || type === 'radar' ? 2 : 1,
+            fill: type === 'radar' ? true : undefined,
+            tension: 0.25,
+        }));
+        destroyChartPreview();
+        modal._previewChart = new Chart(canvas, {
+            type: CHART_TYPES.has(type) ? type : 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    title: { display: !!title, text: title },
+                    legend: { display: true },
+                },
+            },
+        });
+    }
+
+    function buildChartDataTableHtml(cfg) {
+        const labels = cfg.labels.length ? cfg.labels : ['Categoria 1'];
+        const datasets = cfg.datasets.length ? cfg.datasets : [{ label: 'Serie 1', data: labels.map(() => 0) }];
+        const headCells = labels.map((lab, i) => `
+            <th>
+                <div class="chart-cat-cell">
+                    <input type="text" class="chart-cat-label" value="${escapeHtml(lab)}" aria-label="Categoria ${i + 1}">
+                    <button type="button" class="chart-cat-remove" title="Rimuovi categoria" data-cat="${i}" ${labels.length <= 1 ? 'disabled' : ''}>×</button>
+                </div>
+            </th>
+        `).join('');
+        const bodyRows = datasets.map((d, ri) => {
+            const cells = labels.map((_, ci) => `
+                <td><input type="number" class="chart-cell-value" step="any" value="${escapeHtml(String(d.data[ci] ?? 0))}" aria-label="Valore"></td>
+            `).join('');
+            return `
+                <tr>
+                    <th scope="row">
+                        <div class="chart-series-cell">
+                            <input type="text" class="chart-series-name" value="${escapeHtml(d.label)}" aria-label="Nome serie">
+                            <button type="button" class="chart-series-remove" title="Rimuovi serie" ${datasets.length <= 1 ? 'disabled' : ''}>×</button>
+                        </div>
+                    </th>
+                    ${cells}
+                </tr>
+            `;
+        }).join('');
+        return `
+            <table id="chartDataTable" class="chart-data-table">
+                <thead>
+                    <tr>
+                        <th class="chart-corner">Serie ↓ / Categorie →</th>
+                        ${headCells}
+                    </tr>
+                </thead>
+                <tbody>${bodyRows}</tbody>
+            </table>
+        `;
+    }
+
+    function syncChartGridFromState(modal) {
+        const wrap = modal.querySelector('#chartDataWrap');
+        if (!wrap || !modal._chartGrid) return;
+        wrap.innerHTML = buildChartDataTableHtml(modal._chartGrid);
+        refreshChartPreview(modal);
+    }
+
+    function ensureChartModal() {
+        let modal = document.getElementById('chartModal');
+        if (modal && !modal.querySelector('#chartDataWrap')) {
+            destroyChartPreview();
+            modal.remove();
+            modal = null;
+        }
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = 'chartModal';
+        modal.className = 'corsi-modal chart-modal';
+        modal.style.display = 'none';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'chartModalTitle');
+        modal.innerHTML = `
+            <div class="corsi-modal-box chart-modal-box">
+                <h2 id="chartModalTitle" class="chart-modal-title">Inserisci grafico</h2>
+                <p class="chart-modal-help">Compila la tabella come in un foglio: le colonne sono le categorie, le righe le serie di valori.</p>
+                <div class="chart-modal-grid">
+                    <label class="chart-modal-field">
+                        <span>Titolo</span>
+                        <input type="text" id="chartTitle" maxlength="120" placeholder="Es. Vendite trimestrali">
+                    </label>
+                    <label class="chart-modal-field">
+                        <span>Tipo di grafico</span>
+                        <select id="chartType">
+                            ${CHART_TYPE_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
+                        </select>
+                    </label>
+                    <div class="chart-modal-field chart-modal-field--full">
+                        <div class="chart-series-head">
+                            <span>Dati</span>
+                            <div class="chart-grid-actions">
+                                <button type="button" class="btn-sm" id="chartAddCategory">+ Categoria</button>
+                                <button type="button" class="btn-sm" id="chartAddSeries">+ Serie</button>
+                            </div>
+                        </div>
+                        <div id="chartDataWrap" class="chart-data-wrap"></div>
+                    </div>
+                    <div class="chart-modal-field chart-modal-field--full">
+                        <span>Anteprima</span>
+                        <div class="chart-preview-box"><canvas id="chartPreviewCanvas"></canvas></div>
+                    </div>
+                    <p id="chartModalError" class="chart-modal-error" hidden></p>
+                </div>
+                <div class="corsi-modal-actions">
+                    <button type="button" id="chartModalCancel">Annulla</button>
+                    <button type="button" id="chartModalOk">Inserisci</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const schedulePreview = () => {
+            clearTimeout(modal._previewTimer);
+            modal._previewTimer = setTimeout(() => refreshChartPreview(modal), 120);
+        };
+
+        const commitGridEdits = () => {
+            if (!modal._chartGrid) return;
+            const read = readChartDataGrid(modal);
+            modal._chartGrid.labels = read.labels;
+            modal._chartGrid.datasets = read.datasets;
+        };
+
+        modal.querySelector('#chartAddCategory').addEventListener('click', () => {
+            commitGridEdits();
+            const g = modal._chartGrid;
+            g.labels.push(`Categoria ${g.labels.length + 1}`);
+            g.datasets.forEach((d) => d.data.push(0));
+            syncChartGridFromState(modal);
+        });
+        modal.querySelector('#chartAddSeries').addEventListener('click', () => {
+            commitGridEdits();
+            const g = modal._chartGrid;
+            g.datasets.push({
+                label: `Serie ${g.datasets.length + 1}`,
+                data: g.labels.map(() => 0),
+            });
+            syncChartGridFromState(modal);
+        });
+        modal.querySelector('#chartDataWrap').addEventListener('click', (e) => {
+            const catBtn = e.target.closest('.chart-cat-remove');
+            const serBtn = e.target.closest('.chart-series-remove');
+            if (catBtn) {
+                commitGridEdits();
+                const idx = Number(catBtn.getAttribute('data-cat'));
+                const g = modal._chartGrid;
+                if (g.labels.length <= 1) return;
+                g.labels.splice(idx, 1);
+                g.datasets.forEach((d) => d.data.splice(idx, 1));
+                syncChartGridFromState(modal);
+                return;
+            }
+            if (serBtn) {
+                commitGridEdits();
+                const row = serBtn.closest('tr');
+                const rows = [...modal.querySelectorAll('#chartDataTable tbody tr')];
+                const idx = rows.indexOf(row);
+                if (idx < 0 || modal._chartGrid.datasets.length <= 1) return;
+                modal._chartGrid.datasets.splice(idx, 1);
+                syncChartGridFromState(modal);
+            }
+        });
+        modal.querySelector('#chartDataWrap').addEventListener('input', () => {
+            commitGridEdits();
+            schedulePreview();
+        });
+        modal.querySelector('#chartTitle').addEventListener('input', schedulePreview);
+        modal.querySelector('#chartType').addEventListener('change', schedulePreview);
+        modal.querySelector('#chartModalCancel').addEventListener('click', () => closeChartModal());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeChartModal();
+        });
+        return modal;
+    }
+
+    function closeChartModal() {
+        const modal = document.getElementById('chartModal');
+        if (!modal) return;
+        destroyChartPreview();
+        modal.style.display = 'none';
+        modal._onApply = null;
+        modal._chartGrid = null;
+    }
+
+    function openChartBuilder(initialCfg, onApply, opts) {
+        const modal = ensureChartModal();
+        const cfg = normalizeChartConfig(initialCfg || CHART_DEFAULT);
+        const titleEl = modal.querySelector('#chartModalTitle');
+        const okBtn = modal.querySelector('#chartModalOk');
+        const errEl = modal.querySelector('#chartModalError');
+        titleEl.textContent = (opts && opts.title) || 'Inserisci grafico';
+        okBtn.textContent = (opts && opts.okLabel) || 'Inserisci';
+        errEl.hidden = true;
+        errEl.textContent = '';
+
+        modal.querySelector('#chartTitle').value = cfg.title || '';
+        modal.querySelector('#chartType').value = cfg.type;
+        modal._chartGrid = {
+            labels: [...cfg.labels],
+            datasets: cfg.datasets.map((d) => ({ label: d.label, data: [...d.data] })),
+        };
+        syncChartGridFromState(modal);
+
+        modal._onApply = onApply;
+        okBtn.onclick = () => {
+            commitAndApply();
+        };
+
+        function commitAndApply() {
+            const title = (modal.querySelector('#chartTitle').value || '').trim();
+            const type = modal.querySelector('#chartType').value;
+            const { labels, datasets } = readChartDataGrid(modal);
+            if (!labels.length) {
+                errEl.hidden = false;
+                errEl.textContent = 'Aggiungi almeno una categoria.';
+                return;
+            }
+            if (!datasets.length) {
+                errEl.hidden = false;
+                errEl.textContent = 'Aggiungi almeno una serie di dati.';
+                return;
+            }
+            const next = normalizeChartConfig({ type, title, labels, datasets });
+            const apply = modal._onApply;
+            closeChartModal();
+            if (typeof apply === 'function') apply(next);
+        }
+
+        modal.style.display = 'flex';
+        modal.querySelector('#chartTitle').focus();
+    }
+
+    function insertChartBlockAtCursor(cfg) {
+        const surface = getActiveEditSurface();
+        const block = buildChartEditBlock(JSON.stringify(normalizeChartConfig(cfg), null, 2));
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount && surface) {
+            const range = sel.getRangeAt(0);
+            if (surface.contains(range.commonAncestorContainer)) {
+                range.deleteContents();
+                range.insertNode(block);
+                const spacer = document.createElement('p');
+                spacer.innerHTML = '<br>';
+                block.after(spacer);
+            } else {
+                surface.appendChild(block);
+            }
+        } else if (surface) {
+            surface.appendChild(block);
+        }
+        paintChartBlock(block);
+        setEditorMsg('Grafico inserito.');
+    }
+
+    const TABLE_HTML = [
+        '<table class="corsi-table" style="width:100%;table-layout:fixed">',
+        '<colgroup><col style="width:33%"><col style="width:33%"><col style="width:34%"></colgroup>',
+        '<thead><tr><th>Colonna 1</th><th>Colonna 2</th><th>Colonna 3</th></tr></thead>',
+        '<tbody><tr><td>Valore 1</td><td>Valore 2</td><td>Valore 3</td></tr>',
+        '<tr><td>Valore 4</td><td>Valore 5</td><td>Valore 6</td></tr></tbody></table>',
+        '<p></p>',
+    ].join('');
+
+
+    let _turndown = null;
+    function getTurndown() {
+        if (_turndown) return _turndown;
+        if (typeof TurndownService === 'undefined') return null;
+        _turndown = new TurndownService({
+            headingStyle: 'atx',
+            codeBlockStyle: 'fenced',
+            bulletListMarker: '-',
+        });
+        _turndown.addRule('underline', {
+            filter: ['u'],
+            replacement: (content) => `<u>${content}</u>`,
+        });
+        _turndown.addRule('coloredSpan', {
+            filter: (node) => node.nodeName === 'SPAN' && node.getAttribute('style') && /color\s*:/i.test(node.getAttribute('style')),
+            replacement: (content, node) => {
+                const m = String(node.getAttribute('style') || '').match(/color\s*:\s*([^;]+)/i);
+                const color = m ? m[1].trim() : '';
+                return color ? `<span style="color:${color}">${content}</span>` : content;
+            },
+        });
+        _turndown.addRule('fontColor', {
+            filter: (node) => node.nodeName === 'FONT' && node.getAttribute('color'),
+            replacement: (content, node) => `<span style="color:${node.getAttribute('color')}">${content}</span>`,
+        });
+        _turndown.addRule('chartBlock', {
+            filter: (node) => node.nodeName === 'DIV' && node.classList && node.classList.contains('chart-edit-block'),
+            replacement: (_content, node) => {
+                let raw = node.getAttribute('data-chart') || '{}';
+                try { raw = JSON.stringify(JSON.parse(raw), null, 2); } catch (_) { /* keep */ }
+                return `\n\n\`\`\`chart\n${raw}\n\`\`\`\n\n`;
+            },
+        });
+        // Conserva tabelle in HTML (larghezze/altezze colonne e righe)
+        _turndown.addRule('htmlTable', {
+            filter: ['table'],
+            replacement: (_content, node) => '\n\n' + serializeTableHtml(node) + '\n\n',
+        });
+        return _turndown;
+    }
+
+    function serializeTableHtml(table) {
+        const clone = table.cloneNode(true);
+        clone.querySelectorAll('[data-resize-ghost], .table-resize-guide').forEach((n) => n.remove());
+        return clone.outerHTML;
     }
 
     function setEditorMsg(text, isError) {
@@ -690,52 +1230,480 @@
         return data.url;
     }
 
-    function wireToolbar() {
-        const toolbar = document.getElementById('edToolbar');
-        const ta = document.getElementById('edContent');
-        if (!toolbar || !ta) return;
-        const colorInput = document.getElementById('edColor');
-        const colorBar = document.getElementById('edColorBar');
-        const fileInput = document.getElementById('edImageFile');
-        const syncColorBar = () => { if (colorBar) colorBar.style.background = colorInput.value; };
-        syncColorBar();
-        colorInput.addEventListener('input', syncColorBar);
+    function buildChartEditBlock(rawJson) {
+        let raw = rawJson;
+        try { raw = JSON.stringify(JSON.parse(rawJson), null, 2); } catch (_) { /* keep */ }
+        const block = document.createElement('div');
+        block.className = 'chart-edit-block';
+        block.contentEditable = 'false';
+        block.setAttribute('data-chart', raw);
+        block.innerHTML = `
+            <div class="chart-edit-head">
+                <span>📊 Grafico</span>
+                <button type="button" class="chart-edit-btn">Modifica dati</button>
+            </div>
+            <div class="chart-edit-canvas"><canvas></canvas></div>
+        `;
+        return block;
+    }
 
-        fileInput.addEventListener('change', async () => {
-            const file = fileInput.files && fileInput.files[0];
-            fileInput.value = '';
-            if (!file) return;
-            if (file.size > 10 * 1024 * 1024) { setEditorMsg('Immagine troppo grande (max 10 MB).', true); return; }
-            setEditorMsg('Caricamento immagine...');
-            try {
-                const url = await uploadImage(file);
-                const alt = file.name.replace(/\.[^.]*$/, '').replace(/[\[\]]/g, '');
-                insertBlock(ta, `![${alt}](${url})`);
-                setEditorMsg('Immagine inserita.');
-            } catch (err) {
-                setEditorMsg(err.message, true);
+    function paintChartBlock(block) {
+        const canvas = block.querySelector('canvas');
+        if (!canvas || typeof Chart === 'undefined') return;
+        if (block._chartInstance) {
+            try { block._chartInstance.destroy(); } catch (_) { /* ignore */ }
+            block._chartInstance = null;
+        }
+        let cfg;
+        try { cfg = JSON.parse(block.getAttribute('data-chart') || '{}'); }
+        catch (_) { return; }
+        const type = CHART_TYPES.has(cfg.type) ? cfg.type : 'bar';
+        const circular = type === 'pie' || type === 'doughnut' || type === 'polarArea';
+        const datasets = (Array.isArray(cfg.datasets) ? cfg.datasets : []).map((d, i) => ({
+            label: d.label || `Serie ${i + 1}`,
+            data: Array.isArray(d.data) ? d.data : [],
+            backgroundColor: d.backgroundColor || (circular
+                ? (d.data || []).map((_, j) => CHART_PALETTE[j % CHART_PALETTE.length])
+                : CHART_PALETTE[i % CHART_PALETTE.length] + (type === 'line' || type === 'radar' ? '33' : '')),
+            borderColor: d.borderColor || (circular ? '#fff' : CHART_PALETTE[i % CHART_PALETTE.length]),
+            borderWidth: d.borderWidth ?? (type === 'line' || type === 'radar' ? 2 : 1),
+            fill: d.fill,
+            tension: d.tension ?? 0.25,
+        }));
+        block._chartInstance = new Chart(canvas, {
+            type,
+            data: { labels: Array.isArray(cfg.labels) ? cfg.labels : [], datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    title: { display: !!cfg.title, text: cfg.title || '' },
+                    legend: { display: cfg.legend !== false },
+                },
+            },
+        });
+    }
+
+    function markdownToEditorHtml(md) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = renderMarkdown(md || '') || '<p></p>';
+        wrap.querySelectorAll('pre > code.language-chart').forEach((code) => {
+            const pre = code.parentElement;
+            if (!pre) return;
+            pre.replaceWith(buildChartEditBlock(code.textContent.trim()));
+        });
+        return wrap.innerHTML;
+    }
+
+    function fillWysiwyg(md) {
+        const surface = getActiveEditSurface() || document.getElementById('edWysiwyg');
+        if (!surface) return;
+        surface.innerHTML = markdownToEditorHtml(md);
+        surface.querySelectorAll('.chart-edit-block').forEach(paintChartBlock);
+        prepareEditableTables(surface);
+    }
+
+    function editorHtmlToMarkdown(surfaceEl) {
+        const surface = surfaceEl || getActiveEditSurface() || document.getElementById('edWysiwyg');
+        if (!surface) return '';
+        const td = getTurndown();
+        if (!td) {
+            return surface.innerText || '';
+        }
+        const clone = surface.cloneNode(true);
+        clone.querySelectorAll('.chart-edit-block').forEach((el) => {
+            el.querySelectorAll('canvas, .chart-edit-head, .chart-edit-canvas').forEach((n) => n.remove());
+        });
+        return td.turndown(clone.innerHTML).trim() + '\n';
+    }
+
+    function insertHtmlAtCursor(html) {
+        const surface = getActiveEditSurface();
+        if (!surface) return;
+        surface.focus();
+        if (document.queryCommandSupported && document.queryCommandSupported('insertHTML')) {
+            document.execCommand('insertHTML', false, html);
+        } else {
+            surface.insertAdjacentHTML('beforeend', html);
+        }
+        prepareEditableTables(surface);
+    }
+
+    function getSelectedTableContext() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        let node = sel.anchorNode;
+        if (node && node.nodeType === 3) node = node.parentElement;
+        const cell = node && node.closest ? node.closest('td, th') : null;
+        if (!cell) return null;
+        const row = cell.parentElement;
+        const table = cell.closest('table');
+        if (!row || !table) return null;
+        const rows = [...table.querySelectorAll('tr')];
+        const rowIndex = rows.indexOf(row);
+        const cellIndex = [...row.children].indexOf(cell);
+        return { table, row, cell, rows, rowIndex, cellIndex };
+    }
+
+    function ensureTableColgroup(table) {
+        const firstRow = table.querySelector('tr');
+        if (!firstRow) return null;
+        const n = firstRow.children.length;
+        let cg = table.querySelector(':scope > colgroup');
+        if (!cg) {
+            cg = document.createElement('colgroup');
+            table.insertBefore(cg, table.firstChild);
+        }
+        while (cg.children.length < n) cg.appendChild(document.createElement('col'));
+        while (cg.children.length > n) cg.removeChild(cg.lastChild);
+        table.classList.add('corsi-table');
+        if (!table.style.tableLayout) table.style.tableLayout = 'fixed';
+        if (!table.style.width) table.style.width = '100%';
+        return cg;
+    }
+
+    function snapshotColWidths(table) {
+        const cg = ensureTableColgroup(table);
+        if (!cg) return;
+        const firstRow = table.querySelector('tr');
+        const tableW = table.getBoundingClientRect().width || 1;
+        [...firstRow.children].forEach((cell, i) => {
+            const w = cell.getBoundingClientRect().width;
+            const pct = Math.max(5, Math.round((w / tableW) * 1000) / 10);
+            cg.children[i].style.width = pct + '%';
+        });
+    }
+
+    function prepareEditableTables(rootEl) {
+        (rootEl || document).querySelectorAll('.wysiwyg-surface table, [data-edit-body] table, #edWysiwyg table').forEach((table) => {
+            ensureTableColgroup(table);
+            const cg = table.querySelector(':scope > colgroup');
+            if (cg && ![...cg.children].some((c) => c.style.width)) snapshotColWidths(table);
+        });
+    }
+
+    function tableAddRow() {
+        const ctx = getSelectedTableContext();
+        if (!ctx) { setEditorMsg('Clicca prima in una cella della tabella.', true); return; }
+        const cols = ctx.row.children.length;
+        const newRow = document.createElement('tr');
+        for (let i = 0; i < cols; i++) {
+            const td = document.createElement('td');
+            td.innerHTML = '<br>';
+            newRow.appendChild(td);
+        }
+        ctx.row.after(newRow);
+        ensureTableColgroup(ctx.table);
+    }
+
+    function tableDelRow() {
+        const ctx = getSelectedTableContext();
+        if (!ctx) { setEditorMsg('Clicca prima in una cella della tabella.', true); return; }
+        if (ctx.rows.length <= 1) { setEditorMsg('Serve almeno una riga.', true); return; }
+        ctx.row.remove();
+    }
+
+    function tableAddCol() {
+        const ctx = getSelectedTableContext();
+        if (!ctx) { setEditorMsg('Clicca prima in una cella della tabella.', true); return; }
+        ctx.rows.forEach((tr) => {
+            const ref = tr.children[ctx.cellIndex];
+            const isHead = ref && ref.tagName === 'TH';
+            const cell = document.createElement(isHead ? 'th' : 'td');
+            cell.innerHTML = isHead ? 'Nuova' : '<br>';
+            if (ref) ref.after(cell);
+            else tr.appendChild(cell);
+        });
+        ensureTableColgroup(ctx.table);
+        snapshotColWidths(ctx.table);
+    }
+
+    function tableDelCol() {
+        const ctx = getSelectedTableContext();
+        if (!ctx) { setEditorMsg('Clicca prima in una cella della tabella.', true); return; }
+        if (ctx.row.children.length <= 1) { setEditorMsg('Serve almeno una colonna.', true); return; }
+        ctx.rows.forEach((tr) => {
+            const cell = tr.children[ctx.cellIndex];
+            if (cell) cell.remove();
+        });
+        const cg = ctx.table.querySelector(':scope > colgroup');
+        if (cg && cg.children[ctx.cellIndex]) cg.children[ctx.cellIndex].remove();
+        ensureTableColgroup(ctx.table);
+        snapshotColWidths(ctx.table);
+    }
+
+    const TABLE_RESIZE_EDGE = 10;
+
+    function hitTestTableEdge(e, cell) {
+        const rect = cell.getBoundingClientRect();
+        const x = e.clientX;
+        const y = e.clientY;
+        const nearRight = x >= rect.right - TABLE_RESIZE_EDGE && x <= rect.right + 1;
+        const nearLeft = x <= rect.left + TABLE_RESIZE_EDGE && x >= rect.left - 1;
+        const nearBottom = y >= rect.bottom - TABLE_RESIZE_EDGE && y <= rect.bottom + 1;
+        const nearTop = y <= rect.top + TABLE_RESIZE_EDGE && y >= rect.top - 1;
+        // angolo: priorità alla colonna
+        if (nearRight) return { edge: 'col', cell, side: 'right' };
+        if (nearLeft && cell.previousElementSibling) {
+            return { edge: 'col', cell: cell.previousElementSibling, side: 'right' };
+        }
+        if (nearBottom) return { edge: 'row', cell, side: 'bottom' };
+        if (nearTop && cell.parentElement && cell.parentElement.previousElementSibling) {
+            const prevRow = cell.parentElement.previousElementSibling;
+            const idx = [...cell.parentElement.children].indexOf(cell);
+            const above = prevRow.children[idx];
+            if (above) return { edge: 'row', cell: above, side: 'bottom' };
+        }
+        return null;
+    }
+
+    function clearTableResizeCursors(scope) {
+        (scope || document).querySelectorAll('.is-resize-col, .is-resize-row').forEach((el) => {
+            el.classList.remove('is-resize-col', 'is-resize-row');
+            el.style.removeProperty('cursor');
+        });
+    }
+
+    function setTableResizeCursor(cell, edge) {
+        clearTableResizeCursors(cell.closest('table') || document);
+        const cls = edge === 'col' ? 'is-resize-col' : 'is-resize-row';
+        cell.classList.add(cls);
+        cell.style.cursor = edge === 'col' ? 'col-resize' : 'row-resize';
+    }
+
+    function ensureTableResizeDelegation() {
+        const root = document.getElementById('contentRoot');
+        if (!root || root.dataset.tableResizeWired) return;
+        root.dataset.tableResizeWired = '1';
+
+        let drag = null;
+        const cellSel = '.wysiwyg-surface td, .wysiwyg-surface th, [data-edit-body] td, [data-edit-body] th, #edWysiwyg td, #edWysiwyg th';
+
+        root.addEventListener('mousemove', (e) => {
+            if (drag) return;
+            const cell = e.target.closest && e.target.closest(cellSel);
+            if (!cell) {
+                clearTableResizeCursors(root);
+                return;
+            }
+            const hit = hitTestTableEdge(e, cell);
+            if (hit) setTableResizeCursor(hit.cell, hit.edge);
+            else clearTableResizeCursors(cell.closest('table') || root);
+        });
+
+        root.addEventListener('mouseleave', () => {
+            if (!drag) clearTableResizeCursors(root);
+        });
+
+        root.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            const cell = e.target.closest && e.target.closest(cellSel);
+            if (!cell) return;
+            const hit = hitTestTableEdge(e, cell);
+            if (!hit) return;
+            const resizeCell = hit.cell;
+            const table = resizeCell.closest('table');
+            const row = resizeCell.parentElement;
+            if (!table || !row) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const cg = ensureTableColgroup(table);
+            snapshotColWidths(table);
+            const cellIndex = [...row.children].indexOf(resizeCell);
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const tableW = table.getBoundingClientRect().width || 1;
+
+            if (hit.edge === 'col') {
+                const leftCol = cg.children[cellIndex];
+                const rightCol = cg.children[cellIndex + 1];
+                const leftStart = leftCol.getBoundingClientRect().width;
+                const rightStart = rightCol ? rightCol.getBoundingClientRect().width : 0;
+                drag = {
+                    type: 'col',
+                    table,
+                    leftCol,
+                    rightCol,
+                    leftStart,
+                    rightStart,
+                    startX,
+                    tableW,
+                };
+                document.body.classList.add('is-table-resizing', 'is-table-resizing-col');
+            } else {
+                const startH = row.getBoundingClientRect().height;
+                drag = {
+                    type: 'row',
+                    table,
+                    row,
+                    startH,
+                    startY,
+                };
+                document.body.classList.add('is-table-resizing', 'is-table-resizing-row');
             }
         });
 
+        const onMove = (e) => {
+            if (!drag) return;
+            e.preventDefault();
+            if (drag.type === 'col') {
+                const dx = e.clientX - drag.startX;
+                const minW = 36;
+                let left = drag.leftStart + dx;
+                if (drag.rightCol) {
+                    let right = drag.rightStart - dx;
+                    if (left < minW) {
+                        right -= (minW - left);
+                        left = minW;
+                    }
+                    if (right < minW) {
+                        left -= (minW - right);
+                        right = minW;
+                    }
+                    if (left < minW || right < minW) return;
+                    drag.leftCol.style.width = ((left / drag.tableW) * 100).toFixed(2) + '%';
+                    drag.rightCol.style.width = ((right / drag.tableW) * 100).toFixed(2) + '%';
+                } else {
+                    left = Math.max(minW, left);
+                    drag.leftCol.style.width = ((left / drag.tableW) * 100).toFixed(2) + '%';
+                }
+            } else {
+                const dy = e.clientY - drag.startY;
+                const h = Math.max(28, Math.round(drag.startH + dy));
+                drag.row.style.height = h + 'px';
+                [...drag.row.children].forEach((c) => {
+                    c.style.height = h + 'px';
+                });
+            }
+        };
+
+        const onUp = () => {
+            if (!drag) return;
+            if (drag.type === 'col') snapshotColWidths(drag.table);
+            drag = null;
+            document.body.classList.remove('is-table-resizing', 'is-table-resizing-col', 'is-table-resizing-row');
+            clearTableResizeCursors(root);
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    function isSelectionInTable() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return false;
+        let node = sel.anchorNode;
+        if (node && node.nodeType === 3) node = node.parentElement;
+        if (!node || !node.closest) return false;
+        const cell = node.closest('td, th');
+        if (!cell) return false;
+        return !!(cell.closest('.wysiwyg-surface, [data-edit-body], #edWysiwyg'));
+    }
+
+    function syncTableToolsVisibility() {
+        const tools = document.getElementById('edTableTools');
+        if (!tools) return;
+        const show = isSelectionInTable() || !!getSelectedTableContext();
+        tools.hidden = !show;
+        tools.classList.toggle('is-visible', show);
+    }
+
+    function ensureTableToolsVisibilityWatch() {
+        if (window._corsiTableToolsWatch) return;
+        window._corsiTableToolsWatch = true;
+        document.addEventListener('selectionchange', () => {
+            if (!document.getElementById('edTableTools')) return;
+            syncTableToolsVisibility();
+        });
+        document.addEventListener('mouseup', () => {
+            if (!document.getElementById('edTableTools')) return;
+            requestAnimationFrame(syncTableToolsVisibility);
+        });
+        document.addEventListener('keyup', () => {
+            if (!document.getElementById('edTableTools')) return;
+            syncTableToolsVisibility();
+        });
+    }
+
+    function wireToolbar() {
+        ensureChartEditDelegation();
+        ensureTableResizeDelegation();
+        ensureTableToolsVisibilityWatch();
+        const toolbar = document.getElementById('edToolbar');
+        if (!toolbar) return;
+        syncTableToolsVisibility();
+        const colorInput = document.getElementById('edColor');
+        const colorBar = document.getElementById('edColorBar');
+        const fileInput = document.getElementById('edImageFile');
+        const syncColorBar = () => {
+            if (colorBar && colorInput) colorBar.style.background = colorInput.value;
+        };
+        syncColorBar();
+        if (colorInput) colorInput.addEventListener('input', syncColorBar);
+
+        if (fileInput && !fileInput.dataset.wired) {
+            fileInput.dataset.wired = '1';
+            fileInput.addEventListener('change', async () => {
+                const file = fileInput.files && fileInput.files[0];
+                fileInput.value = '';
+                if (!file) return;
+                if (file.size > 10 * 1024 * 1024) { setEditorMsg('Immagine troppo grande (max 10 MB).', true); return; }
+                setEditorMsg('Caricamento immagine...');
+                try {
+                    const url = await uploadImage(file);
+                    const alt = file.name.replace(/\.[^.]*$/, '').replace(/"/g, '');
+                    insertHtmlAtCursor(`<p><img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}"></p>`);
+                    setEditorMsg('Immagine inserita.');
+                } catch (err) {
+                    setEditorMsg(err.message, true);
+                }
+            });
+        }
+
+        if (toolbar.dataset.wired) return;
+        toolbar.dataset.wired = '1';
+
+        toolbar.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button, input[type="color"]')) e.preventDefault();
+        });
+
         toolbar.addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-md]');
+            const btn = e.target.closest('button[data-cmd]');
             if (!btn) return;
             e.preventDefault();
-            const action = btn.dataset.md;
-            if (action === 'bold') wrapSelection(ta, '**', '**', 'testo in grassetto');
-            else if (action === 'italic') wrapSelection(ta, '*', '*', 'testo in corsivo');
-            else if (action === 'underline') wrapSelection(ta, '<u>', '</u>', 'testo sottolineato');
-            else if (action === 'color') wrapSelection(ta, `<span style="color:${colorInput.value}">`, '</span>', 'testo colorato');
-            else if (action === 'image') fileInput.click();
-            else if (action === 'chart') insertBlock(ta, CHART_TEMPLATE);
-            else if (action === 'table') insertBlock(ta, TABLE_TEMPLATE);
+            const cmd = btn.dataset.cmd;
+            const surface = getActiveEditSurface();
+            if (surface) surface.focus();
+            if (cmd === 'bold' || cmd === 'italic' || cmd === 'underline'
+                || cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') {
+                document.execCommand(cmd, false, null);
+            } else if (cmd === 'foreColor' && colorInput) {
+                document.execCommand('foreColor', false, colorInput.value);
+            } else if (cmd === 'image') {
+                if (fileInput) fileInput.click();
+            } else if (cmd === 'table') {
+                insertHtmlAtCursor(TABLE_HTML);
+                requestAnimationFrame(syncTableToolsVisibility);
+            } else if (cmd === 'tableAddRow') {
+                tableAddRow();
+            } else if (cmd === 'tableDelRow') {
+                tableDelRow();
+            } else if (cmd === 'tableAddCol') {
+                tableAddCol();
+            } else if (cmd === 'tableDelCol') {
+                tableDelCol();
+            } else if (cmd === 'chart') {
+                openChartBuilder(CHART_DEFAULT, (cfg) => insertChartBlockAtCursor(cfg), {
+                    title: 'Inserisci grafico',
+                    okLabel: 'Inserisci',
+                });
+            }
+            requestAnimationFrame(syncTableToolsVisibility);
         });
     }
 
     // ── Grafici nei contenuti (blocchi ```chart con JSON) ─────────────────────
-    const CHART_PALETTE = ['#268bd2', '#ac4142', '#90a959', '#f4bf75', '#aa759f', '#75b5aa', '#d28445', '#6a9fb5'];
-    const CHART_TYPES = new Set(['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea']);
-
     function renderChartsIn(rootEl) {
         if (!rootEl) return;
         rootEl.querySelectorAll('pre > code.language-chart').forEach((code) => {
@@ -786,21 +1754,18 @@
         });
     }
 
-    function wireEditor(mode, existingId) {
+    function wireEditor(mode, existingId, seedMarkdown) {
         const idInput = document.getElementById('edId');
         const titleInput = document.getElementById('edTitle');
+        const contentHidden = document.getElementById('edContent');
+        const form = document.getElementById('editorForm');
+        fillWysiwyg(seedMarkdown || '');
         wireToolbar();
         if (mode === 'create') {
             const syncId = () => { idInput.value = slugify(titleInput.value); };
             titleInput.addEventListener('input', syncId);
             syncId();
         }
-        document.getElementById('btnPreview').addEventListener('click', () => {
-            const previewBody = document.getElementById('previewBody');
-            previewBody.innerHTML = renderMarkdown(document.getElementById('edContent').value);
-            renderChartsIn(previewBody);
-            document.getElementById('previewBox').style.display = 'block';
-        });
         const del = document.getElementById('btnDelete');
         if (del) {
             del.addEventListener('click', () => {
@@ -812,34 +1777,35 @@
                         invalidateCache();
                         goReadOnly();
                     } catch (err) {
-                        const msg = document.getElementById('editorMsg');
-                        msg.textContent = err.message;
-                        msg.className = 'editor-hint corsi-error';
+                        setEditorMsg(err.message, true);
                     }
                 });
             });
         }
-        document.getElementById('editorForm').addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const msg = document.getElementById('editorMsg');
-            msg.textContent = 'Salvataggio...';
-            msg.className = 'editor-hint';
+            setEditorMsg('Salvataggio...');
             const parentVal = document.getElementById('edParent').value || null;
             let type = document.getElementById('edType').value;
             if (parentVal) type = 'section';
             else if (type === 'section') type = 'course';
             const title = titleInput.value.trim();
             if (mode === 'create') idInput.value = slugify(title);
+            const md = editorHtmlToMarkdown();
+            if (contentHidden) contentHidden.value = md;
             const payload = {
                 id: idInput.value.trim().toLowerCase(),
                 title,
                 type,
-                content: document.getElementById('edContent').value,
+                content: md,
                 parentId: parentVal,
             };
             if (mode === 'create' && !payload.id) {
-                msg.textContent = 'Il titolo deve contenere almeno una lettera o un numero.';
-                msg.className = 'editor-hint corsi-error';
+                setEditorMsg('Il titolo deve contenere almeno una lettera o un numero.', true);
+                return;
+            }
+            if (!md.trim()) {
+                setEditorMsg('Il contenuto non può essere vuoto.', true);
                 return;
             }
             try {
@@ -853,10 +1819,9 @@
                     });
                 }
                 invalidateCache();
-                goReadOnly(mode === 'create' ? payload.id : existingId);
+                window.location.hash = 'view/' + (mode === 'create' ? payload.id : existingId);
             } catch (err) {
-                msg.textContent = err.message;
-                msg.className = 'editor-hint corsi-error';
+                setEditorMsg(err.message, true);
             }
         });
     }

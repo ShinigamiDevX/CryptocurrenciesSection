@@ -5,6 +5,59 @@
     overflow-y: auto;
 }
 
+/* Contenuto: tutta la larghezza a destra della sidebar (senza coprirla) */
+.content.container,
+.content {
+    max-width: none;
+}
+
+@media (min-width: 48em) {
+    .content,
+    .content.container {
+        margin-left: 18rem;
+        margin-right: 0;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        width: calc(100% - 18rem);
+        max-width: none;
+        box-sizing: border-box;
+    }
+}
+
+@media (min-width: 64em) {
+    .content,
+    .content.container {
+        margin-left: 18rem;
+        margin-right: 0;
+        padding-left: 2rem;
+        padding-right: 2rem;
+        width: calc(100% - 18rem);
+    }
+}
+
+#contentRoot,
+#contentRoot.post,
+#contentRoot.posts,
+#contentRoot.page {
+    max-width: none;
+    width: 100%;
+}
+
+.inline-edit-tree,
+.inline-doc,
+.wysiwyg-surface,
+.wysiwyg-surface table,
+#contentRoot table {
+    max-width: none;
+    width: 100%;
+}
+
+.chart-block {
+    max-width: min(100%, 960px);
+}
+
 /* Sidebar stile CS50: elenco gerarchico con separatori automatici */
 .cs50-nav {
     margin: 1.25rem 0 0;
@@ -150,6 +203,44 @@
     padding: 0.75rem 1rem;
     border: 1px solid #eee;
     background: #fafafa;
+}
+
+.section-children {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e5e5e5;
+}
+
+.section-children .level-badge,
+.section-children .manage-toggle {
+    display: none !important;
+}
+
+.section-children .manage-level-row {
+    display: block;
+}
+
+.section-children .manage-nest {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    border-left: none !important;
+}
+
+.section-children .manage-level.is-collapsed > .manage-level-row .manage-collapsible,
+.section-children .manage-level.is-collapsed > .manage-nest {
+    grid-template-rows: 1fr !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin-top: inherit;
+    margin-bottom: inherit;
+    padding-top: inherit;
+    padding-bottom: inherit;
+}
+
+.section-children .manage-level + .manage-level {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #eee;
 }
 
 /* Gestione contenuti: gerarchia a livelli */
@@ -446,6 +537,256 @@
     resize: vertical;
 }
 
+.editor-form--wysiwyg .editor-meta {
+    margin-bottom: 1rem;
+}
+
+.editor-content-label {
+    margin-top: 1.2rem !important;
+}
+
+.wysiwyg-shell {
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.wysiwyg-shell .editor-toolbar {
+    border: none;
+    border-bottom: 1px solid #ddd;
+    border-radius: 0;
+    margin-bottom: 0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.wysiwyg-surface {
+    min-height: 28rem;
+    max-height: min(70vh, 52rem);
+    overflow: auto;
+    padding: 1.4rem 1.6rem 2rem;
+    outline: none;
+    color: #313131;
+    line-height: 1.6;
+    box-sizing: border-box;
+}
+
+.wysiwyg-surface:empty::before {
+    content: attr(data-placeholder);
+    color: #aaa;
+    pointer-events: none;
+}
+
+.wysiwyg-surface:focus {
+    box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.25);
+}
+
+.wysiwyg-surface img {
+    max-width: 100%;
+    height: auto;
+}
+
+.wysiwyg-surface table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8rem 0;
+    table-layout: fixed;
+}
+
+.wysiwyg-surface th,
+.wysiwyg-surface td {
+    border: 1px solid #ddd;
+    padding: 0.4rem 0.55rem;
+    min-width: 2.5rem;
+    position: relative;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.wysiwyg-surface[contenteditable="true"] th:focus,
+.wysiwyg-surface[contenteditable="true"] td:focus {
+    outline: 2px solid rgba(38, 139, 210, 0.35);
+    outline-offset: -2px;
+}
+
+.wysiwyg-surface thead th {
+    background: #f5f5f5;
+}
+
+body.is-table-resizing {
+    user-select: none !important;
+}
+
+body.is-table-resizing .wysiwyg-surface {
+    caret-color: transparent;
+}
+
+body.is-table-resizing-col,
+body.is-table-resizing-col * {
+    cursor: col-resize !important;
+}
+
+body.is-table-resizing-row,
+body.is-table-resizing-row * {
+    cursor: row-resize !important;
+}
+
+.wysiwyg-surface td.is-resize-col,
+.wysiwyg-surface th.is-resize-col,
+.wysiwyg-surface td.is-resize-col *,
+.wysiwyg-surface th.is-resize-col * {
+    cursor: col-resize !important;
+}
+
+.wysiwyg-surface td.is-resize-row,
+.wysiwyg-surface th.is-resize-row,
+.wysiwyg-surface td.is-resize-row *,
+.wysiwyg-surface th.is-resize-row * {
+    cursor: row-resize !important;
+}
+
+.chart-edit-block {
+    margin: 1rem 0;
+    padding: 0.75rem;
+    border: 1px dashed #c5d4de;
+    border-radius: 6px;
+    background: #f7fafc;
+    user-select: none;
+}
+
+.chart-edit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #456;
+}
+
+.chart-edit-btn {
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid #ccd;
+    background: #fff;
+    border-radius: 3px;
+    padding: 0.2rem 0.55rem;
+}
+
+.chart-edit-btn:hover { background: #eee; }
+
+.chart-edit-canvas {
+    background: #fff;
+    border-radius: 4px;
+    padding: 0.4rem;
+}
+
+/* Modifica in-page (gestione = lettura + scrittura) */
+.inline-edit-hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.88rem;
+    color: #7a7a7a;
+}
+
+.inline-edit-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: 0 0 1rem;
+    padding: 0.45rem 0.55rem;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.inline-edit-bar .editor-toolbar {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+}
+
+.inline-edit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 0.9rem;
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid #eee;
+    font-size: 0.9rem;
+}
+
+.inline-edit-actions .btn-primary {
+    font: inherit;
+    cursor: pointer;
+    border: 1px solid #000;
+    background: #000;
+    color: #fff;
+    border-radius: 3px;
+    padding: 0.3rem 0.75rem;
+}
+
+.inline-edit-actions a {
+    color: #268bd2;
+}
+
+.inline-edit-title {
+    outline: none;
+    border-radius: 2px;
+}
+
+.inline-edit-title:focus {
+    box-shadow: 0 0 0 2px rgba(38, 139, 210, 0.2);
+}
+
+.inline-edit-tree {
+    margin-top: 0.5rem;
+}
+
+.inline-doc {
+    margin: 0 0 1.75rem;
+    padding: 0.35rem 0.5rem 0.75rem;
+    border-radius: 4px;
+    transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.inline-doc.is-active {
+    background: rgba(38, 139, 210, 0.04);
+    box-shadow: inset 3px 0 0 #268bd2;
+}
+
+.inline-doc-children {
+    margin: 1.25rem 0 0 0.85rem;
+    padding-left: 0.85rem;
+    border-left: 2px solid #e8e8e8;
+}
+
+.inline-doc .inline-wysiwyg {
+    -webkit-user-modify: read-write;
+    user-modify: read-write;
+}
+
+.inline-wysiwyg {
+    min-height: 4rem;
+    max-height: none;
+    overflow: visible;
+    padding: 0.25rem 0 0.5rem;
+    border: none;
+    box-shadow: none !important;
+    cursor: text;
+}
+
+.inline-wysiwyg:focus {
+    box-shadow: none !important;
+}
+
 .editor-hint {
     font-size: 0.85rem;
     color: #9a9a9a;
@@ -495,6 +836,18 @@
     margin: 0 0.25rem;
 }
 
+.editor-toolbar .tb-table-tools {
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.editor-toolbar .tb-table-tools:not([hidden]),
+.editor-toolbar .tb-table-tools.is-visible {
+    display: inline-flex;
+}
+
 .editor-toolbar input[type="color"] {
     width: 2.1rem;
     height: 1.95rem;
@@ -510,14 +863,14 @@
     height: 3px;
     margin-top: 1px;
     border-radius: 2px;
-    background: #ac4142;
+    background: #ff0000;
 }
 
 .editor-form textarea#edContent { border-radius: 0 0 3px 3px; }
 
 .chart-block {
     margin: 1.25rem 0;
-    max-width: 680px;
+    max-width: min(100%, 960px);
 }
 
 .editor-actions {
@@ -673,6 +1026,211 @@
     color: #fff;
 }
 
+.chart-modal-box {
+    max-width: min(52rem, calc(100% - 2rem));
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+}
+
+.chart-modal-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.chart-modal-help {
+    margin: 0 0 1rem;
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.chart-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.chart-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.92rem;
+}
+
+.chart-modal-field--full {
+    grid-column: 1 / -1;
+}
+
+.chart-modal-field > span {
+    color: #555;
+    font-weight: 600;
+}
+
+.chart-modal-field input,
+.chart-modal-field select {
+    font: inherit;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0.4rem 0.55rem;
+    background: #fff;
+}
+
+.chart-series-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.chart-grid-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.chart-series-head .btn-sm {
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    background: #f7f7f7;
+    border-radius: 3px;
+    padding: 0.25rem 0.6rem;
+}
+
+.chart-series-head .btn-sm:hover {
+    background: #eee;
+}
+
+.chart-data-wrap {
+    overflow-x: auto;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+.chart-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 28rem;
+    background: #fff;
+    font-size: 0.9rem;
+}
+
+.chart-data-table th,
+.chart-data-table td {
+    border: 1px solid #e5e5e5;
+    padding: 0.35rem;
+    vertical-align: middle;
+}
+
+.chart-data-table thead th {
+    background: #f3f6f8;
+}
+
+.chart-data-table .chart-corner {
+    text-align: left;
+    font-size: 0.78rem;
+    color: #777;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 0.5rem 0.55rem;
+    min-width: 8.5rem;
+}
+
+.chart-cat-cell,
+.chart-series-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.chart-data-table input {
+    font: inherit;
+    width: 100%;
+    min-width: 4.5rem;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    padding: 0.3rem 0.4rem;
+    background: transparent;
+}
+
+.chart-data-table input:focus {
+    outline: none;
+    border-color: #268bd2;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(38, 139, 210, 0.15);
+}
+
+.chart-data-table input.chart-cell-value {
+    text-align: right;
+    min-width: 4rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.chart-cat-remove,
+.chart-series-remove {
+    flex: 0 0 auto;
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #ac4142;
+}
+
+.chart-cat-remove:hover,
+.chart-series-remove:hover {
+    background: #faf0f0;
+    border-color: #ead0d0;
+}
+
+.chart-cat-remove:disabled,
+.chart-series-remove:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.chart-preview-box {
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0.65rem;
+    min-height: 12rem;
+}
+
+.chart-preview-box canvas {
+    max-height: 220px;
+}
+
+.chart-modal-error {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: #ac4142;
+    font-size: 0.9rem;
+}
+
+.corsi-modal-actions #chartModalOk {
+    background: #000;
+    border-color: #000;
+    color: #fff;
+}
+
+@media (max-width: 560px) {
+    .chart-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Tabelle nei contenuti markdown */
 #contentRoot table,
 #previewBody table {
@@ -680,6 +1238,7 @@
     margin: 1rem 0 1.5rem;
     border-collapse: collapse;
     font-size: 0.95rem;
+    table-layout: fixed;
 }
 
 #contentRoot th,
