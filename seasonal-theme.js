@@ -62,8 +62,84 @@
         return '';
     }
 
+    function reduceMotion() {
+        try {
+            return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        } catch {
+            return false;
+        }
+    }
+
+    function decorateLogos() {
+        const imgs = document.querySelectorAll(
+            'img[src*="logo.png"], img[src*="logo.PNG"], #headerLogo'
+        );
+        imgs.forEach((img) => {
+            if (img.closest('.season-logo-hat')) return;
+            const wrap = document.createElement('span');
+            wrap.className = 'season-logo-hat';
+            wrap.setAttribute('aria-hidden', 'true');
+            img.parentNode.insertBefore(wrap, img);
+            wrap.appendChild(img);
+        });
+    }
+
+    function injectFxLayer() {
+        if (document.getElementById('season-fx')) return;
+        const layer = document.createElement('div');
+        layer.id = 'season-fx';
+        layer.setAttribute('aria-hidden', 'true');
+
+        const snowCount = 42;
+        for (let i = 0; i < snowCount; i++) {
+            const flake = document.createElement('span');
+            flake.className = 'season-snow';
+            flake.style.setProperty('--sx', (Math.random() * 100).toFixed(2) + 'vw');
+            flake.style.setProperty('--sr', (Math.random() * 22 - 11).toFixed(1) + 'px');
+            flake.style.setProperty('--ss', (1.2 + Math.random() * 2.4).toFixed(2) + 'px');
+            flake.style.setProperty('--sd', (10 + Math.random() * 16).toFixed(1) + 's');
+            flake.style.setProperty('--sdelay', (-Math.random() * 18).toFixed(1) + 's');
+            flake.style.setProperty('--sop', (0.25 + Math.random() * 0.4).toFixed(2));
+            layer.appendChild(flake);
+        }
+
+        const starCount = 18;
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('span');
+            star.className = 'season-star';
+            // Mix di taglie: piccole, medie, qualche più grande
+            const sizeRoll = Math.random();
+            const size = sizeRoll < 0.45
+                ? (0.45 + Math.random() * 0.35)   // piccole
+                : sizeRoll < 0.8
+                    ? (0.85 + Math.random() * 0.4) // medie
+                    : (1.35 + Math.random() * 0.55); // grandi
+            star.style.setProperty('--stx', (6 + Math.random() * 88).toFixed(2) + 'vw');
+            star.style.setProperty('--sty', (4 + Math.random() * 62).toFixed(2) + 'vh');
+            star.style.setProperty('--sts', size.toFixed(2));
+            star.style.setProperty('--std', (4.5 + Math.random() * 6).toFixed(1) + 's');
+            star.style.setProperty('--stdelay', (-Math.random() * 7).toFixed(1) + 's');
+            layer.appendChild(star);
+        }
+
+        document.body.appendChild(layer);
+    }
+
+    function initChristmasExtras() {
+        decorateLogos();
+        if (!reduceMotion()) injectFxLayer();
+    }
+
     const season = detectSeason();
     const root = document.documentElement;
     if (season) root.setAttribute('data-season', season);
     else root.removeAttribute('data-season');
+
+    if (season === 'natale') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initChristmasExtras);
+        } else {
+            initChristmasExtras();
+        }
+    }
 })();

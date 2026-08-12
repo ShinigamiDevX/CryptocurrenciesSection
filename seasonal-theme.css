@@ -24,33 +24,114 @@ html[data-season="natale"] header {
 
 html[data-season="natale"] header h1 span,
 html[data-season="natale"] .logo-text span,
+html[data-season="natale"] .login-logo-text span,
 html[data-season="natale"] .page-title,
 html[data-season="natale"] h2.page-title {
     color: #d4b87a !important;
 }
 
-/* Puntini “neve” molto discreti, statici */
-html[data-season="natale"] body::after {
-    content: '';
-    pointer-events: none;
+/* Layer neve + stelle (generato da seasonal-theme.js) */
+#season-fx {
     position: fixed;
     inset: 0;
-    z-index: 0;
-    opacity: 0.18;
-    background-image:
-        radial-gradient(1.5px 1.5px at 12% 18%, rgba(255,255,255,0.7), transparent),
-        radial-gradient(1px 1px at 28% 42%, rgba(255,255,255,0.55), transparent),
-        radial-gradient(1.5px 1.5px at 61% 22%, rgba(255,255,255,0.5), transparent),
-        radial-gradient(1px 1px at 78% 58%, rgba(255,255,255,0.45), transparent),
-        radial-gradient(1.5px 1.5px at 91% 31%, rgba(255,255,255,0.55), transparent),
-        radial-gradient(1px 1px at 44% 71%, rgba(255,255,255,0.4), transparent),
-        radial-gradient(1px 1px at 7% 82%, rgba(255,255,255,0.35), transparent);
+    z-index: 40;
+    pointer-events: none;
+    overflow: hidden;
 }
 
-html[data-season="natale"] body > * {
-    position: relative;
-    z-index: 1;
+.season-snow {
+    position: absolute;
+    top: -8px;
+    left: var(--sx, 50vw);
+    width: var(--ss, 2px);
+    height: var(--ss, 2px);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
+    opacity: var(--sop, 0.4);
+    animation: season-snow-fall var(--sd, 14s) linear var(--sdelay, 0s) infinite;
 }
+
+.season-star {
+    position: absolute;
+    left: var(--stx, 50vw);
+    top: var(--sty, 20vh);
+    width: 11px;
+    height: 11px;
+    transform: scale(var(--sts, 1));
+    opacity: 0.55;
+    animation: season-star-drift var(--std, 7s) ease-in-out var(--stdelay, 0s) infinite;
+    filter: drop-shadow(0 0 2.5px rgba(255, 214, 120, 0.55));
+    background-color: #e8c56a;
+    /* Stella a 4 punte affusolate (tipo ✦) */
+    clip-path: polygon(
+        50% 0%,
+        56% 44%,
+        100% 50%,
+        56% 56%,
+        50% 100%,
+        44% 56%,
+        0% 50%,
+        44% 44%
+    );
+}
+
+.season-star::before,
+.season-star::after {
+    content: none;
+}
+
+@keyframes season-snow-fall {
+    0%   { transform: translate3d(0, -4vh, 0); }
+    100% { transform: translate3d(var(--sr, 0), 105vh, 0); }
+}
+
+@keyframes season-star-drift {
+    0%, 100% {
+        opacity: 0.28;
+        transform: scale(var(--sts, 1)) translate3d(0, 0, 0) rotate(0deg);
+    }
+    40% {
+        opacity: 0.8;
+        transform: scale(calc(var(--sts, 1) * 1.15)) translate3d(4px, -3px, 0) rotate(12deg);
+    }
+    70% {
+        opacity: 0.42;
+        transform: scale(var(--sts, 1)) translate3d(-3px, 2px, 0) rotate(-6deg);
+    }
+}
+
+/* Cappello Babbo Natale sul logo */
+.season-logo-hat {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 0;
+}
+
+.season-logo-hat > img {
+    display: block;
+}
+
+.season-logo-hat::before {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    width: 125%;
+    height: 125%;
+    left: -38%;
+    top: -40%;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center bottom;
+    background-image: url('/immagini/cappello-babbo-natale.png?v=4');
+    /* direzione originale + specchio orizzontale */
+    transform: rotate(-12deg) scaleX(-1);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* Login / register: logo un po' più grande → cappello proporzionato via % */
 
 /* ── Pasqua (Palme → lunedì dell'Angelo) ──────────────────────────────────── */
 html[data-season="pasqua"] {
@@ -84,4 +165,9 @@ html[data-season="pasqua"] h2.page-title {
     html[data-season] body {
         background-attachment: scroll;
     }
+    .season-snow,
+    .season-star {
+        animation: none !important;
+    }
+    #season-fx { display: none; }
 }
