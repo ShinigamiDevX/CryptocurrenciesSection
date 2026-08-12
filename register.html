@@ -272,6 +272,10 @@
         const params = new URLSearchParams(window.location.search);
         const token  = params.get('token');
 
+        // Evita di restare loggati come admin/superadmin nello stesso browser
+        // durante/dopo la registrazione di un nuovo account.
+        if (token) localStorage.removeItem('authToken');
+
         if (!token) {
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('invalidState').style.display = 'block';
@@ -343,6 +347,7 @@
                         registerOtpBoxes.focus(0);
                     }
                 } else {
+                    localStorage.removeItem('authToken');
                     document.getElementById('registerForm').style.display = 'none';
                     successMsg.textContent = 'Account creato con successo! Reindirizzamento al login...';
                     successMsg.style.display = 'block';
