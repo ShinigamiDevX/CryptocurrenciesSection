@@ -527,6 +527,10 @@ function authenticate(req,res,next){
         const tokenVer = Number(req.user.tokenVersion) || 0;
         const dbVer = Number(dbUser.tokenVersion) || 0;
         if (tokenVer !== dbVer) return res.status(401).json({error:'Sessione non valida. Effettua di nuovo l\'accesso.'});
+        // Ruolo e flag sempre dal DB, mai dal JWT (un admin declassato non deve restare admin).
+        req.user.role = dbUser.role;
+        req.user.email = dbUser.email;
+        req.user.mustChangePassword = !!dbUser.mustChangePassword;
         next();
     } catch { res.status(401).json({error:'Token non valido o scaduto.'}); }
 }
@@ -534,7 +538,7 @@ function requireAdmin(req,res,next){ if(req.user.role!=='superadmin'&&req.user.r
 function requireSuperadmin(req,res,next){ if(req.user.role!=='superadmin') return res.status(403).json({error:'Solo i super admin possono eseguire questa operazione.'}); next(); }
 /** Gestione contenuti Corsi: Docente oppure Super Admin (tutti i permessi). */
 function requireDocente(req, res, next) {
-    if (req.user.elevated || req.user.role === 'superadmin') return next();
+    if (req.user.role === 'superadmin') return next();
     const user = Users.findById(req.user.id);
     if (!userCan(user, 'corsi.manage')) {
         return res.status(403).json({ error: 'Solo i docenti o i Super Admin possono gestire i contenuti dei corsi.' });
@@ -681,20 +685,15 @@ app.post('/api/auth/login/resend-otp', async (req, res) => {
 app.get('/api/auth/verify', authenticate,(req,res)=>{
     const user=Users.findById(req.user.id);
     if (!user||user.revokedAt) return res.status(401).json({error:'Sessione non valida.'});
-    const elevated = !!req.user.elevated;
-    const effectiveRole = elevated ? 'superadmin' : user.role;
-    const effectiveUser = elevated ? { ...user, role: 'superadmin' } : user;
     res.json({
         valid: true,
         id: user.id,
         email: user.email,
-        role: effectiveRole,
-        elevated,
-        originalRole: req.user.originalRole || user.role,
-        cards: elevated ? defaultCardsForRole('superadmin') : cardsFromStored(user.allowedCards, user.role),
-        // Sessione elevated = poteri Super Admin a tutti gli effetti (anche gestione corsi)
-        docente: elevated ? true : normalizeDocente(user.role, user.docente),
-        canManageCorsi: elevated || userCan(effectiveUser, 'corsi.manage'),
+        role: user.role,
+        originalRole: user.role,
+        cards: cardsFromStored(user.allowedCards, user.role),
+        docente: normalizeDocente(user.role, user.docente),
+        canManageCorsi: userCan(user, 'corsi.manage'),
     });
 });
 
@@ -743,30 +742,7 @@ app.post('/api/auth/elevate-session', authenticate, async (req, res) => {
         }
         const user = Users.findById(req.user.id);
         if (!user || user.revokedAt) return res.status(401).json({ error: 'Sessione non valida.' });
-        if (user.role === 'superadmin' && !req.user.elevated) {
-            return res.json({ token: null, role: 'superadmin', elevated: false, alreadySuperadmin: true });
-        }
-        const token = jwt.sign(
-            {
-                id: user.id,
-                email: user.email,
-                role: 'superadmin',
-                mustChangePassword: false,
-                elevated: true,
-                originalRole: req.user.originalRole || user.role,
-                tokenVersion: Number(user.tokenVersion) || 0,
-            },
-            JWT_SECRET,
-            { expiresIn: '12h' }
-        );
-        res.json({
-            token,
-            role: 'superadmin',
-            elevated: true,
-            cards: defaultCardsForRole('superadmin'),
-            docente: true,
-            canManageCorsi: true,
-        });
+        res.json({ ok: true, message: 'ZITTO COGLIONE' });
     } catch (err) {
         console.error('[AUTH] elevate-session:', err);
         res.status(500).json({ error: 'Errore interno.' });

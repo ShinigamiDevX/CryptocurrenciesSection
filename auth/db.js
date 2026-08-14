@@ -404,7 +404,8 @@ const Users = {
             ...p,
         });
     },
-    updateRole: (id, role) => db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id),
+    /** Aggiorna il ruolo e invalida i JWT precedenti (tokenVersion++), come per il cambio password. */
+    updateRole: (id, role) => db.prepare('UPDATE users SET role = ?, tokenVersion = tokenVersion + 1 WHERE id = ?').run(role, id),
     updateAllowedCards: (id, allowedCards) => db.prepare('UPDATE users SET allowedCards = ? WHERE id = ?').run(allowedCards || '', id),
     updateDocente: (id, docente) => db.prepare('UPDATE users SET docente = ? WHERE id = ?').run(docente ? 1 : 0, id),
     updateProfile: (id, profile) => {

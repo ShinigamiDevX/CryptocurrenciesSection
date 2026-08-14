@@ -109,6 +109,27 @@
             color: #5ABBC8; font-size: 0.88rem; cursor: pointer;
         }
         .confirm-btns .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+
+        #easterEggOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            align-items: center;
+            justify-content: center;
+            background: rgba(3, 14, 28, 0.92);
+            cursor: pointer;
+        }
+        #easterEggOverlay p {
+            margin: 0;
+            color: #FF4757;
+            font-size: clamp(2.2rem, 8vw, 5.5rem);
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-align: center;
+            text-transform: uppercase;
+            font-family: Inter, sans-serif;
+        }
     </style>
 </head>
 <body>
@@ -217,8 +238,8 @@
     </div>
 
 
-    <script src="auth-token.js?v=1"></script>
-    <script src="nav-notifications.js?v=4"></script>
+    <script src="auth-token.js?v=2"></script>
+    <script src="nav-notifications.js?v=5"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -236,9 +257,7 @@
             const welcomeTitle = document.getElementById('welcomeTitle');
             const welcomeSub = document.getElementById('welcomeSub');
             if (_currentUser.role === 'superadmin') {
-                welcomeTitle.textContent = _currentUser.elevated
-                    ? 'Hai sbloccato i poteri operativi. Usa con giudizio.'
-                    : 'Benvenuto Super Admin';
+                welcomeTitle.textContent = 'Benvenuto Super Admin';
                 welcomeTitle.style.color = '#FF6B7A';
                 welcomeSub.style.display = 'none';
             } else {
@@ -272,9 +291,9 @@
     }
 
     /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin.
-     *  Super Admin / sessione elevated: tutte le schede. */
+     *  Super Admin: tutte le schede. */
     function applyDashboardCards(user) {
-        const isSuper = user.role === 'superadmin' || !!user.elevated;
+        const isSuper = user.role === 'superadmin';
         const isAdmin = isSuper || user.role === 'admin';
         const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
         document.querySelectorAll('#dashboardCards .card[data-card]').forEach(card => {
@@ -286,7 +305,7 @@
         });
     }
 
-    // ── Easter egg: logo hover + frase → superadmin di sessione ──
+    // ── Easter egg: logo hover + frase → scritta, nessun privilegio ──
     // La frase NON è nel client: si digita a memoria; il server verifica lo SHA-256.
     (function setupElevateEasterEgg() {
         const logo = document.getElementById('headerLogo');
@@ -295,6 +314,20 @@
         let buffer = '';
         let elevating = false;
         let timer = null;
+
+        function showEasterEggMessage() {
+            let overlay = document.getElementById('easterEggOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'easterEggOverlay';
+                overlay.setAttribute('role', 'dialog');
+                overlay.innerHTML = '<p>ZITTO COGLIONE</p>';
+                overlay.addEventListener('click', () => { overlay.style.display = 'none'; });
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+        }
+
         logo.addEventListener('mouseenter', () => { hovering = true; });
         logo.addEventListener('mouseleave', () => {
             hovering = false;
@@ -311,29 +344,8 @@
                     body: JSON.stringify({ phrase: attempt })
                 });
                 const data = await res.json().catch(() => ({}));
-                if (!res.ok) return;
-                if (data.token) {
-                    sessionStorage.setItem('elevatedAuthToken', data.token);
-                    _currentUser = {
-                        ..._currentUser,
-                        role: 'superadmin',
-                        elevated: true,
-                        cards: Array.isArray(data.cards) ? data.cards : (_currentUser.cards || []),
-                        docente: true,
-                        canManageCorsi: true,
-                    };
-                    applyDashboardCards(_currentUser);
-                    const welcomeTitle = document.getElementById('welcomeTitle');
-                    const welcomeSub = document.getElementById('welcomeSub');
-                    if (welcomeTitle) {
-                        welcomeTitle.textContent = 'Hai sbloccato i poteri operativi. Usa con giudizio.';
-                        welcomeTitle.style.color = '#FF6B7A';
-                    }
-                    if (welcomeSub) welcomeSub.style.display = 'none';
-                    window.location.replace('/portal?e=' + Date.now());
-                    return;
-                }
-                if (data.alreadySuperadmin) applyDashboardCards(_currentUser);
+                if (!res.ok || !data.ok) return;
+                showEasterEggMessage();
             } catch { /* silenzioso */ }
             finally { elevating = false; }
         }

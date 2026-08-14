@@ -10,7 +10,7 @@
         if (typeof global.authHeader === 'function') return global.authHeader(extra);
         const token = (typeof getAuthToken === 'function')
             ? getAuthToken()
-            : (sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken') || '');
+            : (localStorage.getItem('authToken') || '');
         return Object.assign({ Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, extra || {});
     }
 

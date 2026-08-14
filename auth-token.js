@@ -1,12 +1,11 @@
 'use strict';
 /**
- * Token di sessione: preferisce l'elevazione easter-egg (sessionStorage),
- * altrimenti il login normale (localStorage).
+ * Token di sessione da login (localStorage).
  */
 (function (global) {
     function getAuthToken() {
         try {
-            return sessionStorage.getItem('elevatedAuthToken') || localStorage.getItem('authToken') || '';
+            return localStorage.getItem('authToken') || '';
         } catch {
             return localStorage.getItem('authToken') || '';
         }
