@@ -332,7 +332,8 @@
                 const data = await res.json();
                 if (!res.ok) {
                     showError(data.error || 'Impossibile reinviare il codice.');
-                    if (res.status === 401) resetToCredentials();
+                    if (data.locked || res.status === 423) resetToCredentials();
+                    else if (res.status === 401) resetToCredentials();
                     return;
                 }
                 _loginChallenge = data.challenge;
@@ -376,7 +377,8 @@
                             loginOtpBoxes.clear();
                             loginOtpBoxes.focus(0);
                         }
-                        if (res.status === 401 && (data.error || '').includes('scaduta')) resetToCredentials();
+                        if (data.locked || res.status === 423) resetToCredentials();
+                        else if (res.status === 401 && (data.error || '').includes('scaduta')) resetToCredentials();
                         return;
                     }
                     finishLogin(data);

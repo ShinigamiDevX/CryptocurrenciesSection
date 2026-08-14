@@ -170,6 +170,8 @@
         .btn-edit:hover { background:rgba(0,200,255,0.22); }
         .btn-reset { background:rgba(255,184,77,0.12); border:1px solid rgba(255,184,77,0.35); color:#FFB84D; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-reset:hover { background:rgba(255,184,77,0.25); }
+        .btn-unlock { background:rgba(0,230,118,0.12); border:1px solid rgba(0,230,118,0.35); color:#00E676; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
+        .btn-unlock:hover { background:rgba(0,230,118,0.25); }
         .btn-ok-sm  { padding:0.45rem 1rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:6px; color:#030E1C; font-weight:700; font-size:0.85rem; cursor:pointer; }
         .btn-rej { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; }
         .btn-rej:hover { background:rgba(255,71,87,0.28); }
@@ -260,6 +262,7 @@
         .badge-admin { background:rgba(0,200,255,0.15); color:#00C8FF; }
         .badge-user  { background:rgba(0,230,118,0.12); color:#00E676; }
         .badge-docente { background:rgba(255,184,77,0.14); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
+        .badge-locked { background:rgba(255,71,87,0.16); color:#FF6B7A; border:1px solid rgba(255,71,87,0.35); }
         .btn-del { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-del:hover { background:rgba(255,71,87,0.28); }
         .role-select { display:none; } /* rimpiazzato da CustomSelect */
@@ -480,9 +483,12 @@
                 <dd id="viewDocente">—</dd>
                 <dt>Registrato</dt>
                 <dd id="viewRegistrato">—</dd>
+                <dt>Accesso</dt>
+                <dd id="viewLoginLock">—</dd>
             </dl>
             <div class="view-actions">
                 <button type="button" class="btn-cancel btn-chiudi" onclick="closeViewModal()">Chiudi</button>
+                <button type="button" class="btn-unlock" id="viewUnlockBtn" style="display:none;" onclick="unlockFromView()">Sblocca accesso</button>
                 <button type="button" class="btn-ok-sm" id="viewEditBtn" style="display:none;" onclick="editFromView()">Modifica</button>
             </div>
         </div>
@@ -877,6 +883,7 @@
             const canEdit        = !isFounder && !isSuperadmin && !isSelf && targetLevel < myLevel;
             const canEditProfile = !isFounder;
             const canResetPw     = _currentUser.role === 'superadmin' && !isSelf && !isFounder;
+            const canUnlock      = _currentUser.role === 'superadmin' && !isSuperadmin && !!u.loginLocked;
             const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
             const displayNome = isFounder
                 ? 'Super Admin'
@@ -888,10 +895,11 @@
                 <td>${displayGrado}</td>
                 <td>${displayNome}</td>
                 <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
-                <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}</div></td>
+                <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}${u.loginLocked ? '<span class="badge badge-locked">Bloccato</span>' : ''}</div></td>
                 <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
                 <td class="actions-cell" onclick="event.stopPropagation()">
                     ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
+                    ${canUnlock ? `<button class="btn-unlock" onclick="unlockUserLogin('${u.id}')">Sblocca</button>` : ''}
                     ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${u.email.replace(/'/g, "\\'")}')">Reset password</button>` : ''}
                     ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Elimina</button>` : ''}
                 </td>
@@ -929,6 +937,35 @@
                 showMsg('usersMsg', 'Utente rimosso.', 'success');
             }
             loadUsers();
+        });
+    }
+
+    function unlockFromView() {
+        const id = _viewUserId;
+        if (!id) return;
+        unlockUserLogin(id, () => closeViewModal());
+    }
+
+    function unlockUserLogin(id, afterOk) {
+        const u = _usersCache.find(x => x.id === id);
+        const label = u ? (u.email || 'utente') : 'utente';
+        showConfirm(`Sbloccare l'accesso di ${label} prima delle 2 ore?`, async () => {
+            try {
+                const res = await fetch('/api/auth/users/' + id + '/unlock-login', {
+                    method: 'POST',
+                    headers: authHeader(),
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showMsg('usersMsg', d.error || 'Impossibile sbloccare l\'account.', 'error');
+                    return;
+                }
+                showMsg('usersMsg', 'Account sbloccato. L\'utente può accedere di nuovo.', 'success');
+                if (typeof afterOk === 'function') afterOk();
+                loadUsers();
+            } catch {
+                showMsg('usersMsg', 'Errore di rete nello sblocco.', 'error');
+            }
         });
     }
 
@@ -1092,6 +1129,20 @@
             : '—';
         document.getElementById('viewRegistrato').textContent =
             u.createdAt ? new Date(u.createdAt).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : '—';
+
+        const lockDd = document.getElementById('viewLoginLock');
+        const unlockBtn = document.getElementById('viewUnlockBtn');
+        if (u.loginLocked) {
+            const until = u.loginLockedUntil
+                ? new Date(u.loginLockedUntil).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
+                : '';
+            const why = u.loginLockedReason === 'otp_fail' ? '3 OTP errati' : '3 invii OTP';
+            lockDd.innerHTML = `<span class="badge badge-locked">Bloccato</span> ${until ? 'fino alle ' + until : ''} (${why})`;
+            unlockBtn.style.display = (_currentUser.role === 'superadmin' && u.role !== 'superadmin') ? '' : 'none';
+        } else {
+            lockDd.textContent = 'Attivo';
+            unlockBtn.style.display = 'none';
+        }
 
         const editBtn = document.getElementById('viewEditBtn');
         editBtn.style.display = isFounder ? 'none' : '';

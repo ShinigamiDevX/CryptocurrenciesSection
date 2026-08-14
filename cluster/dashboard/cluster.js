@@ -2,6 +2,27 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+
+function loadClusterEnv() {
+    const candidates = [
+        path.join(__dirname, '..', '..', 'cluster.env'),
+        path.join(__dirname, '..', 'cluster.env'),
+    ];
+    for (const p of candidates) {
+        if (!fs.existsSync(p)) continue;
+        for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
+            const t = line.trim();
+            if (!t || t.startsWith('#') || !t.includes('=')) continue;
+            const i = t.indexOf('=');
+            const k = t.slice(0, i).trim();
+            const v = t.slice(i + 1).trim().replace(/^['"]|['"]$/g, '');
+            if (k && process.env[k] == null) process.env[k] = v;
+        }
+        break;
+    }
+}
+loadClusterEnv();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,7 +47,7 @@ app.use('/immagini', express.static(path.join(__dirname, '../immagini')));
 const { exec } = require('child_process');
 
 // ─── Reactor API – helper per il check "cluster too big" ───────────────────────
-const REACTOR_TOKEN = '123e45ef8f45fdb6f83a25af557a753d151b7093bca86d9e197c92c33a2e6897';
+const REACTOR_TOKEN = process.env.REACTOR_TOKEN || process.env.CHAINALYSIS_API_TOKEN || '';
 const REACTOR_HOST  = 'reactor.chainalysis.com';
 const REACTOR_ASSETS = ['BTC','ETH','BNB','TRX','MATIC','SOL','XRP','LTC','DOGE','TON','SUI','XLM','USDT','USDC'];
 

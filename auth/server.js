@@ -238,6 +238,71 @@ function notifyCorsiEditors(exceptUserId, type, title, body, link) {
         .forEach((u) => notifyUser(u.id, type, title, body, link));
 }
 
+function notifySuperadmins(type, title, body, link) {
+    Users.findActive()
+        .filter((u) => u.role === 'superadmin')
+        .forEach((u) => notifyUser(u.id, type, title, body, link));
+}
+
+const OTP_MAX_FAILS = 3;
+const OTP_MAX_SENDS = 3;
+const LOGIN_LOCK_MS = 2 * 60 * 60 * 1000;
+
+function isLoginLocked(user) {
+    if (!user || !user.loginLockedUntil) return false;
+    return new Date(user.loginLockedUntil).getTime() > Date.now();
+}
+
+function expireLoginLockIfNeeded(user) {
+    if (!user || !user.loginLockedUntil) return user;
+    if (new Date(user.loginLockedUntil).getTime() > Date.now()) return user;
+    Users.clearLoginLock(user.id);
+    return Users.findById(user.id);
+}
+
+function formatLockUntil(iso) {
+    try {
+        return new Date(iso).toLocaleString('it-IT', {
+            timeZone: 'Europe/Rome',
+            dateStyle: 'short',
+            timeStyle: 'short',
+        });
+    } catch {
+        return iso || '';
+    }
+}
+
+function loginLockedPayload(user) {
+    const until = user && user.loginLockedUntil;
+    return {
+        error: `Account bloccato per troppi tentativi. Riprova dopo le ${formatLockUntil(until)} (blocco di 2 ore).`,
+        locked: true,
+        lockedUntil: until || null,
+        code: 'LOGIN_LOCKED',
+    };
+}
+
+function applyLoginLock(user, reason) {
+    const fresh = Users.findById(user.id);
+    if (!fresh) return fresh;
+    if (isLoginLocked(fresh)) return fresh;
+    const until = new Date(Date.now() + LOGIN_LOCK_MS).toISOString();
+    Users.setLoginLock(fresh.id, until, reason);
+    const updated = Users.findById(fresh.id);
+    if (updated && updated.role !== 'superadmin') {
+        const why = reason === 'otp_fail'
+            ? '3 codici OTP errati'
+            : '3 invii del codice OTP';
+        notifySuperadmins(
+            'login_locked',
+            'Accesso bloccato',
+            `${subjectLabel(updated)} è stato bloccato per 2 ore (${why}). Puoi sbloccare l'account prima della scadenza da Gestione Utenti.`,
+            '/gestione-utenti'
+        );
+    }
+    return updated;
+}
+
 const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
 const CARD_LABEL = {
     blockchain: 'Tracciamento Blockchain',
@@ -585,6 +650,23 @@ async function issueLoginOtp(user) {
     return { challenge, emailSent };
 }
 
+async function issueLoginOtpGuarded(user) {
+    user = expireLoginLockIfNeeded(Users.findById(user.id));
+    if (!user || user.revokedAt) return { invalid: true };
+    if (isLoginLocked(user)) return { locked: true, user };
+    if ((Number(user.otpSendCount) || 0) >= OTP_MAX_SENDS) {
+        return { locked: true, user: applyLoginLock(user, 'otp_send') };
+    }
+    const result = await issueLoginOtp(user);
+    Users.incrementOtpSend(user.id);
+    user = Users.findById(user.id);
+    if ((Number(user.otpSendCount) || 0) >= OTP_MAX_SENDS) {
+        applyLoginLock(user, 'otp_send');
+        user = Users.findById(user.id);
+    }
+    return { locked: false, challenge: result.challenge, emailSent: result.emailSent, user };
+}
+
 function issueSessionToken(user) {
     return jwt.sign(
         {
@@ -607,13 +689,15 @@ app.post('/api/auth/login', async(req,res)=>{
         return res.status(401).json({error:'Credenziali non valide.'});
     }
     try {
-        const { challenge, emailSent } = await issueLoginOtp(user);
+        const result = await issueLoginOtpGuarded(user);
+        if (result.invalid) return res.status(401).json({error:'Credenziali non valide.'});
+        if (result.locked) return res.status(423).json(loginLockedPayload(result.user));
         res.json({
             requiresOtp: true,
-            challenge,
-            emailSent,
+            challenge: result.challenge,
+            emailSent: result.emailSent,
             smtpConfigured: !!transporter,
-            message: emailSent
+            message: result.emailSent
                 ? 'Ti abbiamo inviato un codice di verifica via email.'
                 : 'Codice generato (SMTP non configurato: controlla i log del server).',
         });
@@ -634,8 +718,11 @@ app.post('/api/auth/login/verify-otp', async (req, res) => {
     if (payload.purpose !== 'login_otp' || !payload.id) {
         return res.status(401).json({ error: 'Sessione di verifica non valida.' });
     }
-    const user = Users.findById(payload.id);
+    let user = expireLoginLockIfNeeded(Users.findById(payload.id));
     if (!user || user.revokedAt) return res.status(401).json({ error: 'Utente non valido.' });
+    if (isLoginLocked(user) && (user.loginLockedReason === 'otp_fail' || (Number(user.otpFailCount) || 0) >= OTP_MAX_FAILS)) {
+        return res.status(423).json(loginLockedPayload(user));
+    }
     if (!user.loginOtp || !user.loginOtpExpiry) {
         return res.status(400).json({ error: 'Nessun codice attivo. Richiedi un nuovo codice.' });
     }
@@ -644,9 +731,21 @@ app.post('/api/auth/login/verify-otp', async (req, res) => {
         return res.status(400).json({ error: 'Codice scaduto. Richiedi un nuovo codice.' });
     }
     if (!(await bcrypt.compare(String(otp).trim(), user.loginOtp))) {
-        return res.status(401).json({ error: 'Codice non corretto.' });
+        Users.incrementOtpFail(user.id);
+        user = Users.findById(user.id);
+        if ((Number(user.otpFailCount) || 0) >= OTP_MAX_FAILS) {
+            user = applyLoginLock(user, 'otp_fail');
+            return res.status(423).json(loginLockedPayload(user));
+        }
+        const left = OTP_MAX_FAILS - (Number(user.otpFailCount) || 0);
+        return res.status(401).json({
+            error: left === 1
+                ? 'Codice non corretto. Ultimo tentativo prima del blocco di 2 ore.'
+                : `Codice non corretto. Tentativi rimasti: ${left}.`,
+            attemptsLeft: left,
+        });
     }
-    Users.clearLoginOtp(user.id);
+    Users.clearLoginLock(user.id);
     const token = issueSessionToken(user);
     res.json({
         token,
@@ -670,7 +769,9 @@ app.post('/api/auth/login/resend-otp', async (req, res) => {
     const user = Users.findById(payload.id);
     if (!user || user.revokedAt) return res.status(401).json({ error: 'Utente non valido.' });
     try {
-        const result = await issueLoginOtp(user);
+        const result = await issueLoginOtpGuarded(user);
+        if (result.invalid) return res.status(401).json({ error: 'Utente non valido.' });
+        if (result.locked) return res.status(423).json(loginLockedPayload(result.user));
         res.json({
             requiresOtp: true,
             challenge: result.challenge,
@@ -949,14 +1050,24 @@ app.post('/api/auth/invite', authenticate, requireAdmin, async(req,res)=>{
 
 app.get('/api/auth/users', authenticate, requireAdmin,(req,res)=>{
     res.json(Users.findActive()
-        .filter(u => u.email !== SUPERADMIN_EMAIL)  // il fondatore non compare nella lista
-        .map(({passwordHash, ...u}) => {
+        .filter(u => u.email !== SUPERADMIN_EMAIL)
+        .map((raw) => {
+            const u = expireLoginLockIfNeeded(raw);
+            const {
+                passwordHash, loginOtp, loginOtpExpiry, tokenVersion,
+                otpFailCount, otpSendCount,
+                ...safe
+            } = u;
             const role = ALL_ROLES.includes(u.role) ? u.role : 'user';
+            const locked = isLoginLocked(u);
             return {
-                ...u,
+                ...safe,
                 role,
                 cards: cardsFromStored(u.allowedCards, role),
                 docente: normalizeDocente(role, u.docente),
+                loginLocked: locked,
+                loginLockedUntil: locked ? u.loginLockedUntil : null,
+                loginLockedReason: locked ? (u.loginLockedReason || '') : '',
             };
         }));
 });
@@ -1022,6 +1133,26 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
         '/profilo'
     );
     res.json({success:true,role:newRole});
+});
+
+/** Superadmin: sblocca un account bloccato per troppi tentativi OTP (prima delle 2 ore). */
+app.post('/api/auth/users/:id/unlock-login', authenticate, requireSuperadmin, (req, res) => {
+    let user = Users.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Utente non trovato.' });
+    if (user.revokedAt) return res.status(403).json({ error: 'Utente revocato.' });
+    if (user.role === 'superadmin') {
+        return res.status(403).json({ error: 'Il Super Admin non può essere sbloccato in anticipo: attendere le 2 ore.' });
+    }
+    user = expireLoginLockIfNeeded(user);
+    Users.clearLoginLock(user.id);
+    notifyUser(
+        user.id,
+        'login_unlocked',
+        'Accesso sbloccato',
+        'Il Super Admin ha sbloccato il tuo account. Puoi accedere di nuovo.',
+        '/login.html'
+    );
+    res.json({ success: true });
 });
 
 /** Superadmin: reset password di qualsiasi ruolo → email con password temporanea. */

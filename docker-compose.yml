@@ -19,6 +19,8 @@ services:
       dockerfile: Dockerfile
     container_name: cryptovault-cluster
     restart: unless-stopped
+    env_file:
+      - cluster.env
     volumes:
       - ./cluster/dashboard/uploads:/app/dashboard/uploads
 

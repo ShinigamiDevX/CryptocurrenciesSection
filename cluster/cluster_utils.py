@@ -1,9 +1,37 @@
+import os
 import re
 import time
 import json
 import warnings
 import requests
 from urllib.parse import quote
+
+def _load_cluster_env_file():
+    """Carica cluster.env se le variabili non sono già nell'ambiente (Docker le inietta da solo)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = (
+        os.path.join(here, '..', 'cluster.env'),
+        os.path.join(here, 'cluster.env'),
+    )
+    for path in candidates:
+        path = os.path.abspath(path)
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding='utf-8') as fh:
+                for raw in fh:
+                    line = raw.strip()
+                    if not line or line.startswith('#') or '=' not in line:
+                        continue
+                    key, _, val = line.partition('=')
+                    key, val = key.strip(), val.strip().strip('"').strip("'")
+                    if key and key not in os.environ:
+                        os.environ[key] = val
+        except OSError:
+            continue
+        break
+
+_load_cluster_env_file()
 
 # Sopprimi warning openpyxl cosmetics (stili mancanti nel workbook)
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
@@ -70,10 +98,10 @@ EVM_CHAIN_KEYS = [
 
 CHAINALYSIS_BASE_URL = "https://api.chainalysis.com"
 REACTOR_BASE_URL = "https://reactor.chainalysis.com"
-CHAINALYSIS_API_TOKEN = "123e45ef8f45fdb6f83a25af557a753d151b7093bca86d9e197c92c33a2e6897"
+CHAINALYSIS_API_TOKEN = (os.environ.get("CHAINALYSIS_API_TOKEN") or os.environ.get("REACTOR_TOKEN") or "").strip()
 
 TRM_BASE_URL = "https://api.trmlabs.com"
-TRM_API_KEY = "35c2ed35-f481-4b31-892e-6654bf979b16"
+TRM_API_KEY = (os.environ.get("TRM_API_KEY") or "").strip()
 
 # Mapping TRM chain names → mainnet Chainalysis
 # TRM_CHAIN_TO_MAINNET rimosso: sostituito da TRM_CHAIN_ID_TO_MAINNET

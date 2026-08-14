@@ -235,6 +235,10 @@ const USER_EXTRA_COLS = [
     ['loginOtp', 'TEXT'],
     ['loginOtpExpiry', 'TEXT'],
     ['tokenVersion', 'INTEGER NOT NULL DEFAULT 0'],
+    ['otpFailCount', 'INTEGER NOT NULL DEFAULT 0'],
+    ['otpSendCount', 'INTEGER NOT NULL DEFAULT 0'],
+    ['loginLockedUntil', 'TEXT'],
+    ['loginLockedReason', "TEXT NOT NULL DEFAULT ''"],
 ];
 USER_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
@@ -288,6 +292,8 @@ const fromRow = (r) => r ? {
     domicilioComeResidenza: toBool(r.domicilioComeResidenza),
     docente: toBool(r.docente),
     tokenVersion: Number(r.tokenVersion) || 0,
+    otpFailCount: Number(r.otpFailCount) || 0,
+    otpSendCount: Number(r.otpSendCount) || 0,
 } : null;
 
 function geoBlock(p, prefix, { withAddress = false } = {}) {
@@ -433,6 +439,10 @@ const Users = {
     resetPassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 1, tokenVersion = tokenVersion + 1 WHERE id = ?').run(hash, id),
     setLoginOtp: (id, hash, exp) => db.prepare('UPDATE users SET loginOtp = ?, loginOtpExpiry = ? WHERE id = ?').run(hash, exp, id),
     clearLoginOtp: id => db.prepare('UPDATE users SET loginOtp = NULL, loginOtpExpiry = NULL WHERE id = ?').run(id),
+    incrementOtpFail: id => db.prepare('UPDATE users SET otpFailCount = otpFailCount + 1 WHERE id = ?').run(id),
+    incrementOtpSend: id => db.prepare('UPDATE users SET otpSendCount = otpSendCount + 1 WHERE id = ?').run(id),
+    setLoginLock: (id, until, reason) => db.prepare('UPDATE users SET loginLockedUntil = ?, loginLockedReason = ? WHERE id = ?').run(until, reason || '', id),
+    clearLoginLock: id => db.prepare("UPDATE users SET loginLockedUntil = NULL, loginLockedReason = '', otpFailCount = 0, otpSendCount = 0, loginOtp = NULL, loginOtpExpiry = NULL WHERE id = ?").run(id),
 };
 
 // ── Profile Change Requests ─────────────────────────────────────────────────
