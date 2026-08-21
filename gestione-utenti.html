@@ -152,6 +152,20 @@
             overflow: visible;
             text-overflow: clip;
         } /* Azioni */
+        #tab-hidden .users-table th:nth-child(5),
+        #tab-hidden .users-table td:nth-child(5),
+        #tab-hidden .users-table th:nth-child(6),
+        #tab-hidden .users-table td:nth-child(6) {
+            width: 10%;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        #tab-hidden .users-table th:nth-child(7),
+        #tab-hidden .users-table td:nth-child(7) {
+            width: 20%;
+            overflow: visible;
+            text-overflow: clip;
+        }
         .actions-cell {
             display: flex;
             flex-wrap: nowrap;
@@ -263,6 +277,18 @@
         .badge-user  { background:rgba(0,230,118,0.12); color:#00E676; }
         .badge-docente { background:rgba(255,184,77,0.14); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
         .badge-locked { background:rgba(255,71,87,0.16); color:#FF6B7A; border:1px solid rgba(255,71,87,0.35); }
+        .badge-hidden { background:rgba(255,184,77,0.16); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
+        .tab-section-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #7ACCE0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 1.75rem 0 0.75rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid rgba(0,200,255,0.14);
+        }
+        .tab-section-hint { font-size: 0.88rem; color: #5ABBC8; margin: 0 0 1rem; }
         .btn-del { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-del:hover { background:rgba(255,71,87,0.28); }
         .role-select { display:none; } /* rimpiazzato da CustomSelect */
@@ -303,6 +329,292 @@
             user-select: none;
         }
         .cards-pick-item input { width: auto; accent-color: #00C8FF; cursor: pointer; }
+        .bulk-users-toolbar {
+            display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap;
+            justify-content: center;
+            margin: 0 auto 0.55rem;
+        }
+        .bulk-users-toolbar input[type="search"] {
+            flex: 0 1 18rem; min-width: 12rem;
+            padding: 0.5rem 0.75rem; background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.22); border-radius: 8px;
+            color: #C8F0E8; font-size: 0.85rem; font-family: inherit; outline: none;
+        }
+        .bulk-users-toolbar input[type="search"]:focus { border-color: rgba(0,200,255,0.55); }
+        .bulk-filter-sel { width: 12.8rem; flex: 0 0 12.8rem; }
+        .bulk-sort-dir {
+            width: 2.25rem; height: 2.25rem; flex: 0 0 2.25rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            border: 1px solid rgba(0,200,255,0.22);
+            background: rgba(0,200,255,0.06);
+            color: #00C8FF; cursor: pointer;
+            font-size: 0.78rem; font-weight: 700; font-family: inherit;
+        }
+        .bulk-sort-dir:hover { border-color: rgba(0,200,255,0.5); background: rgba(0,200,255,0.12); }
+        .bulk-card-filters {
+            display: flex; flex-wrap: wrap; gap: 0.4rem;
+            justify-content: center; align-items: center;
+            width: 100%;
+        }
+        .bulk-chip-filter {
+            appearance: none; -webkit-appearance: none;
+            padding: 0.32rem 0.7rem; border-radius: 999px;
+            border: 1px solid rgba(0,200,255,0.22);
+            background: rgba(3,14,28,0.45);
+            color: #C8F0E8; font: inherit; font-size: 0.78rem;
+            cursor: pointer; user-select: none;
+        }
+        .bulk-chip-filter:hover { border-color: rgba(0,200,255,0.45); background: rgba(0,200,255,0.08); }
+        .bulk-chip-filter.is-on {
+            background: linear-gradient(135deg, rgba(0,200,255,0.28), rgba(0,230,118,0.16));
+            border-color: rgba(0,200,255,0.55);
+            color: #fff;
+        }
+        .bulk-chip-filter.is-docente {
+            border-color: rgba(255,184,77,0.35);
+            color: #FFB84D;
+        }
+        .bulk-chip-filter.is-docente:hover {
+            border-color: rgba(255,184,77,0.55);
+            background: rgba(255,184,77,0.1);
+        }
+        .bulk-chip-filter.is-docente.is-on {
+            background: rgba(255,184,77,0.22);
+            border-color: rgba(255,184,77,0.6);
+            color: #FFD79A;
+        }
+        .bulk-chip-filter.is-hidden-users {
+            border-color: rgba(255,107,122,0.4);
+            color: #FF8A96;
+        }
+        .bulk-chip-filter.is-hidden-users:hover {
+            border-color: rgba(255,107,122,0.6);
+            background: rgba(255,71,87,0.1);
+        }
+        .bulk-chip-filter.is-hidden-users.is-on {
+            background: rgba(255,71,87,0.22);
+            border-color: rgba(255,107,122,0.6);
+            color: #FFC0C6;
+        }
+        .bulk-clear-filters {
+            background: transparent; border: none; color: #00C8FF; cursor: pointer;
+            font: inherit; font-size: 0.78rem; font-weight: 600; padding: 0.2rem 0.15rem;
+            visibility: hidden;
+            min-width: 6.5rem;
+        }
+        .bulk-clear-filters.is-shown { visibility: visible; }
+        .bulk-clear-filters:hover { text-decoration: underline; }
+        .bulk-chip-toolbar {
+            position: relative;
+            margin: 0 auto 0.55rem;
+        }
+        .bulk-filter-hint {
+            position: absolute;
+            right: 0;
+            top: 0;
+            margin: 0;
+            font-size: 0.8rem;
+            color: #5ABBC8;
+            line-height: 2rem;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .bulk-matrix-wrap {
+            overflow: auto;
+            width: max-content;
+            max-width: 100%;
+            margin: 0 auto;
+            max-height: min(38rem, calc(100vh - 22rem));
+            border: 1px solid rgba(0,200,255,0.22);
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(0,200,255,0.05), rgba(3,14,28,0.35));
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.06), 0 12px 32px rgba(0,0,0,0.28);
+        }
+        .bulk-matrix-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+        .bulk-matrix-wrap::-webkit-scrollbar-thumb {
+            background: rgba(0,200,255,0.28); border-radius: 6px;
+        }
+        .bulk-matrix {
+            width: max-content;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.82rem;
+        }
+        .bulk-matrix th, .bulk-matrix td {
+            border-bottom: 1px solid rgba(0,200,255,0.07);
+            vertical-align: middle;
+        }
+        .bulk-matrix tbody tr:last-child td { border-bottom: none; }
+        .bulk-matrix thead th {
+            position: sticky; top: 0; z-index: 2;
+            background: linear-gradient(180deg, #16445c 0%, #0d3044 100%);
+            color: #9FE4F0;
+            font-weight: 700;
+            padding: 0.8rem 0.4rem 0.85rem;
+            text-align: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 18px rgba(0,0,0,0.28);
+        }
+        .bulk-matrix .bulk-user-col {
+            position: sticky; left: 0; z-index: 3;
+            width: 1%;
+            white-space: nowrap;
+            text-align: left;
+            padding: 0.6rem 1rem;
+        }
+        .bulk-matrix thead .bulk-user-col {
+            z-index: 4;
+            background: linear-gradient(180deg, #1a5068 0%, #114056 100%);
+            color: #E8FBFF;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            box-shadow: 8px 0 18px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .bulk-matrix tbody .bulk-user-col {
+            background: linear-gradient(90deg, #10283a 0%, #0c1e2e 100%);
+            box-shadow: 10px 0 18px rgba(0,0,0,0.22);
+        }
+        .bulk-matrix tbody tr:nth-child(even) .bulk-user-col {
+            background: linear-gradient(90deg, #143044 0%, #0e2436 100%);
+        }
+        .bulk-matrix tbody tr:hover td { background: rgba(0,200,255,0.05); }
+        .bulk-matrix tbody tr:hover .bulk-user-col {
+            background: linear-gradient(90deg, #1a3d54 0%, #143246 100%);
+        }
+        .bulk-matrix tbody tr.is-hidden { opacity: 0.72; }
+        .bulk-matrix tbody tr.is-locked .bulk-cell-hit { cursor: not-allowed; }
+        .bulk-matrix tbody tr.is-locked .bulk-flag {
+            filter: grayscale(0.35);
+            box-shadow: none;
+        }
+        .bulk-matrix input[type="checkbox"]:disabled + .bulk-flag {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+        .bulk-user-cell { display: flex; align-items: center; gap: 0.7rem; width: max-content; }
+        .bulk-avatar {
+            flex: 0 0 2.05rem; width: 2.05rem; height: 2.05rem; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at 35% 30%, rgba(0,200,255,0.35), rgba(0,200,255,0.1));
+            color: #7DE8FF;
+            font-size: 0.68rem; font-weight: 700;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.32), 0 0 12px rgba(0,200,255,0.12);
+        }
+        .bulk-user-text { display: flex; flex-direction: column; gap: 0.14rem; width: max-content; }
+        .bulk-user-text strong {
+            font-weight: 600; font-size: 0.86rem; color: #F2FFFC;
+            white-space: nowrap;
+        }
+        .bulk-user-text small {
+            color: #6BC4D4; font-size: 0.72rem;
+            white-space: nowrap;
+        }
+        .bulk-user-text .badge { font-size: 0.65rem; margin-left: 0.4rem; vertical-align: middle; }
+        .bulk-card-head {
+            width: 6.4rem; min-width: 6.4rem;
+        }
+        .bulk-card-head.is-docente label { color: #FFC56A; }
+        .bulk-card-head label {
+            display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+            cursor: pointer; color: #9FE4F0; font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .bulk-cell {
+            text-align: center;
+            width: 6.4rem;
+            padding: 0.35rem 0.3rem;
+            background: rgba(3,14,28,0.25);
+            transition: background 0.16s ease;
+        }
+        .bulk-cell.is-on { background: rgba(0,230,118,0.12); }
+        .bulk-cell.is-docente.is-on { background: rgba(255,184,77,0.14); }
+        .bulk-cell.is-dirty { box-shadow: inset 0 0 0 2px rgba(0,200,255,0.5); }
+        .bulk-cell.is-on.is-dirty { box-shadow: inset 0 0 0 2px rgba(0,200,255,0.7); }
+        .bulk-cell.is-na { opacity: 0.4; background: transparent; }
+        .bulk-cell.is-na .bulk-flag { cursor: not-allowed; }
+        .bulk-cell-hit {
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 2.45rem; cursor: pointer; margin: 0;
+        }
+        .bulk-card-head label { position: relative; }
+        .bulk-matrix input[type="checkbox"] {
+            position: absolute; opacity: 0; width: 1px; height: 1px;
+            margin: 0; pointer-events: none;
+        }
+        .bulk-flag {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.32rem; height: 1.32rem; flex: 0 0 1.32rem;
+            border-radius: 7px;
+            border: 1.5px solid rgba(0,200,255,0.32);
+            background: rgba(3,14,28,0.55);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+            transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+        }
+        .bulk-flag::after {
+            content: '';
+            width: 0.28rem; height: 0.52rem;
+            border: solid transparent;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg) scale(0.4);
+            opacity: 0;
+            margin-bottom: 0.12rem;
+            transition: opacity 0.12s ease, transform 0.16s ease;
+        }
+        .bulk-cell-hit:hover .bulk-flag,
+        .bulk-card-head label:hover .bulk-flag {
+            border-color: rgba(0,200,255,0.7);
+            transform: scale(1.08);
+        }
+        .bulk-matrix input[type="checkbox"]:checked + .bulk-flag {
+            background: linear-gradient(135deg, #00C8FF, #00E676);
+            border-color: transparent;
+            box-shadow: 0 0 0 1px rgba(0,230,118,0.25), 0 0 14px rgba(0,200,255,0.38);
+        }
+        .bulk-matrix input[type="checkbox"]:checked + .bulk-flag::after {
+            border-color: #030E1C;
+            opacity: 1;
+            transform: rotate(45deg) scale(1);
+        }
+        .bulk-matrix input[type="checkbox"]:indeterminate + .bulk-flag {
+            background: rgba(0,200,255,0.28);
+            border-color: rgba(0,200,255,0.55);
+            box-shadow: 0 0 10px rgba(0,200,255,0.2);
+        }
+        .bulk-matrix input[type="checkbox"]:indeterminate + .bulk-flag::after {
+            width: 0.55rem; height: 2px;
+            border: none; border-radius: 1px;
+            background: #E8FBFF;
+            opacity: 1; transform: none; margin: 0;
+        }
+        .bulk-cell.is-docente input:checked + .bulk-flag,
+        .bulk-card-head.is-docente input:checked + .bulk-flag {
+            background: linear-gradient(135deg, #FFC56A, #FF8A3D);
+            box-shadow: 0 0 0 1px rgba(255,184,77,0.3), 0 0 14px rgba(255,184,77,0.35);
+        }
+        .bulk-card-head.is-docente label:hover .bulk-flag,
+        .bulk-cell.is-docente .bulk-cell-hit:hover .bulk-flag {
+            border-color: rgba(255,184,77,0.7);
+        }
+        .bulk-footer {
+            display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+            margin-top: 1.1rem; padding: 0.85rem 1.05rem;
+            background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 12px;
+        }
+        .bulk-summary { font-size: 0.88rem; color: #7ACCE0; }
+        .bulk-summary strong { color: #E8FBFF; font-weight: 700; }
+        .bulk-footer-actions { display: flex; gap: 0.65rem; align-items: center; }
+        .bulk-footer .btn-invite { margin: 0; }
+        .bulk-footer .btn-invite:disabled { opacity: 0.4; cursor: not-allowed; }
+        .bulk-footer .btn-cancel {
+            padding: 0.6rem 1.2rem; background: transparent;
+            border: 1px solid rgba(0,200,255,0.3); border-radius: 8px;
+            color: #5ABBC8; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+        }
+        .bulk-footer .btn-cancel:hover { background: rgba(0,200,255,0.07); }
         .btn-invite { padding:0.68rem 1.4rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:8px; color:#030E1C; font-weight:700; font-size:0.88rem; cursor:pointer; white-space:nowrap; align-self:flex-end; }
         .invite-result { background:rgba(0,200,255,0.08); border:1px solid rgba(0,200,255,0.25); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#00C8FF; word-break:break-all; display:none; margin-top:0.5rem; }
         .copy-btn { margin-top:0.5rem; display:inline-block; padding:0.35rem 0.85rem; font-size:0.78rem; background:rgba(0,200,255,0.14); border:1px solid rgba(0,200,255,0.35); border-radius:5px; color:#00C8FF; cursor:pointer; }
@@ -373,11 +685,11 @@
         <p class="page-sub">Amministrazione degli accessi al portale operativo.</p>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('users')">Utenti</button>
-            <button class="tab-btn" onclick="switchTab('invite')">Invita</button>
-            <button class="tab-btn" onclick="switchTab('invitations')">Inviti in sospeso</button>
-            <button class="tab-btn" onclick="switchTab('profiles')">Modifiche Profilo <span id="pcrBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
-            <button class="tab-btn" onclick="switchTab('approvals')">Approvazioni <span id="aarBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
+            <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Utenti</button>
+            <button class="tab-btn" data-tab="invite" onclick="switchTab('invite')">Invita</button>
+            <button class="tab-btn" data-tab="bulk" onclick="switchTab('bulk')" id="tabBtnBulk" style="display:none;">Autorizzazioni</button>
+            <button class="tab-btn" data-tab="approvals" onclick="switchTab('approvals')">Approvazioni <span id="reqBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
+            <button class="tab-btn" data-tab="hidden" onclick="switchTab('hidden')">Eliminati</button>
         </div>
 
         <!-- Tab: Utenti -->
@@ -396,6 +708,31 @@
                 </thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
+        </div>
+
+        <!-- Tab: Autorizzazioni di massa (solo Super Admin) -->
+        <div class="tab-panel" id="tab-bulk">
+            <div class="feedback" id="bulkMsg"></div>
+            <div class="bulk-users-toolbar">
+                <input type="search" id="bulkUserFilter" placeholder="Cerca nome o email" oninput="filterBulkUsers()" autocomplete="off">
+                <div class="bulk-filter-sel" id="bulkSortSelect"></div>
+                <button type="button" class="bulk-sort-dir" id="bulkSortDirBtn" onclick="toggleBulkSortDir()" title="Inverti ordine" aria-label="Inverti ordinamento">▲</button>
+                <button type="button" class="bulk-clear-filters" id="bulkClearFilters" onclick="clearBulkViewFilters()">Azzera filtri</button>
+            </div>
+            <div class="bulk-users-toolbar bulk-chip-toolbar">
+                <div class="bulk-card-filters" id="bulkFilterCards"></div>
+                <p class="bulk-filter-hint" id="bulkFilterHint" aria-live="polite"></p>
+            </div>
+            <div class="bulk-matrix-wrap">
+                <table class="bulk-matrix" id="bulkMatrix"></table>
+            </div>
+            <div class="bulk-footer">
+                <span class="bulk-summary" id="bulkSummary">Nessuna modifica</span>
+                <div class="bulk-footer-actions">
+                    <button type="button" class="btn-cancel" onclick="resetBulkMatrix()">Annulla</button>
+                    <button type="button" class="btn-invite" id="bulkSaveBtn" onclick="submitBulkCards()" disabled>Salva</button>
+                </div>
+            </div>
         </div>
 
         <!-- Tab: Invita -->
@@ -431,26 +768,36 @@
                 <div id="inviteLink"></div>
                 <button class="copy-btn" onclick="copyInviteLink()">Copia link</button>
             </div>
-        </div>
-
-        <!-- Tab: Inviti in sospeso -->
-        <div class="tab-panel" id="tab-invitations">
+            <h2 class="tab-section-title">Inviti in sospeso</h2>
             <div class="feedback" id="invitationsMsg"></div>
             <div class="inv-list" id="invList"></div>
         </div>
 
-        <!-- Tab: Modifiche Profilo -->
-        <div class="tab-panel" id="tab-profiles">
-            <div class="feedback" id="profilesMsg"></div>
-            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.2rem;">Richieste di modifica profilo anagrafico inviate dagli utenti.</p>
-            <div id="pcrList"></div>
+        <!-- Tab: Approvazioni (modifiche profilo + azioni admin) -->
+        <div class="tab-panel" id="tab-approvals">
+            <div class="feedback" id="requestsMsg"></div>
+            <p class="tab-section-hint">Richieste in attesa. Ruolo e profilo: Super Admin oppure altri due admin. Visibilità: solo Super Admin.</p>
+            <div id="approvalsList"></div>
         </div>
 
-        <!-- Tab: Approvazioni azioni admin -->
-        <div class="tab-panel" id="tab-approvals">
-            <div class="feedback" id="approvalsMsg"></div>
-            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.2rem;">Modifiche ed eliminazioni richieste dagli admin. Vengono applicate con l'approvazione del <strong>Super Admin</strong> oppure di <strong>altri due admin</strong>.</p>
-            <div id="aarList"></div>
+        <!-- Tab: Eliminati -->
+        <div class="tab-panel" id="tab-hidden">
+            <div class="feedback" id="hiddenMsg"></div>
+            <p class="tab-section-hint">Account eliminati: non visibili e con credenziali revocate. Il ripristino rende di nuovo visibile l'utente e invia una nuova password temporanea.</p>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="grado" onclick="sortUsers('grado')">Grado <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="nome" onclick="sortUsers('nome')">Nome <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="email" onclick="sortUsers('email')">Email <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="ruolo" onclick="sortUsers('ruolo')">Ruolo <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="registrato" onclick="sortUsers('registrato')">Registrato <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="eliminato" onclick="sortUsers('eliminato')">Eliminato <span class="sort-ind"></span></th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="hiddenUsersTableBody"></tbody>
+            </table>
         </div>
     </main>
 
@@ -483,6 +830,8 @@
                 <dd id="viewDocente">—</dd>
                 <dt>Registrato</dt>
                 <dd id="viewRegistrato">—</dd>
+                <dt>Eliminato</dt>
+                <dd id="viewEliminato">—</dd>
                 <dt>Accesso</dt>
                 <dd id="viewLoginLock">—</dd>
             </dl>
@@ -497,8 +846,9 @@
     <!-- Modale modifica profilo utente -->
     <div class="edit-modal-bg" id="editModal" style="display:none;" onclick="if(event.target===this)closeEditModal()">
         <div class="edit-modal-box">
-            <h3>Modifica profilo</h3>
+            <h3 id="editModalTitle">Modifica profilo</h3>
             <input type="hidden" id="editUserId">
+            <div id="editFullProfileWrap">
             <div class="edit-row">
                 <div class="edit-field"><label>Nome *</label><input type="text" id="editNome" placeholder="Nome"></div>
                 <div class="edit-field"><label>Cognome *</label><input type="text" id="editCognome" placeholder="Cognome"></div>
@@ -510,7 +860,7 @@
             <div class="edit-field" id="editRoleWrap" style="display:none;">
                 <label>Ruolo</label>
                 <div id="editRoleSel" class="csel"></div>
-                <p class="cards-pick-hint" style="margin-top:0.4rem;">Come Super Admin il cambio è immediato. Come Admin richiede approvazione.</p>
+                <p class="cards-pick-hint" style="margin-top:0.4rem;">Il cambio ruolo è immediato.</p>
             </div>
             <div class="edit-row">
                 <div class="edit-field"><label>Data di nascita</label><div id="editDataNascita" class="cdate"></div></div>
@@ -534,6 +884,7 @@
                 <div id="editDomicilio" class="lnasc"></div>
             </div>
             <div class="edit-field"><label for="editTelefono">Numero di telefono</label><div id="editTelefono" class="tel-field"></div></div>
+            </div>
             <div class="cards-pick" id="editDocentePick" style="display:none;margin-top:0.4rem;">
                 <label class="cards-pick-title">Categoria</label>
                 <p class="cards-pick-hint">Disponibile solo per Utente e Admin. Consente la gestione dei contenuti in Corsi.</p>
@@ -581,13 +932,13 @@
     const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
     const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
     const ASSIGNABLE_CARDS = [
-        { id: 'blockchain', label: 'Tracciamento Blockchain' },
-        { id: 'osint', label: 'OSINT & Intelligence' },
-        { id: 'chainholder', label: 'Chainholder' },
-        { id: 'corsi', label: 'Corsi' },
-        { id: 'cluster', label: 'Cluster' },
-        { id: 'ai', label: 'AI' },
-        { id: 'analisi-report', label: 'Analisi Report' },
+        { id: 'blockchain', label: 'Tracciamento Blockchain', short: 'Blockchain' },
+        { id: 'osint', label: 'OSINT & Intelligence', short: 'OSINT' },
+        { id: 'chainholder', label: 'Chainholder', short: 'Chainholder' },
+        { id: 'corsi', label: 'Corsi', short: 'Corsi' },
+        { id: 'cluster', label: 'Cluster', short: 'Cluster' },
+        { id: 'ai', label: 'AI', short: 'AI' },
+        { id: 'analisi-report', label: 'Analisi Report', short: 'Analisi' },
     ];
     const CARD_LABEL = Object.fromEntries(ASSIGNABLE_CARDS.map(c => [c.id, c.label]));
     function defaultCardsForRole(role) {
@@ -640,6 +991,7 @@
     let inviteRoleCs = null;
     let editGradoCs  = null;
     let editRoleCs   = null;
+    let bulkSortCs   = null;
     let _editOriginalRole = '';
     let editDataNascitaCd = null;
     let editLuogoNascitaLn = null;
@@ -660,6 +1012,24 @@
             },
             { placeholder: 'Seleziona ruolo', value: 'user' }
         );
+        renderBulkCardFilterChips();
+        const bulkSortEl = document.getElementById('bulkSortSelect');
+        if (bulkSortEl) {
+            bulkSortCs = new CustomSelect(
+                bulkSortEl,
+                [
+                    { value: 'grado', label: 'Grado' },
+                    { value: 'nome', label: 'Nome' },
+                    { value: 'cognome', label: 'Cognome' },
+                    { value: 'ruolo', label: 'Tipo utente' },
+                ],
+                (val) => {
+                    _bulkSort.key = val || 'grado';
+                    renderBulkUsersList();
+                },
+                { placeholder: 'Ordina per', value: 'grado', searchable: false, small: true }
+            );
+        }
         renderCardsGrid('inviteCardsGrid', defaultCardsForRole('user'), 'inviteCard');
         renderCardsGrid('editCardsGrid', defaultCardsForRole('user'), 'editCard');
         syncInviteDocenteVisibility('user');
@@ -743,11 +1113,16 @@
             // Aggiorna opzioni ruolo disponibili per CustomSelect
             const myLevel = ROLE_LEVEL[_currentUser.role] || 0;
             if (inviteRoleCs) inviteRoleCs.setOptions(RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value]||0) <= myLevel), 'user');
-            refreshPcrTabBadge();
-            refreshAarTabBadge();
+            if (_currentUser.role === 'superadmin') {
+                const bulkBtn = document.getElementById('tabBtnBulk');
+                if (bulkBtn) bulkBtn.style.display = '';
+            }
+            refreshRequestsBadge();
             loadUsers();
-            if (location.hash === '#profiles') switchTab('profiles');
-            if (location.hash === '#approvals') switchTab('approvals');
+            if (location.hash === '#profiles' || location.hash === '#approvals') switchTab('approvals');
+            if (location.hash === '#invite') switchTab('invite');
+            if (location.hash === '#hidden') switchTab('hidden');
+            if (location.hash === '#bulk' && _currentUser.role === 'superadmin') switchTab('bulk');
         } catch {
             clearAuth();
             window.location.replace('/login');
@@ -762,27 +1137,38 @@
     }
 
     // Campanella: nav-notifications.js — aggiorna anche badge tab Modifiche Profilo
-    async function refreshPcrTabBadge() {
+    async function refreshRequestsBadge() {
         try {
-            const res = await fetch('/api/auth/profile-change-requests', { headers: authHeader() });
-            const data = res.ok ? await res.json() : [];
-            const tabBadge = document.getElementById('pcrBadge');
-            if (!tabBadge) return;
-            if (data.length) { tabBadge.textContent = data.length; tabBadge.style.display = ''; }
-            else tabBadge.style.display = 'none';
+            const [pcrRes, aarRes] = await Promise.all([
+                fetch('/api/auth/profile-change-requests', { headers: authHeader() }),
+                fetch('/api/auth/admin-requests', { headers: authHeader() }),
+            ]);
+            const pcr = pcrRes.ok ? await pcrRes.json() : [];
+            const aar = aarRes.ok ? await aarRes.json() : [];
+            const n = (Array.isArray(pcr) ? pcr.length : 0) + (Array.isArray(aar) ? aar.length : 0);
+            const badge = document.getElementById('reqBadge');
+            if (!badge) return;
+            if (n) { badge.textContent = n; badge.style.display = ''; }
+            else badge.style.display = 'none';
         } catch {}
     }
 
+    function refreshPcrTabBadge() { refreshRequestsBadge(); }
+    function refreshAarTabBadge() { refreshRequestsBadge(); }
+
     // ── Tab ───────────────────────────────────────────────────────────────────
     function switchTab(tab) {
-        ['users','invite','invitations','profiles','approvals'].forEach((t, i) => {
-            document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === tab);
-            document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
         });
-        if (tab === 'users')       loadUsers();
-        if (tab === 'invitations') loadInvitations();
-        if (tab === 'profiles')    loadProfileChangeRequests();
-        if (tab === 'approvals')   loadApprovals();
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+            panel.classList.toggle('active', panel.id === 'tab-' + tab);
+        });
+        if (tab === 'users')     { renderUsersTable(); }
+        if (tab === 'invite')    loadInvitations();
+        if (tab === 'bulk')      renderBulkUsersList();
+        if (tab === 'approvals') loadApprovals();
+        if (tab === 'hidden')    { renderHiddenUsersTable(); }
     }
 
     // ── Feedback ──────────────────────────────────────────────────────────────
@@ -808,6 +1194,7 @@
     // ── Utenti ────────────────────────────────────────────────────────────────
     let _usersCache = [];
     let _userSort = { key: 'grado', dir: 'asc' }; // grado: asc = dal più alto al più basso
+    let _bulkSort = { key: 'grado', dir: 'asc' };
 
     // Indice gerarchico gradi (0 = più alto). Allineato a GRADI_OPTIONS.
     const GRADO_RANK = Object.fromEntries(
@@ -824,10 +1211,11 @@
         } else {
             _userSort.key = key;
             // Default: grado dal più alto; ruolo dal più alto; data dalla più recente; resto A→Z
-            _userSort.dir = (key === 'registrato') ? 'desc' : 'asc';
+            _userSort.dir = (key === 'registrato' || key === 'eliminato') ? 'desc' : 'asc';
         }
         updateSortHeaders();
         renderUsersTable();
+        renderHiddenUsersTable();
     }
 
     function updateSortHeaders() {
@@ -857,6 +1245,8 @@
                 cmp = (ROLE_LEVEL[b.role] ?? 0) - (ROLE_LEVEL[a.role] ?? 0);
             } else if (key === 'registrato') {
                 cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            } else if (key === 'eliminato') {
+                cmp = new Date(a.hiddenAt || 0).getTime() - new Date(b.hiddenAt || 0).getTime();
             }
             if (cmp === 0) {
                 // tie-breaker stabile su email
@@ -866,47 +1256,462 @@
         });
     }
 
+    function isListedVisible(u) {
+        return u.visible !== false;
+    }
+
+    function renderUserRow(u, list) {
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        const isSelf         = u.id === _currentUser.id;
+        const isSuperadmin   = u.role === 'superadmin';
+        const isFounder      = u.email === 'portalecrypto@proton.me';
+        const targetLevel    = ROLE_LEVEL[u.role] ?? 0;
+        const canToggleVis   = !isSelf && !isSuperadmin && targetLevel < myLevel;
+        const canEditProfile = _currentUser.role === 'superadmin'
+            ? !isFounder
+            : (!isSelf && !isFounder && !isSuperadmin && targetLevel < myLevel && u.visible !== false);
+        const canResetPw     = _currentUser.role === 'superadmin' && !isSelf && !isFounder;
+        const canUnlock      = _currentUser.role === 'superadmin' && !isSuperadmin && !!u.loginLocked;
+        const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
+        const displayNome = isFounder
+            ? 'Super Admin'
+            : (u.cognome ? u.cognome.toUpperCase() + ' ' + u.nome : '—');
+        const displayGrado = isFounder
+            ? '<span class="grado-badge">—</span>'
+            : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado || '—'}</span>`;
+        const emailJs = String(u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const visBtn = canToggleVis
+            ? (list === 'hidden'
+                ? `<button class="btn-unlock" onclick="toggleUserVisibility('${u.id}','${emailJs}',true)">Ripristina</button>`
+                : `<button class="btn-del" onclick="toggleUserVisibility('${u.id}','${emailJs}',false)">Elimina</button>`)
+            : '';
+        const hiddenAtCell = list === 'hidden'
+            ? `<td style="color:#5ABBC8;font-size:0.8rem">${u.hiddenAt ? new Date(u.hiddenAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>`
+            : '';
+        return `<tr class="row-clickable" data-uid="${u.id}" onclick="onUserRowClick(event,'${u.id}')">
+            <td>${displayGrado}</td>
+            <td>${displayNome}</td>
+            <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
+            <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}${u.loginLocked ? '<span class="badge badge-locked">Bloccato</span>' : ''}</div></td>
+            <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
+            ${hiddenAtCell}
+            <td class="actions-cell" onclick="event.stopPropagation()">
+                ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
+                ${canUnlock ? `<button class="btn-unlock" onclick="unlockUserLogin('${u.id}')">Sblocca</button>` : ''}
+                ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${emailJs}')">Reset password</button>` : ''}
+                ${visBtn}
+            </td>
+        </tr>`;
+    }
+
     function renderUsersTable() {
         const tbody = document.getElementById('usersTableBody');
-        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
-        const users = getSortedUsers();
+        if (!tbody) return;
+        const users = getSortedUsers().filter(isListedVisible);
         if (!users.length) {
             tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nessun utente.</td></tr>';
             return;
         }
-        tbody.innerHTML = users.map(u => {
-            const isSelf         = u.id === _currentUser.id;
-            const isSuperadmin   = u.role === 'superadmin';
-            const isFounder      = u.email === 'portalecrypto@proton.me';
-            const targetLevel    = ROLE_LEVEL[u.role] ?? 0;
-            const canDelete      = !isSelf && !isSuperadmin && targetLevel < myLevel;
-            const canEdit        = !isFounder && !isSuperadmin && !isSelf && targetLevel < myLevel;
-            const canEditProfile = !isFounder;
-            const canResetPw     = _currentUser.role === 'superadmin' && !isSelf && !isFounder;
-            const canUnlock      = _currentUser.role === 'superadmin' && !isSuperadmin && !!u.loginLocked;
-            const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
-            const displayNome = isFounder
-                ? 'Super Admin'
-                : (u.cognome ? u.cognome.toUpperCase() + ' ' + u.nome : '—');
-            const displayGrado = isFounder
-                ? '<span class="grado-badge">—</span>'
-                : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado || '—'}</span>`;
-            return `<tr class="row-clickable" data-uid="${u.id}" onclick="onUserRowClick(event,'${u.id}')">
-                <td>${displayGrado}</td>
-                <td>${displayNome}</td>
-                <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
-                <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}${u.loginLocked ? '<span class="badge badge-locked">Bloccato</span>' : ''}</div></td>
-                <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
-                <td class="actions-cell" onclick="event.stopPropagation()">
-                    ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
-                    ${canUnlock ? `<button class="btn-unlock" onclick="unlockUserLogin('${u.id}')">Sblocca</button>` : ''}
-                    ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${u.email.replace(/'/g, "\\'")}')">Reset password</button>` : ''}
-                    ${canDelete ? `<button class="btn-del" onclick="deleteUser('${u.id}','${u.email}')">Elimina</button>` : ''}
+        tbody.innerHTML = users.map((u) => renderUserRow(u, 'visible')).join('');
+        updateSortHeaders();
+    }
+
+    function renderHiddenUsersTable() {
+        const tbody = document.getElementById('hiddenUsersTableBody');
+        if (!tbody) return;
+        const users = getSortedUsers().filter((u) => !isListedVisible(u));
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nessun utente eliminato.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map((u) => renderUserRow(u, 'hidden')).join('');
+        updateSortHeaders();
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    }
+
+    function bulkAssignableUsers() {
+        const dir = _bulkSort.dir === 'asc' ? 1 : -1;
+        const key = _bulkSort.key;
+        return _usersCache.filter((u) =>
+            u.role !== 'superadmin'
+            && u.email !== 'portalecrypto@proton.me'
+            && u.id !== _currentUser.id
+        ).sort((a, b) => {
+            let cmp = 0;
+            if (key === 'grado') {
+                cmp = gradoRank(a.grado) - gradoRank(b.grado);
+            } else if (key === 'nome') {
+                cmp = String(a.nome || '').localeCompare(String(b.nome || ''), 'it', { sensitivity: 'base' });
+            } else if (key === 'cognome') {
+                cmp = String(a.cognome || '').localeCompare(String(b.cognome || ''), 'it', { sensitivity: 'base' });
+            } else if (key === 'ruolo') {
+                cmp = (ROLE_LEVEL[b.role] ?? 0) - (ROLE_LEVEL[a.role] ?? 0);
+            }
+            if (cmp === 0) {
+                cmp = String(a.cognome || '').localeCompare(String(b.cognome || ''), 'it', { sensitivity: 'base' });
+                if (cmp === 0) cmp = String(a.nome || '').localeCompare(String(b.nome || ''), 'it', { sensitivity: 'base' });
+                if (cmp === 0) cmp = String(a.email || '').localeCompare(String(b.email || ''), 'it');
+            }
+            return cmp * dir;
+        });
+    }
+
+    function bulkInitials(u) {
+        const n = (u.nome || '').trim();
+        const c = (u.cognome || '').trim();
+        if (c && n) return (c[0] + n[0]).toUpperCase();
+        const src = c || n || u.email || '?';
+        return src.slice(0, 2).toUpperCase();
+    }
+
+    function bulkCardsKey(cards) {
+        return (cards || []).slice().sort().join('|');
+    }
+
+    function bulkOriginalCards(userId) {
+        const u = (_usersCache || []).find((x) => x.id === userId);
+        return Array.isArray(u && u.cards) ? u.cards.slice() : [];
+    }
+
+    function bulkRowCards(row) {
+        return Array.from(row.querySelectorAll('input[data-card]'))
+            .filter((cb) => cb.checked)
+            .map((cb) => cb.dataset.card);
+    }
+
+    function bulkOriginalDocente(userId) {
+        const u = (_usersCache || []).find((x) => x.id === userId);
+        return !!(u && u.docente);
+    }
+
+    function bulkRowDocente(row) {
+        const cb = row.querySelector('input[data-docente]');
+        return !!(cb && cb.checked);
+    }
+
+    function snapshotBulkEdits() {
+        const map = {};
+        document.querySelectorAll('#bulkMatrix tbody tr[data-uid]').forEach((row) => {
+            map[row.dataset.uid] = {
+                cards: bulkRowCards(row),
+                docente: bulkRowDocente(row),
+            };
+        });
+        return map;
+    }
+
+    function updateBulkSortDirBtn() {
+        const btn = document.getElementById('bulkSortDirBtn');
+        if (!btn) return;
+        btn.textContent = _bulkSort.dir === 'asc' ? '▲' : '▼';
+        const labels = { grado: 'grado', nome: 'nome', cognome: 'cognome', ruolo: 'tipo utente' };
+        btn.title = _bulkSort.dir === 'asc'
+            ? 'Ordine crescente (clicca per invertire)'
+            : 'Ordine decrescente (clicca per invertire)';
+        btn.setAttribute('aria-label', 'Inverti ordinamento per ' + (labels[_bulkSort.key] || _bulkSort.key));
+    }
+
+    function toggleBulkSortDir() {
+        _bulkSort.dir = _bulkSort.dir === 'asc' ? 'desc' : 'asc';
+        updateBulkSortDirBtn();
+        renderBulkUsersList();
+    }
+
+    function paintBulkCell(cb) {
+        const cell = cb.closest('.bulk-cell');
+        if (!cell) return;
+        if (cb.hasAttribute('data-docente')) {
+            const was = bulkOriginalDocente(cb.dataset.uid);
+            cell.classList.toggle('is-on', cb.checked);
+            cell.classList.toggle('is-dirty', !cb.disabled && cb.checked !== was);
+            return;
+        }
+        const orig = new Set(bulkOriginalCards(cb.dataset.uid));
+        const was = orig.has(cb.dataset.card);
+        cell.classList.toggle('is-on', cb.checked);
+        cell.classList.toggle('is-dirty', cb.checked !== was);
+    }
+
+    function visibleBulkRows() {
+        return Array.from(document.querySelectorAll('#bulkMatrix tbody tr[data-uid]'))
+            .filter((row) => row.style.display !== 'none');
+    }
+
+    function editableBulkRows() {
+        return visibleBulkRows().filter((row) => !row.classList.contains('is-locked'));
+    }
+
+    function syncBulkColHeaders() {
+        const rows = editableBulkRows();
+        ASSIGNABLE_CARDS.forEach((c) => {
+            const master = document.querySelector(`#bulkMatrix thead input[data-col-toggle="${c.id}"]`);
+            if (!master) return;
+            const boxes = rows.map((row) => row.querySelector(`input[data-card="${c.id}"]:not(:disabled)`)).filter(Boolean);
+            master.checked = boxes.length > 0 && boxes.every((b) => b.checked);
+            master.indeterminate = boxes.some((b) => b.checked) && !master.checked;
+            master.disabled = !boxes.length;
+        });
+        const docMaster = document.querySelector('#bulkMatrix thead input[data-col-toggle="docente"]');
+        if (docMaster) {
+            const boxes = rows.map((row) => row.querySelector('input[data-docente]:not(:disabled)')).filter(Boolean);
+            docMaster.checked = boxes.length > 0 && boxes.every((b) => b.checked);
+            docMaster.indeterminate = boxes.some((b) => b.checked) && !docMaster.checked;
+            docMaster.disabled = !boxes.length;
+        }
+    }
+
+    function collectBulkUpdates() {
+        const updates = [];
+        document.querySelectorAll('#bulkMatrix tbody tr[data-uid]').forEach((row) => {
+            if (row.classList.contains('is-locked')) return;
+            const userId = row.dataset.uid;
+            const cards = bulkRowCards(row);
+            const docente = bulkRowDocente(row);
+            const cardsChanged = bulkCardsKey(cards) !== bulkCardsKey(bulkOriginalCards(userId));
+            const docenteChanged = docente !== bulkOriginalDocente(userId);
+            if (cardsChanged || docenteChanged) {
+                updates.push({ userId, cards, docente, row });
+            }
+        });
+        return updates;
+    }
+
+    function updateBulkSummary() {
+        document.querySelectorAll('#bulkMatrix input[data-card], #bulkMatrix input[data-docente]').forEach(paintBulkCell);
+        syncBulkColHeaders();
+        const updates = collectBulkUpdates();
+        const el = document.getElementById('bulkSummary');
+        const btn = document.getElementById('bulkSaveBtn');
+        if (btn) btn.disabled = !updates.length;
+        if (!el) return;
+        if (!updates.length) {
+            el.innerHTML = 'Nessuna modifica';
+            return;
+        }
+        const n = updates.length;
+        el.innerHTML = `<strong>${n}</strong> utent${n === 1 ? 'e' : 'i'} con modifiche da salvare`;
+    }
+
+    function renderBulkUsersList() {
+        const table = document.getElementById('bulkMatrix');
+        if (!table || !_currentUser || _currentUser.role !== 'superadmin') return;
+        const users = bulkAssignableUsers();
+        const edits = snapshotBulkEdits();
+        if (!users.length) {
+            table.innerHTML = '<tbody><tr><td class="empty-state" style="padding:1.2rem">Nessun utente assegnabile.</td></tr></tbody>';
+            updateBulkSummary();
+            return;
+        }
+        const docenteHead = `
+            <th class="bulk-card-head is-docente" title="Categoria Docente: gestione contenuti della sezione Corsi. Solo Utente e Admin.">
+                <label>
+                    <input type="checkbox" data-col-toggle="docente" aria-label="Tutti: Docente">
+                    <span class="bulk-flag" aria-hidden="true"></span>
+                    <span>Docente</span>
+                </label>
+            </th>
+        `;
+        const heads = ASSIGNABLE_CARDS.map((c) => `
+            <th class="bulk-card-head" title="${escapeHtml(c.label)}">
+                <label>
+                    <input type="checkbox" data-col-toggle="${escapeHtml(c.id)}" aria-label="Tutti: ${escapeHtml(c.short)}">
+                    <span class="bulk-flag" aria-hidden="true"></span>
+                    <span>${escapeHtml(c.short)}</span>
+                </label>
+            </th>
+        `).join('');
+        const body = users.map((u) => {
+            const name = u.cognome ? (u.cognome.toUpperCase() + ' ' + (u.nome || '')) : (u.nome || u.email);
+            const hay = (name + ' ' + u.email).toLowerCase();
+            const prev = edits[u.id];
+            const have = new Set(prev && Array.isArray(prev.cards) ? prev.cards : (Array.isArray(u.cards) ? u.cards : []));
+            const badgeCls = u.role === 'admin' ? 'badge-admin' : 'badge-user';
+            const locked = u.visible === false;
+            const hiddenCls = locked ? ' is-hidden is-locked' : '';
+            const lockAttr = locked ? ' disabled' : '';
+            const lockTitle = locked ? ' title="Utente non visibile: autorizzazioni bloccate"' : '';
+            const canDoc = roleCanBeDocente(u.role);
+            const docOn = prev ? !!prev.docente : (canDoc && !!u.docente);
+            const docenteCell = `<td class="bulk-cell is-docente${docOn ? ' is-on' : ''}${canDoc && !locked ? '' : ' is-na'}">
+                <label class="bulk-cell-hit">
+                    <input type="checkbox" data-uid="${escapeHtml(u.id)}" data-docente="1"${docOn ? ' checked' : ''}${canDoc && !locked ? '' : ' disabled'} title="${locked ? 'Utente non visibile: autorizzazioni bloccate' : (canDoc ? 'Categoria Docente' : 'Disponibile solo per Utente e Admin')}" aria-label="Docente per ${escapeHtml(name)}">
+                    <span class="bulk-flag" aria-hidden="true"></span>
+                </label>
+            </td>`;
+            const cells = ASSIGNABLE_CARDS.map((c) => {
+                const on = have.has(c.id);
+                return `<td class="bulk-cell${on ? ' is-on' : ''}"${lockTitle}>
+                    <label class="bulk-cell-hit">
+                        <input type="checkbox" data-uid="${escapeHtml(u.id)}" data-card="${escapeHtml(c.id)}"${on ? ' checked' : ''}${lockAttr} aria-label="${escapeHtml(c.short)} per ${escapeHtml(name)}">
+                        <span class="bulk-flag" aria-hidden="true"></span>
+                    </label>
+                </td>`;
+            }).join('');
+            return `<tr data-uid="${escapeHtml(u.id)}" data-filter="${escapeHtml(hay)}" data-role="${escapeHtml(u.role || '')}" data-docente="${canDoc && u.docente ? '1' : '0'}" data-visible="${locked ? '0' : '1'}" data-cards="${escapeHtml(Array.isArray(u.cards) ? u.cards.join(' ') : '')}" class="${hiddenCls.trim()}">
+                <td class="bulk-user-col">
+                    <div class="bulk-user-cell">
+                        <span class="bulk-avatar">${escapeHtml(bulkInitials(u))}</span>
+                        <span class="bulk-user-text">
+                            <strong>${escapeHtml(name)} <span class="badge ${badgeCls}">${escapeHtml(ROLE_LABEL[u.role] || u.role)}</span></strong>
+                            <small>${escapeHtml(u.email)}${u.visible === false ? ' · eliminato' : ''}</small>
+                        </span>
+                    </div>
                 </td>
+                ${docenteCell}
+                ${cells}
             </tr>`;
         }).join('');
+        table.innerHTML = `<thead><tr>
+            <th class="bulk-user-col">Utente</th>
+            ${docenteHead}
+            ${heads}
+        </tr></thead><tbody>${body}</tbody>`;
+        if (!table.dataset.wired) {
+            table.dataset.wired = '1';
+            table.addEventListener('change', onBulkMatrixChange);
+        }
+        filterBulkUsers();
+        updateBulkSummary();
+        updateBulkSortDirBtn();
+    }
 
-        updateSortHeaders();
+    function onBulkMatrixChange(e) {
+        const t = e.target;
+        if (!t) return;
+        if (t.dataset.colToggle === 'docente') {
+            editableBulkRows().forEach((row) => {
+                const cb = row.querySelector('input[data-docente]:not(:disabled)');
+                if (cb) cb.checked = t.checked;
+            });
+        } else if (t.dataset.colToggle) {
+            const cardId = t.dataset.colToggle;
+            editableBulkRows().forEach((row) => {
+                const cb = row.querySelector(`input[data-card="${cardId}"]:not(:disabled)`);
+                if (cb) cb.checked = t.checked;
+            });
+        }
+        updateBulkSummary();
+    }
+
+    function renderBulkCardFilterChips() {
+        const el = document.getElementById('bulkFilterCards');
+        if (!el) return;
+        el.innerHTML = ['reader', 'user', 'admin'].map((role) => `
+            <button type="button" class="bulk-chip-filter is-role-${role}" data-filter-role="${role}" aria-pressed="false" title="Mostra solo: ${escapeHtml(ROLE_LABEL[role])}">${escapeHtml(ROLE_LABEL[role])}</button>
+        `).join('')
+            + `<button type="button" class="bulk-chip-filter is-docente" data-filter-docente="1" aria-pressed="false" title="Categoria Docente">Docente</button>`
+            + ASSIGNABLE_CARDS.map((c) => `
+            <button type="button" class="bulk-chip-filter" data-filter-card="${escapeHtml(c.id)}" aria-pressed="false" title="${escapeHtml(c.label)}">${escapeHtml(c.short)}</button>
+        `).join('')
+            + `<button type="button" class="bulk-chip-filter is-hidden-users" data-filter-hidden="1" aria-pressed="false" title="Mostra anche gli utenti eliminati">Eliminati</button>`;
+        if (!el.dataset.wired) {
+            el.dataset.wired = '1';
+            el.addEventListener('click', (e) => {
+                const btn = e.target.closest('.bulk-chip-filter');
+                if (!btn || !el.contains(btn)) return;
+                btn.classList.toggle('is-on');
+                btn.setAttribute('aria-pressed', btn.classList.contains('is-on') ? 'true' : 'false');
+                filterBulkUsers();
+            });
+        }
+    }
+
+    function selectedBulkRoleFilters() {
+        return Array.from(document.querySelectorAll('#bulkFilterCards [data-filter-role].is-on'))
+            .map((btn) => btn.getAttribute('data-filter-role'))
+            .filter(Boolean);
+    }
+
+    function selectedBulkCardFilters() {
+        return Array.from(document.querySelectorAll('#bulkFilterCards .bulk-chip-filter.is-on'))
+            .map((btn) => btn.getAttribute('data-filter-card'))
+            .filter(Boolean);
+    }
+
+    function filterBulkUsers() {
+        const q = (document.getElementById('bulkUserFilter')?.value || '').trim().toLowerCase();
+        const needRoles = selectedBulkRoleFilters();
+        const needDocente = !!document.querySelector('#bulkFilterCards .bulk-chip-filter.is-docente.is-on');
+        const showHidden = !!document.querySelector('#bulkFilterCards [data-filter-hidden].is-on');
+        const needCards = selectedBulkCardFilters();
+        const rows = Array.from(document.querySelectorAll('#bulkMatrix tbody tr[data-uid]'));
+        let shown = 0;
+        rows.forEach((row) => {
+            const hay = row.getAttribute('data-filter') || '';
+            const isDoc = row.getAttribute('data-docente') === '1';
+            const cards = (row.getAttribute('data-cards') || '').split(/\s+/).filter(Boolean);
+            const isHiddenUser = row.classList.contains('is-locked') || row.getAttribute('data-visible') === '0';
+            let ok = !q || hay.includes(q);
+            if (ok && !showHidden && isHiddenUser) ok = false;
+            if (ok && needRoles.length) ok = needRoles.includes(row.getAttribute('data-role') || '');
+            if (ok && needDocente) ok = isDoc;
+            if (ok && needCards.length) ok = needCards.every((id) => cards.includes(id));
+            row.style.display = ok ? '' : 'none';
+            if (ok) shown++;
+        });
+        const filtered = !!(q || needRoles.length || needDocente || needCards.length || showHidden);
+        const clearBtn = document.getElementById('bulkClearFilters');
+        if (clearBtn) {
+            clearBtn.classList.toggle('is-shown', filtered);
+            clearBtn.setAttribute('aria-hidden', filtered ? 'false' : 'true');
+        }
+        const hint = document.getElementById('bulkFilterHint');
+        if (hint) {
+            if (!rows.length) hint.textContent = '';
+            else if (!shown) hint.textContent = 'Nessun utente corrisponde ai filtri.';
+            else if (filtered) hint.textContent = shown + ' utent' + (shown === 1 ? 'e' : 'i') + ' visibil' + (shown === 1 ? 'e' : 'i');
+            else hint.textContent = '';
+        }
+        syncBulkColHeaders();
+    }
+
+    function clearBulkViewFilters() {
+        const search = document.getElementById('bulkUserFilter');
+        if (search) search.value = '';
+        document.querySelectorAll('#bulkFilterCards .bulk-chip-filter.is-on').forEach((btn) => {
+            btn.classList.remove('is-on');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+        filterBulkUsers();
+    }
+
+    function resetBulkMatrix() {
+        renderBulkUsersList();
+        const msg = document.getElementById('bulkMsg');
+        if (msg) msg.style.display = 'none';
+    }
+
+    function submitBulkCards() {
+        const updates = collectBulkUpdates();
+        if (!updates.length) { showMsg('bulkMsg', 'Nessuna modifica da salvare.', 'error'); return; }
+        const empty = updates.find((u) => !u.cards.length);
+        if (empty) {
+            showMsg('bulkMsg', 'Ogni utente deve avere almeno una scheda.', 'error');
+            return;
+        }
+        const n = updates.length;
+        showConfirm(
+            `Salvare le autorizzazioni per ${n} utent${n === 1 ? 'e' : 'i'}?`,
+            async () => {
+                const res = await fetch('/api/auth/users/bulk-cards', {
+                    method: 'POST',
+                    headers: authHeader(),
+                    body: JSON.stringify({
+                        updates: updates.map((u) => ({ userId: u.userId, cards: u.cards, docente: u.docente })),
+                    }),
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) { showMsg('bulkMsg', d.error || 'Errore.', 'error'); return; }
+                const extra = d.unchanged ? ` ${d.unchanged} già allineati.` : '';
+                showMsg('bulkMsg', `Autorizzazioni aggiornate per ${d.updated} utent${d.updated === 1 ? 'e' : 'i'}.${extra}`, 'success');
+                loadUsers();
+            }
+        );
     }
 
     async function loadUsers() {
@@ -917,24 +1722,41 @@
             _usersCache = await res.json();
             if (!Array.isArray(_usersCache)) _usersCache = [];
             renderUsersTable();
+            renderHiddenUsersTable();
+            if (_currentUser && _currentUser.role === 'superadmin') renderBulkUsersList();
         } catch {
             tbody.innerHTML = '<tr><td colspan="6" style="color:#FF6B7A">Errore caricamento.</td></tr>';
         }
     }
 
-    function deleteUser(id, email) {
+    function toggleUserVisibility(id, email, visible) {
         const ask = _currentUser.role === 'superadmin'
-            ? `Eliminare l'accesso a ${email}?`
-            : `Richiedere l'eliminazione di ${email}? Servirà l'approvazione del Super Admin o di altri due admin.`;
+            ? (visible
+                ? `Ripristinare ${email}? L'utente tornerà visibile e riceverà una nuova password temporanea.`
+                : `Eliminare ${email}? L'utente non sarà visibile e le credenziali verranno revocate.`)
+            : (visible
+                ? `Richiedere il ripristino di ${email}? Servirà l'approvazione del Super Admin.`
+                : `Richiedere l'eliminazione di ${email}? L'utente non sarà visibile e le credenziali verranno revocate dopo l'approvazione del Super Admin.`);
         showConfirm(ask, async () => {
-            const res = await fetch('/api/auth/users/' + id, { method: 'DELETE', headers: authHeader() });
+            const res = await fetch('/api/auth/users/' + id + '/visibility', {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ visible: !!visible }),
+            });
             const d = await res.json().catch(() => ({}));
-            if (!res.ok) { showMsg('usersMsg', d.error || 'Errore.', 'error'); return; }
+            const msgId = visible ? 'hiddenMsg' : 'usersMsg';
+            if (!res.ok) { showMsg(msgId, d.error || 'Errore.', 'error'); return; }
             if (d.pending) {
-                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
-                refreshAarTabBadge();
+                showMsg(msgId, d.message || 'Richiesta inviata, in attesa del Super Admin.', 'success');
+                refreshRequestsBadge();
+            } else if (visible) {
+                let text = d.emailSent
+                    ? 'Utente ripristinato. È stata inviata una password temporanea.'
+                    : 'Utente ripristinato.';
+                if (d.temporaryPassword) text += ' Password temporanea: ' + d.temporaryPassword;
+                showMsg(msgId, text, 'success');
             } else {
-                showMsg('usersMsg', 'Utente rimosso.', 'success');
+                showMsg(msgId, 'Utente eliminato: non visibile e credenziali revocate.', 'success');
             }
             loadUsers();
         });
@@ -1039,6 +1861,7 @@
         syncInviteDocenteVisibility(inviteRoleCs ? inviteRoleCs.getValue() : 'user');
         const note = data.emailSent ? '— email inviata automaticamente.' : '— copia e invia il link (SMTP non configurato).';
         showMsg('inviteMsg', `Invito ${roleLabel}${catNote} generato ${note}`, 'success');
+        loadInvitations();
     }
 
     function copyInviteLink() {
@@ -1129,10 +1952,19 @@
             : '—';
         document.getElementById('viewRegistrato').textContent =
             u.createdAt ? new Date(u.createdAt).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : '—';
+        const elimDd = document.getElementById('viewEliminato');
+        if (elimDd) {
+            elimDd.textContent = u.hiddenAt
+                ? new Date(u.hiddenAt).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' })
+                : '—';
+        }
 
         const lockDd = document.getElementById('viewLoginLock');
         const unlockBtn = document.getElementById('viewUnlockBtn');
-        if (u.loginLocked) {
+        if (u.visible === false) {
+            lockDd.innerHTML = '<span class="badge badge-hidden">Revocato</span>';
+            unlockBtn.style.display = 'none';
+        } else if (u.loginLocked) {
             const until = u.loginLockedUntil
                 ? new Date(u.loginLockedUntil).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
                 : '';
@@ -1183,13 +2015,26 @@
             wireDomicilioSync(EDIT_IDS);
             _editDomicilioWired = true;
         }
+        const isSA = _currentUser.role === 'superadmin';
+        document.getElementById('editFullProfileWrap').style.display = isSA ? '' : 'none';
+        document.getElementById('editModalTitle').textContent = isSA ? 'Modifica profilo' : 'Modifica accesso';
         fillProfileFields(EDIT_IDS, u, (g) => { if (editGradoCs) editGradoCs.setValue(g || ''); });
         renderCardsGrid('editCardsGrid', u.cards || defaultCardsForRole(u.role), 'editCard');
+        const authLocked = u.visible === false;
         const canDoc = roleCanBeDocente(u.role);
         document.getElementById('editDocentePick').style.display = canDoc ? '' : 'none';
         document.getElementById('editDocente').checked = canDoc && !!u.docente;
+        document.getElementById('editDocente').disabled = authLocked;
+        document.querySelectorAll('#editCardsGrid input[name="editCard"]').forEach((cb) => { cb.disabled = authLocked; });
+        const cardsHint = document.querySelector('#editCardsPick .cards-pick-hint');
+        if (cardsHint) {
+            cardsHint.dataset.defaultHint = cardsHint.dataset.defaultHint || cardsHint.textContent;
+            cardsHint.textContent = authLocked
+                ? 'Utente non visibile: le autorizzazioni non si possono modificare. Usa Ripristina per sbloccarle.'
+                : cardsHint.dataset.defaultHint;
+        }
 
-        const canRole = canChangeUserRole(u);
+        const canRole = isSA && canChangeUserRole(u);
         document.getElementById('editRoleWrap').style.display = canRole ? '' : 'none';
         if (canRole && editRoleCs) {
             const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
@@ -1199,16 +2044,58 @@
 
         document.getElementById('editMsg').style.display = 'none';
         document.getElementById('editModal').style.display = 'flex';
-        setTimeout(() => document.getElementById('editNome').focus(), 100);
+        if (isSA) setTimeout(() => document.getElementById('editNome').focus(), 100);
     }
     function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
     async function saveProfile() {
         const id = document.getElementById('editUserId').value;
-        const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
         const cards = getSelectedCards('editCard');
         const msgEl = document.getElementById('editMsg');
         msgEl.style.display = 'none';
+        const u = _usersCache.find(x => x.id === id);
+        const authLocked = !!(u && u.visible === false);
+        const isSA = _currentUser.role === 'superadmin';
+        if (authLocked && !isSA) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = 'Le autorizzazioni di un utente non visibile non si possono modificare.';
+            msgEl.style.display = 'block';
+            return;
+        }
+        if (!authLocked && !cards.length) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = 'Seleziona almeno una scheda del portale.';
+            msgEl.style.display = 'block';
+            return;
+        }
+        const newRole = (isSA && canChangeUserRole(u) && editRoleCs) ? (editRoleCs.getValue() || u.role) : u.role;
+        const docente = roleCanBeDocente(newRole) && !!document.getElementById('editDocente')?.checked;
+        const profilePayload = authLocked ? {} : { cards, docente };
+
+        if (!isSA) {
+            const res = await fetch(`/api/auth/users/${id}/profile`, {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ cards, docente }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.pending) {
+                closeEditModal();
+                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+                refreshAarTabBadge();
+            } else if (res.ok) {
+                closeEditModal();
+                showMsg('usersMsg', 'Accesso aggiornato.', 'success');
+                loadUsers();
+            } else {
+                msgEl.className = 'feedback error';
+                msgEl.textContent = d.error || 'Errore.';
+                msgEl.style.display = 'block';
+            }
+            return;
+        }
+
+        const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
         const reqErr = validateRequiredProfile(profile);
         if (reqErr) {
             msgEl.className = 'feedback error';
@@ -1223,15 +2110,6 @@
             msgEl.style.display = 'block';
             return;
         }
-        if (!cards.length) {
-            msgEl.className = 'feedback error';
-            msgEl.textContent = 'Seleziona almeno una scheda del portale.';
-            msgEl.style.display = 'block';
-            return;
-        }
-        const u = _usersCache.find(x => x.id === id);
-        const newRole = (canChangeUserRole(u) && editRoleCs) ? (editRoleCs.getValue() || u.role) : u.role;
-        const docente = roleCanBeDocente(newRole) && !!document.getElementById('editDocente')?.checked;
 
         // Cambio ruolo (se consentito e diverso)
         if (canChangeUserRole(u) && newRole && newRole !== _editOriginalRole) {
@@ -1252,7 +2130,7 @@
                 const res = await fetch(`/api/auth/users/${id}/profile`, {
                     method: 'PATCH',
                     headers: authHeader(),
-                    body: JSON.stringify({ ...profile, cards, docente }),
+                    body: JSON.stringify({ ...profile, ...profilePayload }),
                 });
                 const d = await res.json().catch(() => ({}));
                 closeEditModal();
@@ -1272,7 +2150,7 @@
         const res = await fetch(`/api/auth/users/${id}/profile`, {
             method: 'PATCH',
             headers: authHeader(),
-            body: JSON.stringify({ ...profile, cards, docente }),
+            body: JSON.stringify({ ...profile, ...profilePayload }),
         });
         const d = await res.json();
         if (res.ok && d.pending) {
@@ -1291,32 +2169,22 @@
         else { msgEl.className='feedback error'; msgEl.textContent=d.error||'Errore.'; msgEl.style.display='block'; }
     }
 
-    // ── Richieste modifica profilo ─────────────────────────────────────────────
-    async function loadProfileChangeRequests() {
-        const list = document.getElementById('pcrList');
-        list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Caricamento...</div>';
-        try {
-            const res  = await fetch('/api/auth/profile-change-requests', { headers: authHeader() });
-            const data = await res.json();
-            const badge = document.getElementById('pcrBadge');
-            if (data.length) { badge.textContent=data.length; badge.style.display=''; }
-            else badge.style.display='none';
-            if (!data.length) { list.innerHTML='<div style="color:#5ABBC8;font-size:0.88rem;">Nessuna richiesta in sospeso.</div>'; return; }
-            list.innerHTML = data.map(r => {
-                const extras = [
-                    r.dataNascita ? `Nascita: ${formatDateIT(r.dataNascita)}` : null,
-                    r.luogoNascita ? `Luogo: ${r.luogoNascita}` : null,
-                    r.residenza ? `Residenza: ${r.residenza}` : null,
-                    r.domicilioComeResidenza ? 'Domicilio: come residenza' : (r.domicilio ? `Domicilio: ${r.domicilio}` : null),
-                    r.telefono ? `Tel: ${formatTelefonoDisplay(r)}` : null,
-                ].filter(Boolean).join(' · ');
-                const pcrName = [r.cognome, r.nome].filter(Boolean).map((s, i) => i === 0 ? String(s).toUpperCase() : s).join(' ') || r.userEmail;
-                return `
+    // ── Approvazioni (profilo + azioni admin, elenco unico) ──────────────────
+    function renderPcrItem(r) {
+        const extras = [
+            r.dataNascita ? `Nascita: ${formatDateIT(r.dataNascita)}` : null,
+            r.luogoNascita ? `Luogo: ${r.luogoNascita}` : null,
+            r.residenza ? `Residenza: ${r.residenza}` : null,
+            r.domicilioComeResidenza ? 'Domicilio: come residenza' : (r.domicilio ? `Domicilio: ${r.domicilio}` : null),
+            r.telefono ? `Tel: ${formatTelefonoDisplay(r)}` : null,
+        ].filter(Boolean).join(' · ');
+        const pcrName = [r.cognome, r.nome].filter(Boolean).map((s, i) => i === 0 ? String(s).toUpperCase() : s).join(' ') || r.userEmail;
+        return `
                 <div class="pcr-item">
                     <div class="pcr-info">
-                        <strong>${pcrName}</strong>
-                        <small>Richiesta: ${gradoImgTag(r.grado)} ${r.cognome.toUpperCase()} ${r.nome} — ${r.grado}</small>
-                        ${extras ? `<small>${extras}</small>` : ''}
+                        <strong>${escapeHtml(pcrName)}</strong>
+                        <small>Richiesta: ${gradoImgTag(r.grado)} ${escapeHtml(String(r.cognome || '').toUpperCase())} ${escapeHtml(r.nome || '')} — ${escapeHtml(r.grado || '')}</small>
+                        ${extras ? `<small>${escapeHtml(extras)}</small>` : ''}
                         <small style="color:#7ACCE0;">Inviata: ${new Date(r.requestedAt).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small>
                     </div>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
@@ -1324,64 +2192,26 @@
                         <button class="btn-rej"   onclick="rejectProfile('${r.id}')">✕ Rifiuta</button>
                     </div>
                 </div>`;
-            }).join('');
-        } catch { list.innerHTML='<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>'; }
     }
 
-    function approveProfile(id) {
-        showConfirm('Approvare questa modifica profilo?', async () => {
-            const res = await fetch(`/api/auth/profile-change-requests/${id}/approve`, { method:'POST', headers:authHeader() });
-            if (res.ok) { showMsg('profilesMsg','Modifica approvata e applicata.','success'); loadProfileChangeRequests(); loadUsers(); refreshNavBell(); refreshPcrTabBadge(); }
-            else { const d=await res.json(); showMsg('profilesMsg',d.error||'Errore.','error'); }
-        });
-    }
-    function rejectProfile(id) {
-        showConfirm('Rifiutare questa richiesta?', async () => {
-            const res = await fetch(`/api/auth/profile-change-requests/${id}`, { method:'DELETE', headers:authHeader() });
-            if (res.ok) { showMsg('profilesMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); refreshNavBell(); refreshPcrTabBadge(); }
-            else { const d=await res.json(); showMsg('profilesMsg',d.error||'Errore.','error'); }
-        });
-    }
-
-    // ── Approvazioni azioni admin (modifica/eliminazione utenti) ──────────────
-    async function refreshAarTabBadge() {
-        try {
-            const res = await fetch('/api/auth/admin-requests', { headers: authHeader() });
-            const data = res.ok ? await res.json() : [];
-            const badge = document.getElementById('aarBadge');
-            if (!badge) return;
-            if (data.length) { badge.textContent = data.length; badge.style.display = ''; }
-            else badge.style.display = 'none';
-        } catch {}
-    }
-
-    async function loadApprovals() {
-        const list = document.getElementById('aarList');
-        list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Caricamento...</div>';
-        try {
-            const res  = await fetch('/api/auth/admin-requests', { headers: authHeader() });
-            const data = await res.json();
-            const badge = document.getElementById('aarBadge');
-            if (data.length) { badge.textContent = data.length; badge.style.display = ''; }
-            else badge.style.display = 'none';
-            if (!data.length) { list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Nessuna richiesta in attesa.</div>'; return; }
-            list.innerHTML = data.map(r => {
-                const isMine = r.requestedById === _currentUser.id;
-                const approvals = r.approvals || [];
-                const alreadyApproved = approvals.some(a => a.id === _currentUser.id);
-                const canApprove = !isMine && !alreadyApproved;
-                const when = new Date(r.requestedAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
-                const approvedBy = approvals.length
-                    ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.label || a.email).join(', ')}</small>`
-                    : '';
-                const targetName = r.targetLabel || r.targetEmail;
-                const requesterName = r.requestedByLabel || r.requestedByEmail;
-                return `
+    function renderAarItem(r) {
+        const isMine = r.requestedById === _currentUser.id;
+        const approvals = r.approvals || [];
+        const alreadyApproved = approvals.some(a => a.id === _currentUser.id);
+        const superOnly = !!r.superadminOnly;
+        const canApprove = !isMine && !alreadyApproved && (!superOnly || _currentUser.role === 'superadmin');
+        const when = new Date(r.requestedAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+        const approvedBy = !superOnly && approvals.length
+            ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.label || a.email).join(', ')}</small>`
+            : (superOnly ? '<small style="color:#7ACCE0;">Solo Super Admin</small>' : '');
+        const targetName = r.targetLabel || r.targetEmail;
+        const requesterName = r.requestedByLabel || r.requestedByEmail;
+        return `
                 <div class="pcr-item">
                     <div class="pcr-info">
-                        <strong>${r.typeLabel} — ${targetName}</strong>
-                        <small>${r.summary}</small>
-                        <small style="color:#7ACCE0;">Richiesta da ${requesterName}${isMine ? ' (tu)' : ''} · ${when}</small>
+                        <strong>${escapeHtml(r.typeLabel)} — ${escapeHtml(targetName)}</strong>
+                        <small>${escapeHtml(r.summary)}</small>
+                        <small style="color:#7ACCE0;">Richiesta da ${escapeHtml(requesterName)}${isMine ? ' (tu)' : ''} · ${when}</small>
                         ${approvedBy}
                     </div>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
@@ -1390,8 +2220,53 @@
                         <button class="btn-rej" onclick="rejectAdminRequest('${r.id}', ${isMine})">${isMine ? '✕ Annulla' : '✕ Rifiuta'}</button>
                     </div>
                 </div>`;
-            }).join('');
-        } catch { list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>'; }
+    }
+
+    async function loadApprovals() {
+        const list = document.getElementById('approvalsList');
+        if (!list) return;
+        list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Caricamento...</div>';
+        try {
+            const [pcrRes, aarRes] = await Promise.all([
+                fetch('/api/auth/profile-change-requests', { headers: authHeader() }),
+                fetch('/api/auth/admin-requests', { headers: authHeader() }),
+            ]);
+            const pcr = await pcrRes.json().catch(() => []);
+            const aar = await aarRes.json().catch(() => []);
+            refreshRequestsBadge();
+            const items = [];
+            (Array.isArray(pcr) ? pcr : []).forEach((r) => {
+                items.push({ at: r.requestedAt, html: renderPcrItem(r) });
+            });
+            (Array.isArray(aar) ? aar : []).forEach((r) => {
+                items.push({ at: r.requestedAt, html: renderAarItem(r) });
+            });
+            items.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-state">Nessuna richiesta in attesa.</div>';
+                return;
+            }
+            list.innerHTML = items.map((i) => i.html).join('');
+        } catch {
+            list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>';
+        }
+    }
+
+    function loadProfileChangeRequests() { return loadApprovals(); }
+
+    function approveProfile(id) {
+        showConfirm('Approvare questa modifica profilo?', async () => {
+            const res = await fetch(`/api/auth/profile-change-requests/${id}/approve`, { method:'POST', headers:authHeader() });
+            if (res.ok) { showMsg('requestsMsg','Modifica approvata e applicata.','success'); loadProfileChangeRequests(); loadUsers(); refreshNavBell(); refreshRequestsBadge(); }
+            else { const d=await res.json(); showMsg('requestsMsg',d.error||'Errore.','error'); }
+        });
+    }
+    function rejectProfile(id) {
+        showConfirm('Rifiutare questa richiesta?', async () => {
+            const res = await fetch(`/api/auth/profile-change-requests/${id}`, { method:'DELETE', headers:authHeader() });
+            if (res.ok) { showMsg('requestsMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); refreshNavBell(); refreshRequestsBadge(); }
+            else { const d=await res.json(); showMsg('requestsMsg',d.error||'Errore.','error'); }
+        });
     }
 
     function approveAdminRequest(id) {
@@ -1400,7 +2275,7 @@
             const d = await res.json().catch(() => ({}));
             if (res.ok) {
                 showMsg(
-                    'approvalsMsg',
+                    'requestsMsg',
                     d.executed
                         ? 'Richiesta approvata: operazione applicata.'
                         : `Approvazione registrata (${d.approvals}/${d.needed}). Serve un'altra approvazione.`,
@@ -1409,7 +2284,7 @@
                 loadApprovals(); loadUsers(); refreshAarTabBadge();
                 if (typeof refreshNavBell === 'function') refreshNavBell();
             } else {
-                showMsg('approvalsMsg', d.error || 'Errore.', 'error');
+                showMsg('requestsMsg', d.error || 'Errore.', 'error');
                 loadApprovals(); refreshAarTabBadge();
             }
         });
@@ -1419,11 +2294,11 @@
         showConfirm(isMine ? 'Annullare la tua richiesta?' : 'Rifiutare questa richiesta?', async () => {
             const res = await fetch(`/api/auth/admin-requests/${id}`, { method: 'DELETE', headers: authHeader() });
             if (res.ok) {
-                showMsg('approvalsMsg', isMine ? 'Richiesta annullata.' : 'Richiesta rifiutata.', 'success');
+                showMsg('requestsMsg', isMine ? 'Richiesta annullata.' : 'Richiesta rifiutata.', 'success');
                 loadApprovals(); refreshAarTabBadge();
                 if (typeof refreshNavBell === 'function') refreshNavBell();
             }
-            else { const d = await res.json(); showMsg('approvalsMsg', d.error || 'Errore.', 'error'); }
+            else { const d = await res.json(); showMsg('requestsMsg', d.error || 'Errore.', 'error'); }
         });
     }
     </script>

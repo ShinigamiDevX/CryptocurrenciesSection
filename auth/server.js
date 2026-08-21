@@ -63,12 +63,21 @@ function normalizeDocente(role, flag) {
     return roleCanBeDocente(role) && !!flag;
 }
 
+function isUserVisible(user) {
+    if (!user) return false;
+    return user.visible !== false && user.visible !== 0;
+}
+
+function isAccountUsable(user) {
+    return !!(user && !user.revokedAt && isUserVisible(user));
+}
+
 /**
  * Super Admin ha sempre tutti i permessi (presenti e futuri).
  * Altre categorie: mappa capability → regola specifica.
  */
 function userCan(user, capability) {
-    if (!user || user.revokedAt) return false;
+    if (!isAccountUsable(user)) return false;
     if (user.role === 'superadmin') return true;
     switch (capability) {
         case 'corsi.manage':
@@ -227,20 +236,20 @@ function notifyUser(userId, type, title, body, link) {
 
 function notifyAdmins(type, title, body, link, exceptUserId) {
     Users.findActive()
-        .filter(u => (u.role === 'admin' || u.role === 'superadmin') && u.id !== exceptUserId)
+        .filter(u => isUserVisible(u) && (u.role === 'admin' || u.role === 'superadmin') && u.id !== exceptUserId)
         .forEach(u => notifyUser(u.id, type, title, body, link));
 }
 
 /** Notifica Super Admin e utenti con categoria Docente (escluso l’attore). */
 function notifyCorsiEditors(exceptUserId, type, title, body, link) {
     Users.findActive()
-        .filter((u) => u.id !== exceptUserId && userCan(u, 'corsi.manage'))
+        .filter((u) => u.id !== exceptUserId && isUserVisible(u) && userCan(u, 'corsi.manage'))
         .forEach((u) => notifyUser(u.id, type, title, body, link));
 }
 
 function notifySuperadmins(type, title, body, link) {
     Users.findActive()
-        .filter((u) => u.role === 'superadmin')
+        .filter((u) => u.role === 'superadmin' && isUserVisible(u))
         .forEach((u) => notifyUser(u.id, type, title, body, link));
 }
 
@@ -402,7 +411,7 @@ function profileSnapshot(p) {
 // Il Super Admin agisce direttamente; gli admin hanno bisogno dell'approvazione
 // del Super Admin oppure di ADMIN_APPROVALS_NEEDED altri admin.
 const ADMIN_APPROVALS_NEEDED = 2;
-const ACTION_LABEL = { delete: 'Eliminazione utente', role: 'Cambio ruolo', profile: 'Modifica profilo' };
+const ACTION_LABEL = { delete: 'Visibilità utente', visibility: 'Visibilità utente', role: 'Cambio ruolo', profile: 'Modifica profilo' };
 
 function createAdminActionRequest(type, target, payload, summary, requester) {
     const id = uuidv4();
@@ -417,25 +426,38 @@ function createAdminActionRequest(type, target, payload, summary, requester) {
         requestedByEmail: requester.email,
         requestedAt: new Date().toISOString(),
     });
-    notifyAdmins(
-        'admin_action_request',
-        `Approvazione richiesta: ${ACTION_LABEL[type] || type}`,
-        `${actorLabel(requester)} ha richiesto: ${summary}. Serve l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
-        '/gestione-utenti#approvals',
-        requester.id
-    );
+    const visibilityOnly = type === 'visibility';
+    const waitHint = visibilityOnly
+        ? 'Serve l\'approvazione del Super Admin.'
+        : `Serve l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`;
+    if (visibilityOnly) {
+        notifySuperadmins(
+            'admin_action_request',
+            `Approvazione richiesta: ${ACTION_LABEL[type] || type}`,
+            `${actorLabel(requester)} ha richiesto: ${summary}. ${waitHint}`,
+            '/gestione-utenti#approvals'
+        );
+    } else {
+        notifyAdmins(
+            'admin_action_request',
+            `Approvazione richiesta: ${ACTION_LABEL[type] || type}`,
+            `${actorLabel(requester)} ha richiesto: ${summary}. ${waitHint}`,
+            '/gestione-utenti#approvals',
+            requester.id
+        );
+    }
     notifyUser(
         requester.id,
         'admin_action_request_sent',
         'Richiesta inviata',
-        `La tua richiesta (${summary}) è in attesa di approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+        `La tua richiesta (${summary}) è in attesa di approvazione. ${waitHint}`,
         '/gestione-utenti#approvals'
     );
     return id;
 }
 
 /** Applica una richiesta approvata. Ritorna null se ok, altrimenti il motivo dell'errore. */
-function executeAdminAction(r) {
+async function executeAdminAction(r) {
     const target = Users.findById(r.targetUserId);
     const requester = Users.findById(r.requestedById) || { id: r.requestedById, email: r.requestedByEmail };
     let payload = {};
@@ -443,8 +465,9 @@ function executeAdminAction(r) {
     if (!target || target.revokedAt) return 'l\'utente non è più attivo.';
     if (target.role === 'superadmin') return 'l\'utente è diventato Super Admin.';
 
-    if (r.type === 'delete') {
-        Users.revoke(target.id);
+    if (r.type === 'visibility' || r.type === 'delete') {
+        const wantVisible = r.type === 'delete' ? false : !!payload.visible;
+        await applyVisibility(target, wantVisible);
         return null;
     }
 
@@ -465,22 +488,25 @@ function executeAdminAction(r) {
     }
 
     if (r.type === 'profile') {
-        if (!payload.profile) return 'dati della richiesta non validi.';
         const beforeCards = cardsFromStored(target.allowedCards, target.role);
         let afterCards = beforeCards;
-        Users.updateProfile(target.id, payload.profile);
+        if (payload.profile) {
+            Users.updateProfile(target.id, payload.profile);
+        }
         if (Array.isArray(payload.cards) && payload.cards.length) {
-            Users.updateAllowedCards(target.id, cardsToStored(payload.cards));
-            afterCards = payload.cards;
+            if (isUserVisible(target)) {
+                Users.updateAllowedCards(target.id, cardsToStored(payload.cards));
+                afterCards = payload.cards;
+            }
         }
         const beforeDocente = normalizeDocente(target.role, target.docente);
         let afterDocente = beforeDocente;
-        if (payload.docente !== undefined && payload.docente !== null) {
+        if (payload.docente !== undefined && payload.docente !== null && isUserVisible(target)) {
             afterDocente = normalizeDocente(target.role, payload.docente);
             Users.updateDocente(target.id, afterDocente);
         }
         if (target.id !== requester.id) {
-            const changes = profileDiffLines(target, payload.profile);
+            const changes = payload.profile ? profileDiffLines(target, payload.profile) : [];
             const cardsLine = cardsDiffLine(beforeCards, afterCards);
             if (cardsLine) changes.push(cardsLine);
             if (beforeDocente !== afterDocente) {
@@ -563,6 +589,25 @@ async function sendPasswordResetEmail(toEmail, tempPassword) {
     return true;
 }
 
+async function applyVisibility(user, wantVisible) {
+    if (wantVisible) {
+        const tempPassword = crypto.randomBytes(9).toString('base64url');
+        Users.setVisible(user.id, true);
+        Users.resetPassword(user.id, await bcrypt.hash(tempPassword, 12));
+        Users.clearLoginLock(user.id);
+        let emailSent = false;
+        try {
+            emailSent = await sendPasswordResetEmail(user.email, tempPassword);
+        } catch (e) {
+            console.error('[AUTH] Email ripristino credenziali:', e.message);
+        }
+        return { visible: true, emailSent, temporaryPassword: emailSent ? undefined : tempPassword };
+    }
+    Users.setVisible(user.id, false);
+    PasswordResets.invalidateForUser(user.id);
+    return { visible: false, revoked: true };
+}
+
 async function sendForgotPasswordEmail(toEmail, resetToken) {
     // Fragment (#): non viene inviato al server nella GET della pagina → non finisce nei log access
     const link = `${PORTAL_URL}/reset-password#token=${encodeURIComponent(resetToken)}`;
@@ -588,7 +633,7 @@ function authenticate(req,res,next){
         req.user=jwt.verify(t,JWT_SECRET);
         if (req.user.purpose === 'login_otp') return res.status(401).json({error:'Token non valido.'});
         const dbUser = Users.findById(req.user.id);
-        if (!dbUser || dbUser.revokedAt) return res.status(401).json({error:'Sessione non valida.'});
+        if (!isAccountUsable(dbUser)) return res.status(401).json({error:'Sessione non valida.'});
         const tokenVer = Number(req.user.tokenVersion) || 0;
         const dbVer = Number(dbUser.tokenVersion) || 0;
         if (tokenVer !== dbVer) return res.status(401).json({error:'Sessione non valida. Effettua di nuovo l\'accesso.'});
@@ -652,7 +697,7 @@ async function issueLoginOtp(user) {
 
 async function issueLoginOtpGuarded(user) {
     user = expireLoginLockIfNeeded(Users.findById(user.id));
-    if (!user || user.revokedAt) return { invalid: true };
+    if (!isAccountUsable(user)) return { invalid: true };
     if (isLoginLocked(user)) return { locked: true, user };
     if ((Number(user.otpSendCount) || 0) >= OTP_MAX_SENDS) {
         return { locked: true, user: applyLoginLock(user, 'otp_send') };
@@ -685,7 +730,7 @@ app.post('/api/auth/login', async(req,res)=>{
     const {email,password}=req.body||{};
     if (!email||!password) return res.status(400).json({error:'Email e password obbligatori.'});
     const user=Users.findByEmail(email);
-    if (!user||user.revokedAt||!(await bcrypt.compare(password,user.passwordHash))) {
+    if (!isAccountUsable(user) || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
         return res.status(401).json({error:'Credenziali non valide.'});
     }
     try {
@@ -719,7 +764,7 @@ app.post('/api/auth/login/verify-otp', async (req, res) => {
         return res.status(401).json({ error: 'Sessione di verifica non valida.' });
     }
     let user = expireLoginLockIfNeeded(Users.findById(payload.id));
-    if (!user || user.revokedAt) return res.status(401).json({ error: 'Utente non valido.' });
+    if (!isAccountUsable(user)) return res.status(401).json({ error: 'Utente non valido.' });
     if (isLoginLocked(user) && (user.loginLockedReason === 'otp_fail' || (Number(user.otpFailCount) || 0) >= OTP_MAX_FAILS)) {
         return res.status(423).json(loginLockedPayload(user));
     }
@@ -767,7 +812,7 @@ app.post('/api/auth/login/resend-otp', async (req, res) => {
         return res.status(401).json({ error: 'Sessione di verifica non valida.' });
     }
     const user = Users.findById(payload.id);
-    if (!user || user.revokedAt) return res.status(401).json({ error: 'Utente non valido.' });
+    if (!isAccountUsable(user)) return res.status(401).json({ error: 'Utente non valido.' });
     try {
         const result = await issueLoginOtpGuarded(user);
         if (result.invalid) return res.status(401).json({ error: 'Utente non valido.' });
@@ -785,7 +830,7 @@ app.post('/api/auth/login/resend-otp', async (req, res) => {
 
 app.get('/api/auth/verify', authenticate,(req,res)=>{
     const user=Users.findById(req.user.id);
-    if (!user||user.revokedAt) return res.status(401).json({error:'Sessione non valida.'});
+    if (!isAccountUsable(user)) return res.status(401).json({error:'Sessione non valida.'});
     res.json({
         valid: true,
         id: user.id,
@@ -842,7 +887,7 @@ app.post('/api/auth/elevate-session', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Non trovato.' });
         }
         const user = Users.findById(req.user.id);
-        if (!user || user.revokedAt) return res.status(401).json({ error: 'Sessione non valida.' });
+        if (!isAccountUsable(user)) return res.status(401).json({ error: 'Sessione non valida.' });
         res.json({ ok: true, message: 'ZITTO COGLIONE' });
     } catch (err) {
         console.error('[AUTH] elevate-session:', err);
@@ -889,7 +934,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             message: 'Se l\'email è registrata, riceverai un link per reimpostare la password.',
         };
         const user = Users.findByEmail(email);
-        if (!user || user.revokedAt) return res.json(generic);
+        if (!isAccountUsable(user)) return res.json(generic);
 
         PasswordResets.invalidateForUser(user.id);
         const token = uuidv4();
@@ -945,7 +990,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
         if (!row || row.used) return res.status(400).json({ error: 'Link non valido o già utilizzato.' });
         if (new Date() > new Date(row.expiresAt)) return res.status(400).json({ error: 'Link scaduto. Richiedi un nuovo reset.' });
         const user = Users.findById(row.userId);
-        if (!user || user.revokedAt) return res.status(400).json({ error: 'Utente non trovato.' });
+        if (!isAccountUsable(user)) return res.status(400).json({ error: 'Utente non trovato.' });
         Users.changePassword(user.id, await bcrypt.hash(password, 12));
         PasswordResets.markUsed(token);
         res.json({ success: true });
@@ -1065,6 +1110,8 @@ app.get('/api/auth/users', authenticate, requireAdmin,(req,res)=>{
                 role,
                 cards: cardsFromStored(u.allowedCards, role),
                 docente: normalizeDocente(role, u.docente),
+                visible: isUserVisible(u),
+                hiddenAt: u.hiddenAt || null,
                 loginLocked: locked,
                 loginLockedUntil: locked ? u.loginLockedUntil : null,
                 loginLockedReason: locked ? (u.loginLockedReason || '') : '',
@@ -1072,26 +1119,108 @@ app.get('/api/auth/users', authenticate, requireAdmin,(req,res)=>{
         }));
 });
 
-app.delete('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
-    const user=Users.findById(req.params.id);
-    if (!user) return res.status(404).json({error:'Utente non trovato.'});
-    if (user.role==='superadmin') return res.status(403).json({error:'I superadmin non possono essere eliminati.'});
-    if (req.user.id===user.id) return res.status(403).json({error:'Non puoi eliminare il tuo profilo.'});
-    const myLevel=ROLE_LEVEL[req.user.role]??0, targetLevel=ROLE_LEVEL[user.role]??0;
-    if (targetLevel>=myLevel) return res.status(403).json({error:'Permessi insufficienti.'});
-    if (req.user.role==='superadmin') {
-        Users.revoke(user.id);
-        return res.json({success:true});
+app.post('/api/auth/users/bulk-cards', authenticate, requireSuperadmin, (req, res) => {
+    const raw = Array.isArray(req.body && req.body.updates) ? req.body.updates : [];
+    if (!raw.length) return res.status(400).json({ error: 'Nessuna modifica da salvare.' });
+
+    const actor = Users.findById(req.user.id) || req.user;
+    const prepared = [];
+    for (const item of raw) {
+        const id = String((item && item.userId) || '').trim();
+        if (!id || id === req.user.id) continue;
+        const user = Users.findById(id);
+        if (!user || user.revokedAt || user.role === 'superadmin' || isLockedProfile(user.email)) continue;
+        if (!isUserVisible(user)) {
+            return res.status(403).json({
+                error: `Le autorizzazioni di ${user.email} non si possono modificare: utente non visibile.`,
+            });
+        }
+        const currentCards = cardsFromStored(user.allowedCards, user.role);
+        const hasCards = Object.prototype.hasOwnProperty.call(item, 'cards');
+        let cards = currentCards;
+        if (hasCards) {
+            cards = sanitizeCards(item.cards);
+            if (!cards) {
+                return res.status(400).json({ error: `Ogni utente deve avere almeno una scheda (${user.email}).` });
+            }
+        }
+        const currentDocente = normalizeDocente(user.role, user.docente);
+        const hasDocente = Object.prototype.hasOwnProperty.call(item, 'docente');
+        const docente = hasDocente
+            ? normalizeDocente(user.role, item.docente)
+            : currentDocente;
+        const cardsLine = cardsDiffLine(currentCards, cards);
+        const docenteChanged = currentDocente !== docente;
+        prepared.push({ user, cards, docente, cardsLine, docenteChanged, currentCards });
     }
-    // Admin: serve l'approvazione del Super Admin o di altri due admin
-    if (AdminActionRequests.findPendingByTarget(user.id,'delete')) {
-        return res.status(409).json({error:'Esiste già una richiesta di eliminazione in attesa per questo utente.'});
+    if (!prepared.length) return res.status(400).json({ error: 'Nessun utente aggiornabile.' });
+
+    let updated = 0;
+    let unchanged = 0;
+    for (const item of prepared) {
+        if (!item.cardsLine && !item.docenteChanged) { unchanged++; continue; }
+        if (item.cardsLine) Users.updateAllowedCards(item.user.id, cardsToStored(item.cards));
+        if (item.docenteChanged) Users.updateDocente(item.user.id, item.docente);
+        updated++;
+        const parts = [];
+        if (item.cardsLine) parts.push(item.cardsLine);
+        if (item.docenteChanged) {
+            parts.push(item.docente ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
+        }
+        notifyUser(
+            item.user.id,
+            'cards_granted',
+            'Accessi del portale aggiornati',
+            `${actorLabel(actor)} ha aggiornato i tuoi accessi. ${parts.join('; ')}.`,
+            '/portal'
+        );
+    }
+    res.json({ success: true, updated, unchanged });
+});
+
+app.patch('/api/auth/users/:id/visibility', authenticate, requireAdmin, async (req, res) => {
+    const wantVisible = req.body && req.body.visible;
+    if (typeof wantVisible !== 'boolean') {
+        return res.status(400).json({ error: 'Indica se l\'utente deve essere visibile.' });
+    }
+    const user = Users.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Utente non trovato.' });
+    if (user.revokedAt) return res.status(403).json({ error: 'Utente revocato.' });
+    if (user.role === 'superadmin') {
+        return res.status(403).json({ error: 'I superadmin non possono essere nascosti.' });
+    }
+    if (req.user.id === user.id) {
+        return res.status(403).json({ error: 'Non puoi modificare la visibilità del tuo profilo.' });
+    }
+    const myLevel = ROLE_LEVEL[req.user.role] ?? 0;
+    const targetLevel = ROLE_LEVEL[user.role] ?? 0;
+    if (targetLevel >= myLevel) return res.status(403).json({ error: 'Permessi insufficienti.' });
+    if (isUserVisible(user) === wantVisible) {
+        return res.json({ success: true, visible: wantVisible, unchanged: true });
+    }
+    const label = wantVisible ? 'visibile' : 'non visibile';
+    if (req.user.role === 'superadmin') {
+        const result = await applyVisibility(user, wantVisible);
+        return res.json({ success: true, ...result });
+    }
+    if (AdminActionRequests.findPendingByTarget(user.id, 'visibility')) {
+        return res.status(409).json({ error: 'Esiste già una richiesta di visibilità in attesa per questo utente.' });
     }
     const requester = Users.findById(req.user.id) || req.user;
-    createAdminActionRequest('delete', user, {}, `eliminazione dell'account ${subjectLabel(user)}`, requester);
+    createAdminActionRequest(
+        'visibility',
+        user,
+        { visible: wantVisible },
+        wantVisible
+            ? `ripristinare l'account ${subjectLabel(user)} (nuove credenziali)`
+            : `eliminare l'account ${subjectLabel(user)} (nascondere e revocare le credenziali)`,
+        requester
+    );
     res.json({
         pending: true,
-        message: `Richiesta inviata: l'eliminazione sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+        message: wantVisible
+            ? `Richiesta inviata: l'utente sarà ripristinato dopo l'approvazione del Super Admin.`
+            : `Richiesta inviata: l'utente sarà eliminato (non visibile, credenziali revocate) dopo l'approvazione del Super Admin.`,
     });
 });
 
@@ -1102,26 +1231,13 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
     if (user.revokedAt) return res.status(403).json({error:'Utente revocato.'});
     if (user.role==='superadmin') return res.status(403).json({error:'I superadmin non possono essere modificati.'});
+    if (req.user.role!=='superadmin') {
+        return res.status(403).json({error:'Solo il Super Admin può modificare il ruolo.'});
+    }
     if (req.user.id===user.id) return res.status(403).json({error:'Non puoi modificare il tuo ruolo.'});
     if (ROLE_LEVEL[newRole]>ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Non puoi assegnare un ruolo superiore al tuo.'});
     if (ROLE_LEVEL[user.role]>=ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Permessi insufficienti.'});
     const prevRole = user.role;
-    if (req.user.role!=='superadmin') {
-        // Admin: serve l'approvazione del Super Admin o di altri due admin
-        if (AdminActionRequests.findPendingByTarget(user.id,'role')) {
-            return res.status(409).json({error:'Esiste già una richiesta di cambio ruolo in attesa per questo utente.'});
-        }
-        const requester = Users.findById(req.user.id) || req.user;
-        createAdminActionRequest(
-            'role', user, { newRole },
-            `cambio ruolo di ${subjectLabel(user)}: ${ROLE_LABEL[prevRole] || prevRole} → ${ROLE_LABEL[newRole] || newRole}`,
-            requester
-        );
-        return res.json({
-            pending: true,
-            message: `Richiesta inviata: il cambio ruolo sarà applicato dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
-        });
-    }
     Users.updateRole(user.id,newRole);
     if (!roleCanBeDocente(newRole)) Users.updateDocente(user.id, false);
     const actor = Users.findById(req.user.id) || req.user;
@@ -1224,62 +1340,89 @@ app.post('/api/auth/change-password', authenticate, async(req,res)=>{
     res.json({success:true,token});
 });
 
-// ── PATCH /api/auth/users/:id/profile  (superadmin: diretta, admin: con approvazione) ─
+// ── PATCH /api/auth/users/:id/profile  (superadmin: tutto; admin: solo schede/docente) ─
 app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
-    const parsed = parseProfileBody(req.body);
-    if (parsed.error) return res.status(400).json({error: parsed.error});
     const user=Users.findById(req.params.id);
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
     if (isLockedProfile(user.email)) return res.status(403).json({error:'Il profilo di sistema non può essere modificato.'});
     const beforeCards = cardsFromStored(user.allowedCards, user.role);
-    const hasCards = Object.prototype.hasOwnProperty.call(req.body || {}, 'cards');
+    let hasCards = Object.prototype.hasOwnProperty.call(req.body || {}, 'cards');
     let selectedCards = null;
     if (hasCards) {
         selectedCards = sanitizeCards(req.body.cards);
         if (!selectedCards) return res.status(400).json({error:'Seleziona almeno una scheda del portale.'});
     }
-    const hasDocente = Object.prototype.hasOwnProperty.call(req.body || {}, 'docente');
+    let hasDocente = Object.prototype.hasOwnProperty.call(req.body || {}, 'docente');
+    if (!isUserVisible(user) && (hasCards || hasDocente)) {
+        if (req.user.role !== 'superadmin') {
+            return res.status(403).json({
+                error: 'Le autorizzazioni di un utente non visibile non si possono modificare. Rendilo di nuovo visibile prima.',
+            });
+        }
+        hasCards = false;
+        selectedCards = null;
+        hasDocente = false;
+    }
 
     if (req.user.role!=='superadmin') {
-        // Admin: serve l'approvazione del Super Admin o di altri due admin
+        if (req.user.id === user.id) {
+            const parsedSelf = parseProfileBody(req.body);
+            if (parsedSelf.error) return res.status(400).json({error: parsedSelf.error});
+            if (AdminActionRequests.findPendingByTarget(user.id,'profile')) {
+                return res.status(409).json({error:'Esiste già una richiesta di modifica in attesa per questo utente.'});
+            }
+            const changes = profileDiffLines(user, parsedSelf.profile);
+            const requester = Users.findById(req.user.id) || req.user;
+            createAdminActionRequest(
+                'profile', user,
+                { profile: parsedSelf.profile, cards: null, docente: null },
+                `modifica del proprio profilo. ${summarizeChanges(changes)}`,
+                requester
+            );
+            return res.json({
+                pending: true,
+                message: `Richiesta inviata: la modifica sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
+            });
+        }
+        const myLevel = ROLE_LEVEL[req.user.role] ?? 0;
+        const targetLevel = ROLE_LEVEL[user.role] ?? 0;
+        if (user.role === 'superadmin' || targetLevel >= myLevel) {
+            return res.status(403).json({error:'Permessi insufficienti.'});
+        }
+        if (!hasCards && !hasDocente) {
+            return res.status(400).json({error:'Nessuna modifica consentita.'});
+        }
         if (AdminActionRequests.findPendingByTarget(user.id,'profile')) {
             return res.status(409).json({error:'Esiste già una richiesta di modifica in attesa per questo utente.'});
         }
-        const changes = profileDiffLines(user, parsed.profile);
+        const changes = [];
         const cardsLine = cardsDiffLine(beforeCards, selectedCards || beforeCards);
         if (cardsLine) changes.push(cardsLine);
         if (hasDocente && normalizeDocente(user.role, user.docente) !== normalizeDocente(user.role, req.body.docente)) {
             changes.push(normalizeDocente(user.role, req.body.docente) ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
         }
+        if (!changes.length) {
+            return res.json({ success: true, unchanged: true });
+        }
         const requester = Users.findById(req.user.id) || req.user;
-        // Preferisci nome profilo; se la modifica lo sta compilando ora, usa i nuovi dati
-        const targetForLabel = {
-            ...user,
-            nome: user.nome || parsed.profile.nome,
-            cognome: user.cognome || parsed.profile.cognome,
-        };
-        const actorForLabel = requester.id === user.id
-            ? {
-                ...requester,
-                nome: requester.nome || parsed.profile.nome,
-                cognome: requester.cognome || parsed.profile.cognome,
-            }
-            : requester;
         createAdminActionRequest(
             'profile', user,
             {
-                profile: parsed.profile,
+                profile: null,
                 cards: selectedCards,
                 docente: hasDocente ? !!req.body.docente : null,
             },
-            `modifica del profilo di ${subjectLabel(targetForLabel)}. ${summarizeChanges(changes)}`,
-            actorForLabel
+            `modifica accesso di ${subjectLabel(user)}. ${summarizeChanges(changes)}`,
+            requester
         );
         return res.json({
             pending: true,
             message: `Richiesta inviata: la modifica sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
         });
     }
+
+    const parsed = parseProfileBody(req.body);
+    if (parsed.error) return res.status(400).json({error: parsed.error});
 
     let afterCards = beforeCards;
     Users.updateProfile(user.id, parsed.profile);
@@ -1350,7 +1493,7 @@ app.post('/api/auth/profile-change-request', authenticate,(req,res)=>{
         'profile_request',
         'Nuova richiesta di modifica profilo',
         `${subjectLabel(whoUser)} ha inviato una richiesta di modifica. ${changeSummary}`,
-        '/gestione-utenti#profiles',
+        '/gestione-utenti#approvals',
         req.user.id
     );
     notifyUser(
@@ -1440,16 +1583,20 @@ app.get('/api/auth/admin-requests', authenticate, requireAdmin,(req,res)=>{
                 const u = Users.findById(a.id);
                 return { id: a.id, email: a.email, label: subjectLabel(u || { email: a.email }), at: a.at };
             }),
-            needed: ADMIN_APPROVALS_NEEDED,
+            needed: (r.type === 'visibility' || r.type === 'delete') ? 1 : ADMIN_APPROVALS_NEEDED,
+            superadminOnly: r.type === 'visibility' || r.type === 'delete',
         };
     }));
 });
 
 // ── POST /api/auth/admin-requests/:id/approve ─────────────────────────────────
-app.post('/api/auth/admin-requests/:id/approve', authenticate, requireAdmin,(req,res)=>{
+app.post('/api/auth/admin-requests/:id/approve', authenticate, requireAdmin, async (req,res)=>{
     const r = AdminActionRequests.findById(req.params.id);
     if (!r || r.status !== 'pending') return res.status(404).json({error:'Richiesta non trovata.'});
     if (r.requestedById === req.user.id) return res.status(403).json({error:'Non puoi approvare una tua richiesta.'});
+    if ((r.type === 'visibility' || r.type === 'delete') && req.user.role !== 'superadmin') {
+        return res.status(403).json({error:'Solo il Super Admin può approvare le richieste di visibilità.'});
+    }
     let approvals = [];
     try { approvals = JSON.parse(r.approvals || '[]'); } catch {}
     if (approvals.some(a => a.id === req.user.id)) return res.status(409).json({error:'Hai già approvato questa richiesta.'});
@@ -1470,7 +1617,7 @@ app.post('/api/auth/admin-requests/:id/approve', authenticate, requireAdmin,(req
         }
     }
 
-    const err = executeAdminAction(r);
+    const err = await executeAdminAction(r);
     if (err) {
         AdminActionRequests.reject(r.id, 'system');
         notifyUser(

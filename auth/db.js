@@ -20,6 +20,8 @@ db.exec(`
         role                    TEXT NOT NULL DEFAULT 'user',
         createdAt               TEXT NOT NULL,
         revokedAt               TEXT,
+        visible                 INTEGER NOT NULL DEFAULT 1,
+        hiddenAt                TEXT,
         mustChangePassword      INTEGER NOT NULL DEFAULT 0,
         nome                    TEXT NOT NULL DEFAULT '',
         cognome                 TEXT NOT NULL DEFAULT '',
@@ -239,11 +241,31 @@ const USER_EXTRA_COLS = [
     ['otpSendCount', 'INTEGER NOT NULL DEFAULT 0'],
     ['loginLockedUntil', 'TEXT'],
     ['loginLockedReason', "TEXT NOT NULL DEFAULT ''"],
+    ['visible', 'INTEGER NOT NULL DEFAULT 1'],
+    ['hiddenAt', 'TEXT'],
 ];
 USER_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
     catch { /* già presente */ }
 });
+
+(function migrateHiddenUsers() {
+    const now = new Date().toISOString();
+    db.prepare(`
+        UPDATE users SET hiddenAt = ?
+        WHERE visible = 0 AND (hiddenAt IS NULL OR hiddenAt = '')
+    `).run(now);
+    db.prepare(`
+        UPDATE users SET
+            passwordHash = '',
+            tokenVersion = tokenVersion + 1,
+            loginOtp = NULL,
+            loginOtpExpiry = NULL
+        WHERE visible = 0
+          AND revokedAt IS NULL
+          AND IFNULL(passwordHash, '') != ''
+    `).run();
+})();
 
 const INV_EXTRA_COLS = [
     ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
@@ -291,6 +313,7 @@ const fromRow = (r) => r ? {
     mustChangePassword: toBool(r.mustChangePassword),
     domicilioComeResidenza: toBool(r.domicilioComeResidenza),
     docente: toBool(r.docente),
+    visible: r.visible === undefined || r.visible === null ? true : toBool(r.visible),
     tokenVersion: Number(r.tokenVersion) || 0,
     otpFailCount: Number(r.otpFailCount) || 0,
     otpSendCount: Number(r.otpSendCount) || 0,
@@ -385,7 +408,7 @@ const Users = {
         return db.prepare(`
             UPDATE users SET
                 passwordHash=@passwordHash, role=@role, createdAt=@createdAt,
-                revokedAt=NULL, mustChangePassword=@mustChangePassword,
+                revokedAt=NULL, visible=1, hiddenAt=NULL, mustChangePassword=@mustChangePassword,
                 nome=@nome, cognome=@cognome, grado=@grado,
                 dataNascita=@dataNascita, luogoNascita=@luogoNascita,
                 luogoNascitaTipo=@luogoNascitaTipo, luogoNascitaProvincia=@luogoNascitaProvincia,
@@ -433,6 +456,22 @@ const Users = {
         `).run({ id, ...p });
     },
     revoke: id => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '', tokenVersion = tokenVersion + 1 WHERE id = ?").run(new Date().toISOString(), id),
+    /** Elimina: non visibile, credenziali revocate, sessioni invalidate. Ripristina: torna visibile (nuova password lato server). */
+    setVisible: (id, visible) => {
+        if (visible) {
+            return db.prepare('UPDATE users SET visible = 1, hiddenAt = NULL WHERE id = ?').run(id);
+        }
+        return db.prepare(`
+            UPDATE users SET
+                visible = 0,
+                hiddenAt = ?,
+                passwordHash = '',
+                tokenVersion = tokenVersion + 1,
+                loginOtp = NULL,
+                loginOtpExpiry = NULL
+            WHERE id = ?
+        `).run(new Date().toISOString(), id);
+    },
     /** Aggiorna password e invalida tutte le sessioni JWT precedenti (tokenVersion++). */
     changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0, tokenVersion = tokenVersion + 1 WHERE id = ?').run(hash, id),
     /** Reset admin: nuova password, obbligo cambio, invalida sessioni JWT. */
@@ -491,7 +530,7 @@ const ProfileChangeRequests = {
     reject:  (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='rejected',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
 };
 
-// ── Admin Action Requests (modifica/eliminazione utenti da parte di admin) ───
+// ── Admin Action Requests (modifica/visibilità utenti da parte di admin) ───
 const AdminActionRequests = {
     findPending: () => db.prepare("SELECT * FROM admin_action_requests WHERE status='pending' ORDER BY requestedAt DESC").all(),
     findById: id => db.prepare('SELECT * FROM admin_action_requests WHERE id=?').get(id) || null,

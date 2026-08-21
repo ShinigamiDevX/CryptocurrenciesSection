@@ -359,12 +359,16 @@
         }
     }
 
+    function manageToggleHtml(open) {
+        return `<button type="button" class="manage-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Comprimi' : 'Espandi'}"><span class="toggle-bars" aria-hidden="true"><span class="bar bar-h"></span><span class="bar bar-v"></span></span></button>`;
+    }
+
     async function renderTreeNode(node, depth, expandState, manageMode) {
         const kids = contentNodes(node.children);
         const hasKids = kids.length > 0;
         const open = isNodeOpen(node.id, expandState);
         const card = await renderSectionCard(node, { manageMode: !!manageMode, depth });
-        const toggle = `<button type="button" class="manage-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Comprimi' : 'Espandi'}">${open ? '−' : '+'}</button>`;
+        const toggle = manageToggleHtml(open);
         let nested = '';
         if (hasKids) {
             const parts = [];
@@ -392,7 +396,6 @@
                 const id = level.getAttribute('data-tree-id');
                 const open = level.classList.toggle('is-open');
                 level.classList.toggle('is-collapsed', !open);
-                btn.textContent = open ? '−' : '+';
                 btn.setAttribute('aria-expanded', open ? 'true' : 'false');
                 btn.setAttribute('aria-label', open ? 'Comprimi' : 'Espandi');
                 const state = loadTreeExpandState();
@@ -501,13 +504,13 @@
     }
 
     async function deleteSectionInline(id) {
-        try {
-            const data = await apiJson(API + '/items/' + encodeURIComponent(id), {
-                method: 'DELETE', headers: authHeaders(),
-            });
+                    try {
+                        const data = await apiJson(API + '/items/' + encodeURIComponent(id), {
+                            method: 'DELETE', headers: authHeaders(),
+                        });
             if (data && data.manifest) manifest = data.manifest;
-            invalidateCache();
-            buildSidebar(true);
+                        invalidateCache();
+                        buildSidebar(true);
             const art = document.querySelector(editTreeSelector(id));
             if (art) {
                 const wrap = art.parentElement;
@@ -600,8 +603,12 @@
                 <div class="inline-doc-head">
                     <${titleTag} class="post-title inline-edit-title" contenteditable="true" spellcheck="true" data-edit-title></${titleTag}>
                     <div class="inline-doc-actions">
-                        <button type="button" class="btn-sm" data-add-child="${escapeHtml(node.id)}">Aggiungi sottosezione</button>
-                        <button type="button" class="btn-sm btn-danger" data-del="${escapeHtml(node.id)}">Elimina</button>
+                        <button type="button" class="btn-icon btn-icon-add" data-add-child="${escapeHtml(node.id)}" title="Aggiungi sottosezione" aria-label="Aggiungi sottosezione">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
+                        <button type="button" class="btn-icon btn-icon-del" data-del="${escapeHtml(node.id)}" title="Elimina" aria-label="Elimina">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6"/></svg>
+                        </button>
                     </div>
                 </div>
                 <div class="wysiwyg-surface inline-wysiwyg" contenteditable="true" role="textbox" aria-multiline="true" data-edit-body></div>
@@ -716,7 +723,7 @@
             let html = `
                 <div class="manage-level is-collapsible${open ? ' is-open' : ' is-collapsed'}" data-tree-id="${escapeHtml(entry.id)}">
                     <div class="manage-level-row">
-                        <button type="button" class="manage-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Comprimi' : 'Espandi'}">${open ? '−' : '+'}</button>
+                        ${manageToggleHtml(open)}
                         <div class="manage-level-body">
                             <h1 class="post-title">${escapeHtml(title)}</h1>
             `;
@@ -965,10 +972,10 @@
                 <input type="hidden" id="edContent" value="">
 
                 <div class="editor-meta">
-                    <label for="edTitle">Titolo</label>
-                    <input type="text" id="edTitle" maxlength="120" value="${escapeHtml(state.title)}" required>
-                    <p class="editor-hint">L’identificativo URL viene creato automaticamente dal titolo (spazi → underscore).</p>
-                    ${typeParentFields}
+                <label for="edTitle">Titolo</label>
+                <input type="text" id="edTitle" maxlength="120" value="${escapeHtml(state.title)}" required>
+                <p class="editor-hint">L’identificativo URL viene creato automaticamente dal titolo (spazi → underscore).</p>
+                ${typeParentFields}
                 </div>
 
                 <label class="editor-content-label">Contenuto</label>
@@ -1160,7 +1167,7 @@
                     <input type="color" class="chart-cat-color" value="${escapeHtml(normalizeHexColor(categoryColors[i], defaultSeriesColor(i)))}" title="Colore categoria" aria-label="Colore categoria ${i + 1}">
                     <input type="text" class="chart-cat-label" value="${escapeHtml(lab)}" aria-label="Categoria ${i + 1}">
                     <button type="button" class="chart-cat-remove" title="Rimuovi categoria" data-cat="${i}" ${labels.length <= 1 ? 'disabled' : ''}>×</button>
-                </div>
+            </div>
             </th>
         `).join('');
         const bodyRows = datasets.map((d, ri) => {
@@ -1906,20 +1913,20 @@
 
         if (fileInput && !fileInput.dataset.wired) {
             fileInput.dataset.wired = '1';
-            fileInput.addEventListener('change', async () => {
-                const file = fileInput.files && fileInput.files[0];
-                fileInput.value = '';
-                if (!file) return;
-                if (file.size > 10 * 1024 * 1024) { setEditorMsg('Immagine troppo grande (max 10 MB).', true); return; }
-                setEditorMsg('Caricamento immagine...');
-                try {
-                    const url = await uploadImage(file);
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files && fileInput.files[0];
+            fileInput.value = '';
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { setEditorMsg('Immagine troppo grande (max 10 MB).', true); return; }
+            setEditorMsg('Caricamento immagine...');
+            try {
+                const url = await uploadImage(file);
                     const alt = file.name.replace(/\.[^.]*$/, '').replace(/"/g, '');
                     insertHtmlAtCursor(`<p><img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}"></p>`);
-                    setEditorMsg('Immagine inserita.');
-                } catch (err) {
-                    setEditorMsg(err.message, true);
-                }
+                setEditorMsg('Immagine inserita.');
+            } catch (err) {
+                setEditorMsg(err.message, true);
+            }
             });
         }
 
