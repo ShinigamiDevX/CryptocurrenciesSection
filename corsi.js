@@ -173,6 +173,22 @@
             .slice(0, 64);
     }
 
+    function uniqueContentId(title) {
+        const used = new Set();
+        walk(navNodes(), (n) => {
+            if (n && n.id) used.add(n.id);
+            return false;
+        });
+        const base = slugify(title) || 'sezione';
+        let id = base;
+        let n = 2;
+        while (used.has(id)) {
+            id = (base + '_' + n).slice(0, 64);
+            n += 1;
+        }
+        return id;
+    }
+
     const NAV_EXPAND_KEY = 'corsiNavExpand';
     const TREE_EXPAND_KEY = 'corsiTreeExpand';
 
@@ -386,24 +402,130 @@
         });
     }
 
-    function wireDeleteLinks(rootEl) {
-        rootEl.querySelectorAll('[data-del]').forEach((a) => {
-            a.addEventListener('click', (e) => {
+    function wireManageTreeActions(rootEl) {
+        if (!rootEl) return;
+        rootEl.querySelectorAll('[data-add-child]').forEach((btn) => {
+            if (btn.dataset.wired) return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const id = a.getAttribute('data-del');
-                showConfirm('Eliminare questa sezione e tutte le sottosezioni?', async () => {
-                    try {
-                        const data = await apiJson(API + '/items/' + encodeURIComponent(id), {
-                            method: 'DELETE', headers: authHeaders(),
-                        });
-                        manifest = data.manifest;
-                        invalidateCache();
-                        buildSidebar(true);
-                        goReadOnly();
-                    } catch (err) { alert(err.message); }
-                });
+                e.stopPropagation();
+                addSubsectionInline(btn.getAttribute('data-add-child'), btn);
             });
         });
+        rootEl.querySelectorAll('[data-del]').forEach((btn) => {
+            if (btn.dataset.wired) return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.getAttribute('data-del');
+                const node = findNodeById(id);
+                const label = node && node.title ? '«' + node.title + '»' : 'questa sezione';
+                showConfirm(
+                    'Eliminare ' + label + '? Verranno eliminate anche tutte le sottosezioni al suo interno.',
+                    () => deleteSectionInline(id)
+                );
+            });
+        });
+    }
+
+    function editTreeSelector(id) {
+        return '.inline-edit-tree [data-edit-id="' + String(id).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]';
+    }
+
+    async function addSubsectionInline(parentId, btn) {
+        if (!parentId) return;
+        if (btn) btn.disabled = true;
+        setEditorMsg('Creazione sottosezione...');
+        try {
+            const title = 'Nuova sottosezione';
+            const id = uniqueContentId(title);
+            const data = await apiJson(API + '/items', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    id,
+                    title,
+                    type: 'section',
+                    date: todayIsoDate(),
+                    content: '<p></p>\n',
+                    parentId,
+                }),
+            });
+            if (data && data.manifest) manifest = data.manifest;
+            invalidateCache();
+            buildSidebar(true);
+            const newNode = findNodeById(id);
+            if (!newNode) {
+                await renderManageIndex();
+                highlightAndScrollEdit(id);
+                return;
+            }
+            const parentArt = document.querySelector(editTreeSelector(parentId));
+            const depth = ancestorIdsOf(id).length;
+            const html = await renderEditableTree(newNode, depth);
+            if (parentArt) {
+                let kidsWrap = [...parentArt.children].find((el) => el.classList.contains('inline-doc-children'));
+                if (!kidsWrap) {
+                    kidsWrap = document.createElement('div');
+                    kidsWrap.className = 'inline-doc-children';
+                    parentArt.appendChild(kidsWrap);
+                }
+                kidsWrap.insertAdjacentHTML('beforeend', html);
+                const art = kidsWrap.lastElementChild;
+                if (art && art.getAttribute('data-edit-id') === id) {
+                    await hydrateEditableArticle(art);
+                    wireManageTreeActions(art);
+                    highlightAndScrollEdit(id);
+                    const titleEl = directEditChild(art, 'data-edit-title');
+                    if (titleEl) {
+                        titleEl.focus();
+                        const range = document.createRange();
+                        range.selectNodeContents(titleEl);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            } else {
+                await renderManageIndex();
+                highlightAndScrollEdit(id);
+            }
+            setEditorMsg('Sottosezione aggiunta in fondo al livello. Modificala qui e premi Salva.');
+        } catch (err) {
+            setEditorMsg(err.message, true);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async function deleteSectionInline(id) {
+        try {
+            const data = await apiJson(API + '/items/' + encodeURIComponent(id), {
+                method: 'DELETE', headers: authHeaders(),
+            });
+            if (data && data.manifest) manifest = data.manifest;
+            invalidateCache();
+            buildSidebar(true);
+            const art = document.querySelector(editTreeSelector(id));
+            if (art) {
+                const wrap = art.parentElement;
+                art.remove();
+                if (wrap && wrap.classList.contains('inline-doc-children') && !wrap.querySelector('[data-edit-id]')) {
+                    wrap.remove();
+                }
+            } else {
+                await renderManageIndex();
+            }
+            const { segs } = parseRoute(currentRoute());
+            if (segs[0] === 'view' && segs[1] === id && window.location.hash) {
+                window.location.hash = '';
+            }
+            setEditorMsg('Sezione eliminata, comprese le sottosezioni interne.');
+        } catch (err) {
+            alert(err.message);
+        }
     }
 
     async function renderHome() {
@@ -475,38 +597,46 @@
         }
         return `
             <article class="inline-doc depth-${depth}" data-edit-id="${escapeHtml(node.id)}" data-edit-type="${escapeHtml(node.type || 'section')}">
-                <${titleTag} class="post-title inline-edit-title" contenteditable="true" spellcheck="true" data-edit-title></${titleTag}>
+                <div class="inline-doc-head">
+                    <${titleTag} class="post-title inline-edit-title" contenteditable="true" spellcheck="true" data-edit-title></${titleTag}>
+                    <div class="inline-doc-actions">
+                        <button type="button" class="btn-sm" data-add-child="${escapeHtml(node.id)}">Aggiungi sottosezione</button>
+                        <button type="button" class="btn-sm btn-danger" data-del="${escapeHtml(node.id)}">Elimina</button>
+                    </div>
+                </div>
                 <div class="wysiwyg-surface inline-wysiwyg" contenteditable="true" role="textbox" aria-multiline="true" data-edit-body></div>
                 ${childrenHtml}
             </article>
         `;
     }
 
+    async function hydrateEditableArticle(art) {
+        const id = art.getAttribute('data-edit-id');
+        const node = findNodeById(id);
+        const titleEl = directEditChild(art, 'data-edit-title');
+        const bodyEl = directEditChild(art, 'data-edit-body');
+        if (!titleEl || !bodyEl) return;
+        if (!node) {
+            titleEl.textContent = id || 'Sezione';
+            bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
+            return;
+        }
+        try {
+            const { meta, body } = await loadMarkdown(node.file || `${node.id}.md`);
+            titleEl.textContent = meta.title || node.title || id;
+            bodyEl.innerHTML = markdownToEditorHtml(body);
+            bodyEl.querySelectorAll('.chart-edit-block').forEach(paintChartBlock);
+        } catch (_) {
+            titleEl.textContent = node.title || id;
+            bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
+        }
+        prepareEditableTables(art);
+    }
+
     async function hydrateEditableTree(rootEl) {
         const articles = [...rootEl.querySelectorAll('[data-edit-id]')];
-        for (const art of articles) {
-            const id = art.getAttribute('data-edit-id');
-            const node = findNodeById(id);
-            const titleEl = directEditChild(art, 'data-edit-title');
-            const bodyEl = directEditChild(art, 'data-edit-body');
-            if (!titleEl || !bodyEl) continue;
-            if (!node) {
-                titleEl.textContent = id || 'Sezione';
-                bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
-                continue;
-            }
-            try {
-                const { meta, body } = await loadMarkdown(node.file || `${node.id}.md`);
-                titleEl.textContent = meta.title || node.title || id;
-                bodyEl.innerHTML = markdownToEditorHtml(body);
-                bodyEl.querySelectorAll('.chart-edit-block').forEach(paintChartBlock);
-            } catch (_) {
-                titleEl.textContent = node.title || id;
-                bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
-            }
-        }
+        for (const art of articles) await hydrateEditableArticle(art);
         if (articles[0]) articles[0].classList.add('is-active');
-        prepareEditableTables(rootEl);
     }
 
     function getActiveEditArticle() {
@@ -579,6 +709,7 @@
                 wireToolbar();
                 wireInlineTreeSave();
                 wireEditFocusTracking(root);
+                wireManageTreeActions(root);
                 return;
             }
 
@@ -610,7 +741,7 @@
 
     function directEditChild(art, attr) {
         if (!art) return null;
-        return [...art.children].find((el) => el.hasAttribute && el.hasAttribute(attr)) || null;
+        return art.querySelector(`:scope > [${attr}], :scope > .inline-doc-head [${attr}]`);
     }
 
     function todayIsoDate() {
@@ -750,6 +881,7 @@
         wireToolbar();
         wireInlineTreeSave();
         wireEditFocusTracking(root);
+        wireManageTreeActions(root);
     }
 
     async function renderManage(route) {

@@ -746,6 +746,57 @@ body.is-table-resizing-row * {
     box-shadow: 0 0 0 2px rgba(38, 139, 210, 0.2);
 }
 
+.inline-doc-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.65rem 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.15rem;
+}
+
+.inline-doc-head .inline-edit-title {
+    flex: 1 1 14rem;
+    min-width: 0;
+    margin: 0;
+}
+
+.inline-doc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+    padding-top: 0.35rem;
+}
+
+.inline-doc-actions .btn-sm {
+    font: inherit;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background: #f7f7f7;
+    padding: 0.28rem 0.65rem;
+    border-radius: 3px;
+    text-decoration: none;
+    color: #111;
+}
+
+.inline-doc-actions .btn-sm:hover {
+    background: #eee;
+}
+
+.inline-doc-actions .btn-danger {
+    background: #ac4142;
+    border-color: #ac4142;
+    color: #fff;
+}
+
+.inline-doc-actions .btn-danger:hover {
+    filter: brightness(1.08);
+}
+
 .inline-edit-tree {
     margin-top: 0.5rem;
 }
@@ -972,6 +1023,153 @@ body.is-table-resizing-row * {
     display: flex;
     gap: 0.4rem;
     flex-wrap: wrap;
+}
+
+.storico-list-toolbar,
+.manage-list.storico-list > li:not(.storico-empty) {
+    display: grid;
+    grid-template-columns: 1.15rem minmax(0, 1fr) 13.2rem;
+    column-gap: 0.7rem;
+    align-items: center;
+}
+
+.storico-list-toolbar {
+    margin: 0.85rem 0 0;
+    padding: 0.4rem 0 0.55rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.storico-check-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    margin: 0;
+    cursor: pointer;
+}
+
+.storico-check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    padding: 0;
+    border: 1.5px solid #555;
+    border-radius: 2px;
+    background: #fff;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+    flex-shrink: 0;
+}
+
+.storico-check:checked,
+.storico-check-master[data-state="all"],
+.storico-check-master[data-state="some"] {
+    background: #111;
+    border-color: #111;
+}
+
+.storico-check:checked::after,
+.storico-check-master[data-state="all"]::after {
+    content: "";
+    width: 0.28rem;
+    height: 0.5rem;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.storico-check-master[data-state="some"]::after {
+    content: "";
+    width: 0.5rem;
+    height: 0;
+    border: none;
+    border-bottom: 2px solid #fff;
+    transform: none;
+}
+
+.storico-check:disabled,
+.storico-check-master:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.storico-toolbar-spacer {
+    min-width: 0;
+}
+
+.storico-select-meta {
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    min-width: 0;
+}
+
+.storico-list-toolbar .btn-sm {
+    font: inherit;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    background: #f7f7f7;
+    padding: 0 0.5rem;
+    border-radius: 3px;
+}
+
+.storico-list-toolbar .btn-danger {
+    width: 100%;
+    height: 2.25rem;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ac4142;
+    border-color: #ac4142;
+    color: #fff;
+    font-size: 0.8rem;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.storico-list-toolbar .btn-danger.is-off {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.storico-list-toolbar .btn-danger:hover {
+    filter: brightness(1.08);
+}
+
+.manage-list.storico-list .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.manage-list.storico-list .actions .btn-sm {
+    width: 100%;
+    height: 2.25rem;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.5rem;
+    text-align: center;
+    line-height: 1.15;
+}
+
+.manage-list.storico-list {
+    margin-top: 0;
+}
+
+.manage-list.storico-list > li {
+    justify-content: stretch;
+    flex-wrap: nowrap;
+}
+
+.manage-list.storico-list > li.storico-empty {
+    grid-template-columns: 1fr;
 }
 
 .editor-preview {

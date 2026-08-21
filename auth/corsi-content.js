@@ -297,6 +297,25 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
         }
     });
 
+    app.post('/api/auth/corsi/versions/bulk-delete', authenticate, requireDocente, (req, res) => {
+        try {
+            const ids = Array.isArray((req.body || {}).ids)
+                ? (req.body.ids).map((id) => String(id || '').trim()).filter(Boolean)
+                : [];
+            if (!ids.length) return res.status(400).json({ error: 'Nessuna versione selezionata.' });
+            if (ids.length > 200) return res.status(400).json({ error: 'Puoi eliminare al massimo 200 versioni per volta.' });
+            const deleted = CorsiVersions.removeMany(ids);
+            if (deleted > 0) {
+                notifyEditors(req, 'corsi_version_deleted', 'Versioni corso eliminate dallo storico',
+                    `ha eliminato ${deleted} version${deleted === 1 ? 'e' : 'i'} dallo storico corsi.`);
+            }
+            res.json({ success: true, deleted });
+        } catch (e) {
+            console.error('[CORSI] versions bulk-delete:', e.message);
+            res.status(500).json({ error: 'Impossibile eliminare le versioni selezionate.' });
+        }
+    });
+
     app.get('/api/auth/corsi/versions/:vid', authenticate, requireDocente, (req, res) => {
         try {
             const row = CorsiVersions.findById(String(req.params.vid || ''));

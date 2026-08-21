@@ -2,6 +2,7 @@
     const API = '/api/auth/corsi/versions';
 
     let _allItems = [];
+    let _selectedIds = new Set();
     let _filters = {
         q: '',
         action: '',
@@ -167,15 +168,95 @@
         });
     }
 
-    function deleteVersion(id, label) {
-        showConfirm(`Eliminare definitivamente questa versione dallo storico (${label})?`, async () => {
-            try {
-                await apiJson(API + '/' + encodeURIComponent(id), {
-                    method: 'DELETE',
-                    headers: authHeaders(),
+    function versionListToolbarHtml() {
+        return `
+            <div class="storico-list-toolbar" id="storicoSelectBar">
+                <span class="storico-check-cell">
+                    <button type="button" class="storico-check storico-check-master" id="selectAllVersions" aria-checked="false" data-state="none" title="Seleziona o deseleziona tutte le versioni visibili"></button>
+                </span>
+                <span class="storico-toolbar-spacer" aria-hidden="true"></span>
+                <div class="storico-select-meta">
+                    <button type="button" class="btn-sm btn-danger is-off" id="btnBulkDelete" disabled aria-hidden="true">Elimina elementi selezionati</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function visibleCheckboxes() {
+        return [...document.querySelectorAll('#versionList .ver-check')];
+    }
+
+    function syncMasterCheckbox() {
+        const master = document.getElementById('selectAllVersions');
+        const bulk = document.getElementById('btnBulkDelete');
+        const boxes = visibleCheckboxes();
+        const n = boxes.length;
+        const c = boxes.filter((b) => b.checked).length;
+        let state = 'none';
+        if (n > 0 && c === n) state = 'all';
+        else if (c > 0) state = 'some';
+        if (master) {
+            master.disabled = n === 0;
+            master.dataset.state = state;
+            master.setAttribute('aria-checked', state === 'all' ? 'true' : (state === 'some' ? 'mixed' : 'false'));
+        }
+        if (bulk) {
+            const off = c === 0;
+            bulk.classList.toggle('is-off', off);
+            bulk.disabled = off;
+            bulk.setAttribute('aria-hidden', off ? 'true' : 'false');
+        }
+    }
+
+    function wireSelectBar() {
+        const master = document.getElementById('selectAllVersions');
+        const bulk = document.getElementById('btnBulkDelete');
+        if (master && !master.dataset.wired) {
+            master.dataset.wired = '1';
+            master.addEventListener('click', () => {
+                const boxes = visibleCheckboxes();
+                const allOn = boxes.length > 0 && boxes.every((b) => b.checked);
+                const wantAll = !allOn;
+                boxes.forEach((b) => {
+                    b.checked = wantAll;
+                    if (wantAll) _selectedIds.add(b.value);
+                    else _selectedIds.delete(b.value);
                 });
-                _allItems = _allItems.filter((it) => it.id !== id);
-                if (currentVersionId() === id) {
+                syncMasterCheckbox();
+            });
+        }
+        if (bulk && !bulk.dataset.wired) {
+            bulk.dataset.wired = '1';
+            bulk.addEventListener('click', () => {
+                const ids = visibleCheckboxes().filter((b) => b.checked).map((b) => b.value);
+                deleteVersions(ids);
+            });
+        }
+    }
+
+    function deleteVersions(ids) {
+        const unique = [...new Set((ids || []).filter(Boolean))];
+        if (!unique.length) return;
+        const msg = unique.length === 1
+            ? 'Eliminare definitivamente questa versione dallo storico?'
+            : `Eliminare definitivamente ${unique.length} versioni dallo storico?`;
+        showConfirm(msg, async () => {
+            try {
+                if (unique.length === 1) {
+                    await apiJson(API + '/' + encodeURIComponent(unique[0]), {
+                        method: 'DELETE',
+                        headers: authHeaders(),
+                    });
+                } else {
+                    await apiJson(API + '/bulk-delete', {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ ids: unique }),
+                    });
+                }
+                unique.forEach((id) => _selectedIds.delete(id));
+                _allItems = _allItems.filter((it) => !unique.includes(it.id));
+                if (unique.includes(currentVersionId())) {
                     location.hash = '';
                     return;
                 }
@@ -197,9 +278,11 @@
                 <h1 class="page-title">Storico versioni</h1>
                 <p>Archivio delle versioni precedenti dei file Markdown. Usa i filtri per cercare e ordinare.</p>
                 ${filtersHtml(uniqueItemIds(_allItems))}
-                <ul class="manage-list" id="versionList"></ul>
+                ${versionListToolbarHtml()}
+                <ul class="manage-list storico-list" id="versionList"></ul>
             `;
             wireFilters();
+            wireSelectBar();
             return paintList();
         }
         if (countEl) {
@@ -208,11 +291,15 @@
                 : `${filtered.length} di ${_allItems.length} versioni`;
         }
         if (!filtered.length) {
-            listEl.innerHTML = '<li><span class="meta">Nessuna versione corrisponde ai filtri.</span></li>';
+            listEl.innerHTML = '<li class="storico-empty"><span class="meta">Nessuna versione corrisponde ai filtri.</span></li>';
+            syncMasterCheckbox();
             return;
         }
         listEl.innerHTML = filtered.map((it) => `
             <li>
+                <label class="storico-check-cell">
+                    <input type="checkbox" class="storico-check ver-check" value="${escapeHtml(it.id)}"${_selectedIds.has(it.id) ? ' checked' : ''}>
+                </label>
                 <div class="meta">
                     <strong>${escapeHtml(it.title || it.itemId)}</strong>
                     <small>
@@ -223,15 +310,23 @@
                 </div>
                 <div class="actions">
                     <a class="btn-sm btn-primary" href="#${escapeHtml(it.id)}" style="color:#fff;text-decoration:none;">Apri</a>
-                    <button type="button" class="btn-sm btn-danger" data-del="${escapeHtml(it.id)}" data-label="${escapeHtml(it.title || it.itemId)}">Elimina</button>
+                    <button type="button" class="btn-sm btn-danger" data-del="${escapeHtml(it.id)}">Elimina</button>
                 </div>
             </li>
         `).join('');
-        listEl.querySelectorAll('[data-del]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                deleteVersion(btn.getAttribute('data-del'), btn.getAttribute('data-label') || 'versione');
+        listEl.querySelectorAll('.ver-check').forEach((box) => {
+            box.addEventListener('change', () => {
+                if (box.checked) _selectedIds.add(box.value);
+                else _selectedIds.delete(box.value);
+                syncMasterCheckbox();
             });
         });
+        listEl.querySelectorAll('[data-del]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                deleteVersions([btn.getAttribute('data-del')]);
+            });
+        });
+        syncMasterCheckbox();
     }
 
     async function renderList() {
@@ -252,9 +347,11 @@
                 <h1 class="page-title">Storico versioni</h1>
                 <p>Archivio delle versioni precedenti dei file Markdown. Usa i filtri per cercare e ordinare.</p>
                 ${filtersHtml(uniqueItemIds(_allItems))}
-                <ul class="manage-list" id="versionList"></ul>
+                ${versionListToolbarHtml()}
+                <ul class="manage-list storico-list" id="versionList"></ul>
             `;
             wireFilters();
+            wireSelectBar();
             paintList();
         } catch (err) {
             root.innerHTML = `<h1 class="page-title">Storico versioni</h1><p class="corsi-error">${escapeHtml(err.message)}</p>`;
@@ -317,7 +414,7 @@
                 );
             });
             document.getElementById('btnDeleteVersion').addEventListener('click', () => {
-                deleteVersion(id, row.title || row.itemId);
+                deleteVersions([id]);
             });
         } catch (err) {
             root.innerHTML = `<h1 class="page-title">Errore</h1><p class="corsi-error">${escapeHtml(err.message)}</p><p><a href="#">Torna allo storico</a></p>`;

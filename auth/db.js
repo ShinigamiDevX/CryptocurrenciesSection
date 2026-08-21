@@ -600,6 +600,17 @@ const CorsiVersions = {
     },
     findById: id => db.prepare('SELECT * FROM corsi_versions WHERE id = ?').get(id) || null,
     remove: id => db.prepare('DELETE FROM corsi_versions WHERE id = ?').run(id),
+    removeMany: (ids) => {
+        const list = Array.isArray(ids) ? ids.map(String).filter(Boolean) : [];
+        if (!list.length) return 0;
+        const stmt = db.prepare('DELETE FROM corsi_versions WHERE id = ?');
+        const tx = db.transaction((rows) => {
+            let n = 0;
+            for (const id of rows) n += stmt.run(id).changes;
+            return n;
+        });
+        return tx(list);
+    },
 };
 
 module.exports = {
