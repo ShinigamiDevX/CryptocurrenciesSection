@@ -65,6 +65,102 @@ main { max-width: 1100px; width: 100%; padding: 1.5rem 2rem 3rem; margin: 0 auto
     padding: 1.4rem 1.5rem;
     margin-bottom: 1.4rem;
 }
+.ar-exchange-label {
+    margin: 0 auto 14px;
+    color: #5ABBC8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: center;
+}
+.ar-exchange-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin: 0 auto 18px auto;
+    width: 100%;
+    overflow-x: auto;
+}
+.ar-exchange-tile {
+    width: 108px;
+    height: 72px;
+    flex: 0 0 108px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 200, 255, 0.18);
+    background: var(--tile-bg, rgba(6, 16, 32, 0.9));
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease, background 0.2s ease;
+    overflow: hidden;
+    position: relative;
+    padding: 0;
+    box-sizing: border-box;
+}
+.ar-exchange-tile img {
+    max-width: 98px;
+    max-height: 62px;
+    object-fit: contain;
+    display: block;
+}
+.ar-exchange-tile:hover {
+    border-color: rgba(0, 200, 255, 0.60);
+    box-shadow: 0 0 22px rgba(0, 200, 255, 0.18), 0 4px 20px rgba(0, 0, 0, 0.45);
+    transform: scale(1.05);
+    background: var(--tile-bg, rgba(8, 22, 42, 0.95));
+}
+.ar-exchange-tile.selected {
+    border-color: #00C8FF;
+    border-width: 2px;
+    box-shadow:
+        0 0 0 3px rgba(0, 200, 255, 0.22),
+        0 0 28px rgba(0, 200, 255, 0.38),
+        0 6px 22px rgba(0, 0, 0, 0.55);
+    transform: scale(1.06);
+    z-index: 1;
+    background: var(--tile-bg, rgba(8, 22, 42, 0.95));
+}
+.ar-exchange-tile.selected::after {
+    content: '\2713';
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    background: #00C8FF;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
+    box-shadow: 0 0 8px rgba(0, 200, 255, 0.65);
+}
+.ar-exchange-tile--text {
+    color: #C8F0E8;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+.ar-exchange-badge {
+    display: inline-block;
+    margin-right: 0.55rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 200, 255, 0.35);
+    background: rgba(0, 200, 255, 0.1);
+    color: #7ACCE0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    vertical-align: middle;
+}
 .ar-drop {
     position: relative;
     border: 1.5px dashed rgba(0,200,255,0.35);

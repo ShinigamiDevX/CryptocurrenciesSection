@@ -1564,7 +1564,23 @@ def _fmt_money(n: float) -> str:
 
 def _collect_from_frames(
     frames: list[tuple[str, pd.DataFrame]],
-) -> tuple[dict[str, str], list[dict[str, Any]], list[str], list[str]]:
+    exchange: str | None = None,
+) -> tuple[dict[str, str], list[dict[str, Any]], list[str], list[str], dict[str, Any]]:
+    from exchanges import collect_for_exchange, resolve_exchange
+
+    resolved, detected = resolve_exchange(frames, exchange)
+    meta = {
+        "id": resolved,
+        "label": {
+            "binance": "Binance", "okx": "OKX", "bybit": "Bybit", "bitget": "Bitget",
+            "kucoin": "KuCoin", "coinbase": "Coinbase", "generic": "Generico",
+        }.get(resolved, resolved),
+        "detected": detected,
+    }
+    if resolved != "generic":
+        profile, txs, ips, warnings = collect_for_exchange(resolved, frames)
+        return profile, txs, ips, warnings, meta
+
     profile: dict[str, str] = {}
     txs: list[dict[str, Any]] = []
     ips: list[str] = []
@@ -1585,15 +1601,16 @@ def _collect_from_frames(
                 df, label, kind=kind, default_direction=default_dir, warnings=warnings,
             ))
         ips.extend(_extract_ips_from_df(df, kind))
-    return profile, txs, ips, warnings
+    return profile, txs, ips, warnings, meta
 
 
 def _build_report(
     frames: list[tuple[str, pd.DataFrame]],
     file_name: str = "",
     ip_info: dict[str, dict[str, Any]] | None = None,
+    exchange: str | None = None,
 ) -> dict[str, Any]:
-    profile, txs, ips, parse_warnings = _collect_from_frames(frames)
+    profile, txs, ips, parse_warnings, exchange_meta = _collect_from_frames(frames, exchange=exchange)
     if ip_info is None:
         ip_info = _lookup_ips(ips)
     unique_ips = list(dict.fromkeys(ips))
@@ -1615,6 +1632,11 @@ def _build_report(
     country_counts = Counter(r["country"] for r in ip_rows if r["country"] not in ("", "—"))
 
     bullets = []
+    if exchange_meta.get("id") and exchange_meta["id"] != "generic":
+        how = "rilevato automaticamente" if exchange_meta.get("detected") else "selezionato"
+        bullets.append(f"Report interpretato come {exchange_meta['label']} ({how}).")
+    elif exchange_meta.get("id") == "generic":
+        bullets.append("Parser generico: struttura exchange non riconosciuta o non selezionata.")
     if len(frames) > 1:
         kinds_it = {"profile": "profilo", "tx": "transazioni", "tx_in": "entrate", "tx_out": "uscite", "ip": "IP/accessi", "unknown": "altro"}
         labeled = []
@@ -1755,6 +1777,7 @@ def _build_report(
         },
         "charts": charts,
         "warnings": parse_warnings,
+        "exchange": exchange_meta,
     }
 
 
@@ -1794,10 +1817,18 @@ def health():
 async def analyze(
     files: list[UploadFile] = File(...),
     file_passwords: str | None = Form(default=None),
+    exchange: str | None = Form(default="auto"),
     _user: dict[str, Any] = Depends(require_user),
 ):
     if not files:
         raise HTTPException(status_code=400, detail="Nessun file caricato.")
+    if len(files) > 1:
+        raise HTTPException(status_code=400, detail="Caricare un solo file.")
+
+    exchange_key = (exchange or "auto").strip().lower()
+    allowed_ex = {"auto", "generic", "binance", "okx", "bybit", "bitget", "kucoin", "coinbase"}
+    if exchange_key not in allowed_ex:
+        raise HTTPException(status_code=400, detail="Exchange non supportato.")
 
     passwords_payload: Any = {}
     if file_passwords:
@@ -1893,7 +1924,9 @@ async def analyze(
         per_file.append({
             "name": name,
             "sheets": len(parts),
-            "report": _build_report(parts, file_name=name, ip_info=ip_info),
+            "report": _build_report(
+                parts, file_name=name, ip_info=ip_info, exchange=exchange_key,
+            ),
         })
 
     return {
@@ -1901,4 +1934,5 @@ async def analyze(
         "errors": errors,
         "sheets": sheet_total,
         "file_count": len(per_file),
+        "exchange": exchange_key,
     }

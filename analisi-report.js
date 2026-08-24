@@ -91,19 +91,22 @@
 
     function addFiles(fileList) {
         const allowed = ['.csv', '.xlsx', '.xls', '.pdf'];
-        for (const f of fileList) {
-            const ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
-            if (!allowed.includes(ext)) {
-                setStatus('File ignorato (formato non supportato): ' + f.name, 'error');
-                continue;
-            }
-            if (f.size > 25 * 1024 * 1024) {
-                setStatus('File troppo grande (max 25 MB): ' + f.name, 'error');
-                continue;
-            }
-            if (_files.some((x) => x.name === f.name && x.size === f.size)) continue;
-            _files.push(f);
+        const incoming = [...fileList];
+        if (!incoming.length) return;
+        if (incoming.length > 1) {
+            setStatus('Puoi caricare un solo file. È stato usato il primo.', 'info');
         }
+        const f = incoming[0];
+        const ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
+        if (!allowed.includes(ext)) {
+            setStatus('Formato non supportato: ' + f.name, 'error');
+            return;
+        }
+        if (f.size > 25 * 1024 * 1024) {
+            setStatus('File troppo grande (max 25 MB): ' + f.name, 'error');
+            return;
+        }
+        _files = [f];
         renderFileList();
     }
 
@@ -274,9 +277,13 @@
                     </li>`).join('')}</ul>`
             : '<p class="ar-flow-empty">Nessun movimento</p>';
         const indexLabel = total > 1 ? `<span class="ar-file-index">File ${index + 1} di ${total}</span>` : '';
+        const ex = report.exchange || {};
+        const exBadge = ex.label
+            ? `<span class="ar-exchange-badge">${escapeHtml(ex.label)}${ex.detected ? ' · auto' : ''}</span>`
+            : '';
         return `
             <section class="ar-file-block" data-file="${escapeHtml(name)}">
-                <header class="ar-file-head">${indexLabel}<h2>${escapeHtml(name)}</h2></header>
+                <header class="ar-file-head">${indexLabel}${exBadge}<h2>${escapeHtml(name)}</h2></header>
                 <div class="ar-card">
                     <h3 class="ar-section-title">${escapeHtml(report.headline || 'Riassunto')}</h3>
                     <div class="ar-kpis">
@@ -458,6 +465,7 @@
             while (true) {
                 const form = new FormData();
                 _files.forEach((f) => form.append('files', f, f.name));
+                form.append('exchange', document.getElementById('exchange').value || 'auto');
                 if (Object.keys(passwords).length) {
                     form.append('file_passwords', JSON.stringify(passwords));
                 }
@@ -550,7 +558,60 @@
         }
     }
 
+    function rgbaFromPixel(data) {
+        return 'rgba(' + data[0] + ', ' + data[1] + ', ' + data[2] + ', ' + Math.max(data[3] / 255, 0.92) + ')';
+    }
+
+    function readBottomRightPixel(imageSrc) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = function () {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                ctx.drawImage(img, 0, 0);
+                const pixel = ctx.getImageData(canvas.width - 1, canvas.height - 1, 1, 1).data;
+                resolve(rgbaFromPixel(pixel));
+            };
+            img.onerror = function () { resolve('rgba(6, 16, 32, 0.9)'); };
+            img.src = imageSrc;
+        });
+    }
+
+    function wireExchangeGrid() {
+        const grid = document.getElementById('exchangeGrid');
+        const hidden = document.getElementById('exchange');
+        if (!grid || !hidden) return;
+        const tiles = [...grid.querySelectorAll('.ar-exchange-tile')];
+        tiles.forEach(async (tile) => {
+            if (tile.dataset.img) {
+                const bgColor = await readBottomRightPixel(tile.dataset.img);
+                tile.style.setProperty('--tile-bg', bgColor);
+            }
+        });
+        const select = (tile) => {
+            tiles.forEach((t) => {
+                t.classList.remove('selected');
+                t.setAttribute('aria-selected', 'false');
+            });
+            tile.classList.add('selected');
+            tile.setAttribute('aria-selected', 'true');
+            hidden.value = tile.getAttribute('data-value') || 'auto';
+        };
+        tiles.forEach((tile) => {
+            tile.addEventListener('click', () => select(tile));
+            tile.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    select(tile);
+                }
+            });
+        });
+    }
+
     function wireUi() {
+        wireExchangeGrid();
         const drop = document.getElementById('dropZone');
         const input = document.getElementById('fileInput');
         drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });

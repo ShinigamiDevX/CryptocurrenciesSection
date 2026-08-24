@@ -594,3 +594,27 @@ html.light-theme .ar-warnings {
     border-left-color: #a16207;
     color: #713f12;
 }
+html.light-theme .ar-exchange-label { color: #8B5E00; }
+html.light-theme .ar-exchange-tile {
+    background: var(--tile-bg, #ffffff);
+    border-color: rgba(255, 140, 0, 0.20);
+}
+html.light-theme .ar-exchange-tile:hover {
+    border-color: #FF7A00;
+    box-shadow: 0 4px 16px rgba(255, 122, 0, 0.22);
+    background: var(--tile-bg, #fff);
+}
+html.light-theme .ar-exchange-tile.selected {
+    border-color: #FF7A00;
+    box-shadow: 0 0 0 4px rgba(255, 122, 0, 0.28), 0 6px 24px rgba(255, 122, 0, 0.22);
+}
+html.light-theme .ar-exchange-tile.selected::after {
+    background: #FF7A00;
+    box-shadow: none;
+}
+html.light-theme .ar-exchange-tile--text { color: #1a0a00; }
+html.light-theme .ar-exchange-badge {
+    background: rgba(14, 165, 233, 0.1);
+    border-color: rgba(14, 165, 233, 0.35);
+    color: #0369a1;
+}

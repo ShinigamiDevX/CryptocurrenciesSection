@@ -10,10 +10,10 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=13">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=10">
+    <link rel="stylesheet" href="light-theme.css?v=12">
     <script src="light-theme.js?v=1"></script>
     <link rel="stylesheet" href="style.css?v=7">
-    <link rel="stylesheet" href="analisi-report.css?v=10">
+    <link rel="stylesheet" href="analisi-report.css?v=13">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -59,13 +59,38 @@
 
     <main>
         <div class="page-title"><img src="/icons/line/analytics.svg" alt=""> Analisi Report</div>
-        <p class="page-sub">Carica report CSV, Excel o PDF: lo strumento estrae profilo, transazioni wallet e log IP, poi produce un riassunto con grafici e indicazione VPN.</p>
+        <p class="page-sub">Seleziona l’exchange del report, poi carica il file.</p>
 
         <div class="ar-card">
+            <p class="ar-exchange-label">Tipo di report</p>
+            <div class="ar-exchange-grid" id="exchangeGrid" role="listbox" aria-label="Exchange del report">
+                <div class="ar-exchange-tile ar-exchange-tile--text selected" data-value="auto" role="option" aria-selected="true" tabindex="0">Auto</div>
+                <div class="ar-exchange-tile" data-value="binance" data-img="/immagini/binance.jpg?v=1" role="option" aria-selected="false" tabindex="0" title="Binance">
+                    <img src="/immagini/binance.jpg?v=1" alt="Binance">
+                </div>
+                <div class="ar-exchange-tile" data-value="bitget" data-img="/immagini/bitget.jpg?v=1" role="option" aria-selected="false" tabindex="0" title="Bitget">
+                    <img src="/immagini/bitget.jpg?v=1" alt="Bitget">
+                </div>
+                <div class="ar-exchange-tile" data-value="bybit" data-img="/immagini/bybit.png?v=1" role="option" aria-selected="false" tabindex="0" title="Bybit">
+                    <img src="/immagini/bybit.png?v=1" alt="Bybit">
+                </div>
+                <div class="ar-exchange-tile" data-value="coinbase" data-img="/immagini/coinbase.png?v=1" role="option" aria-selected="false" tabindex="0" title="Coinbase">
+                    <img src="/immagini/coinbase.png?v=1" alt="Coinbase">
+                </div>
+                <div class="ar-exchange-tile" data-value="kucoin" data-img="/immagini/kucoin.png?v=1" role="option" aria-selected="false" tabindex="0" title="KuCoin">
+                    <img src="/immagini/kucoin.png?v=1" alt="KuCoin">
+                </div>
+                <div class="ar-exchange-tile" data-value="okx" data-img="/immagini/OKX.png?v=1" role="option" aria-selected="false" tabindex="0" title="OKX">
+                    <img src="/immagini/OKX.png?v=1" alt="OKX">
+                </div>
+                <div class="ar-exchange-tile ar-exchange-tile--text" data-value="generic" role="option" aria-selected="false" tabindex="0">Generico</div>
+            </div>
+            <input type="hidden" id="exchange" value="auto">
+
             <div id="dropZone" class="ar-drop">
-                <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls,.pdf,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-                <p class="ar-drop-title">Trascina qui i file oppure clicca per selezionarli</p>
-                <p class="ar-drop-hint">Formati: .csv, .xls, .xlsx, .pdf · max 25 MB per file</p>
+                <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.pdf,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                <p class="ar-drop-title">Trascina qui il file oppure clicca per selezionarlo</p>
+                <p class="ar-drop-hint">Un solo file · .csv, .xls, .xlsx, .pdf · max 25 MB</p>
             </div>
             <ul id="fileList" class="ar-file-list"></ul>
             <div class="ar-actions">
@@ -108,6 +133,6 @@
 
     <script src="auth-token.js?v=2"></script>
     <script src="nav-notifications.js?v=5"></script>
-    <script src="analisi-report.js?v=13"></script>
+    <script src="analisi-report.js?v=18"></script>
 </body>
 </html>
