@@ -3,10 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
-const { CorsiVersions, Users } = require('./db');
+const { CorsiVersions, CorsiItems, Users } = require('./db');
 
-// Default: cartella corsi/ nella root del progetto (sviluppo locale senza Docker);
-// in Docker la variabile CORSI_DIR è sempre impostata dal compose.
+// I contenuti vivono nella tabella corsi_items. Il filesystem serve ancora solo
+// per le immagini caricate (corsi/uploads) e per la migrazione una tantum del
+// vecchio manifest.json.
 const CORSI_DIR = process.env.CORSI_DIR
     || (fs.existsSync(path.join(__dirname, '..', 'corsi'))
         ? path.join(__dirname, '..', 'corsi')
@@ -16,23 +17,20 @@ const RESERVED_IDS = new Set(['home', 'manage', 'new', 'edit', 'view', 'storico'
 /* Accetta underscore (nuovi) e trattini (contenuti legacy). */
 const ID_RE = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
 const MAX_CONTENT = 500_000;
+const MAX_DEPTH = 20;
 const NODE_TYPES = new Set(['course', 'section', 'page']);
+/** Presenza in Gestione contenuti (heartbeat in memoria; scade se il client smette di pingare). */
+const PRESENCE_TTL_MS = 45_000;
+const managePresence = new Map();
+
 /** Branding fisso della sezione (non modificabile dai docenti). */
 const SITE_TITLE = 'Corsi';
 const SITE_DESCRIPTION = 'Area formazione e materiali didattici per i Reparti.';
-
-function ensureDir() {
-    if (!fs.existsSync(CORSI_DIR)) fs.mkdirSync(CORSI_DIR, { recursive: true });
-}
 
 function safeId(id) {
     const s = String(id || '').trim().toLowerCase();
     if (!ID_RE.test(s) || s.length > 64 || RESERVED_IDS.has(s)) return null;
     return s;
-}
-
-function mdPath(id) {
-    return path.join(CORSI_DIR, `${id}.md`);
 }
 
 function isIsoDate(iso) {
@@ -43,13 +41,8 @@ function isIsoDate(iso) {
     return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
 }
 
-function buildFrontMatter({ title, date, layout }) {
-    const lines = ['---'];
-    if (title) lines.push(`title: ${title}`);
-    if (date) lines.push(`date: ${date}`);
-    if (layout) lines.push(`layout: ${layout}`);
-    lines.push('---', '');
-    return lines.join('\n');
+function today() {
+    return new Date().toISOString().slice(0, 10);
 }
 
 function stripFrontMatter(raw) {
@@ -66,179 +59,213 @@ function stripFrontMatter(raw) {
     return { meta, body };
 }
 
-function migrateLegacyNav(data) {
-    if (Array.isArray(data.nav)) return data.nav;
-    const nav = [];
-    (data.pages || []).forEach((p) => {
-        nav.push({
-            id: p.id,
-            title: p.title,
-            type: 'page',
-            file: p.file || `${p.id}.md`,
-            children: [],
-        });
-    });
-    if ((data.pages || []).length && (data.posts || []).length) {
-        nav.push({ id: `divider-${crypto.randomUUID().slice(0, 8)}`, type: 'divider' });
-    }
-    (data.posts || []).forEach((p) => {
-        nav.push({
-            id: p.id,
-            title: p.title,
-            type: 'course',
-            file: p.file || `${p.id}.md`,
-            date: p.date || '',
-            children: [],
-        });
-    });
-    return nav;
+/** Un nodo con padre è sempre una sottosezione; le pagine stanno solo in radice. */
+function normalizeType(rawType, parentId) {
+    let type = String(rawType || 'course');
+    if (type === 'post') type = 'course';
+    if (!NODE_TYPES.has(type)) type = 'course';
+    if (parentId) return 'section';
+    if (type === 'section') return 'course';
+    return type;
 }
 
-function normalizeNode(node) {
-    if (!node || typeof node !== 'object') return null;
-    if (node.type === 'divider') {
-        return { id: node.id || `divider-${crypto.randomUUID().slice(0, 8)}`, type: 'divider' };
+// ── Albero ───────────────────────────────────────────────────────────────────
+
+function buildNav() {
+    const byParent = new Map();
+    for (const row of CorsiItems.all()) {
+        const key = row.parentId || '';
+        if (!byParent.has(key)) byParent.set(key, []);
+        byParent.get(key).push(row);
     }
-    const type = NODE_TYPES.has(node.type)
-        ? node.type
-        : (node.layout === 'page' || node.type === 'page' ? 'page' : 'course');
-    const id = safeId(node.id);
-    if (!id) return null;
-    const children = Array.isArray(node.children)
-        ? node.children.map(normalizeNode).filter(Boolean)
-        : [];
-    const out = {
-        id,
-        title: String(node.title || id),
-        type,
-        file: node.file || `${id}.md`,
-        children,
+    for (const list of byParent.values()) {
+        list.sort((a, b) => (a.position - b.position)
+            || String(a.createdAt).localeCompare(String(b.createdAt)));
+    }
+    const build = (key, depth) => {
+        if (depth > MAX_DEPTH) return [];
+        return (byParent.get(key) || []).map((row) => {
+            const node = {
+                id: row.id,
+                title: row.title,
+                type: row.type,
+                children: build(row.id, depth + 1),
+            };
+            if (row.courseDate) node.date = row.courseDate;
+            return node;
+        });
     };
-    if (node.date) out.date = String(node.date);
-    return out;
+    return build('', 0);
 }
 
-function readManifest() {
-    ensureDir();
-    let data;
-    if (!fs.existsSync(MANIFEST_FILE)) {
-        data = {
-            title: 'Corsi',
-            description: 'Area formazione e materiali didattici per i Reparti.',
-            nav: [],
-        };
-    } else {
-        data = JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8'));
-    }
-    const nav = migrateLegacyNav(data).map(normalizeNode).filter(Boolean);
-    const manifest = {
+function publicManifest() {
+    return {
         title: SITE_TITLE,
         description: SITE_DESCRIPTION,
-        nav,
-    };
-    // Persist migration / branding fisso
-    if (!Array.isArray(data.nav) || data.title !== SITE_TITLE || data.description !== SITE_DESCRIPTION) {
-        writeManifest(manifest);
-    }
-    return manifest;
-}
-
-function writeManifest(data) {
-    ensureDir();
-    const out = {
-        title: SITE_TITLE,
-        description: SITE_DESCRIPTION,
-        nav: Array.isArray(data.nav) ? data.nav : [],
-    };
-    const tmp = MANIFEST_FILE + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(out, null, 2) + '\n', 'utf8');
-    fs.renameSync(tmp, MANIFEST_FILE);
-}
-
-function walkNav(nodes, fn, parent = null) {
-    if (!Array.isArray(nodes)) return null;
-    for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-        const hit = fn(node, parent, i, nodes);
-        if (hit) return hit;
-        if (node.type !== 'divider' && node.children?.length) {
-            const nested = walkNav(node.children, fn, node);
-            if (nested) return nested;
-        }
-    }
-    return null;
-}
-
-function findNode(manifest, id) {
-    return walkNav(manifest.nav, (node, parent, index, siblings) => {
-        if (node.id === id) return { node, parent, index, siblings };
-        return null;
-    });
-}
-
-function collectContentNodes(node, acc = []) {
-    if (!node || node.type === 'divider') return acc;
-    acc.push(node);
-    (node.children || []).forEach((c) => collectContentNodes(c, acc));
-    return acc;
-}
-
-function allIds(manifest) {
-    const ids = new Set();
-    walkNav(manifest.nav, (node) => {
-        if (node.type !== 'divider') ids.add(node.id);
-        return null;
-    });
-    return ids;
-}
-
-function parentContainer(manifest, parentId) {
-    if (!parentId) return { siblings: manifest.nav, parent: null };
-    const found = findNode(manifest, parentId);
-    if (!found || found.node.type === 'divider') return null;
-    if (!Array.isArray(found.node.children)) found.node.children = [];
-    return { siblings: found.node.children, parent: found.node };
-}
-
-function snapshotVersion({ itemId, title, kind, content, action, user }) {
-    CorsiVersions.insert({
-        id: crypto.randomUUID(),
-        itemId,
-        title: title || itemId,
-        kind: kind || 'course',
-        content: content || '',
-        action: action || 'update',
-        editedById: user?.id || '',
-        editedByEmail: user?.email || '',
-        createdAt: new Date().toISOString(),
-    });
-}
-
-function readExistingSnapshot(id, node) {
-    const filePath = mdPath(id);
-    if (!fs.existsSync(filePath)) return null;
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const { meta, body } = stripFrontMatter(raw);
-    return {
-        itemId: id,
-        title: meta.title || node?.title || id,
-        kind: node?.type || 'course',
-        content: body,
-    };
-}
-
-function publicNav(manifest) {
-    return {
-        title: manifest.title,
-        description: manifest.description,
-        nav: manifest.nav,
+        nav: buildNav(),
         // compat lettori vecchi
         pages: [],
         posts: [],
     };
 }
 
-function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditors, actorLabel }) {
+/** Il nodo e tutti i suoi discendenti, in pre-ordine. */
+function subtreeRows(id, acc = [], depth = 0) {
+    if (depth > MAX_DEPTH) return acc;
+    const row = CorsiItems.findById(id);
+    if (!row) return acc;
+    acc.push(row);
+    for (const child of CorsiItems.childrenOf(id)) subtreeRows(child.id, acc, depth + 1);
+    return acc;
+}
+
+function snapshotRow(row, action, user) {
+    CorsiVersions.insert({
+        id: crypto.randomUUID(),
+        itemId: row.id,
+        title: row.title || row.id,
+        kind: row.type || 'course',
+        content: row.content || '',
+        action,
+        editedById: user?.id || '',
+        editedByEmail: user?.email || '',
+        createdAt: new Date().toISOString(),
+        parentId: row.parentId || null,
+        position: row.position != null ? Number(row.position) : 0,
+    });
+}
+
+// ── Migrazione una tantum dal filesystem ─────────────────────────────────────
+
+function legacyNav(data) {
+    if (Array.isArray(data.nav)) return data.nav;
+    const nav = [];
+    (data.pages || []).forEach((p) => nav.push({ ...p, type: 'page', children: [] }));
+    (data.posts || []).forEach((p) => nav.push({ ...p, type: 'course', children: [] }));
+    return nav;
+}
+
+/**
+ * Importa manifest.json e i file .md nella tabella corsi_items.
+ * Gira una sola volta: se la tabella contiene già righe, esce subito.
+ * I file restano sul disco come copia di sicurezza, non vengono più letti.
+ */
+function migrateFromFilesystem() {
+    if (CorsiItems.count() > 0) return;
+    if (!fs.existsSync(MANIFEST_FILE)) return;
+
+    let data;
+    try {
+        data = JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8'));
+    } catch (e) {
+        console.error('[CORSI] manifest.json illeggibile, migrazione saltata:', e.message);
+        return;
+    }
+
+    const now = new Date().toISOString();
+    const rows = [];
+    let skippedDividers = 0;
+
+    const walk = (nodes, parentId, depth) => {
+        if (depth > MAX_DEPTH) return;
+        let position = 0;
+        for (const node of Array.isArray(nodes) ? nodes : []) {
+            if (!node || typeof node !== 'object') continue;
+            if (node.type === 'divider') { skippedDividers += 1; continue; }
+            const id = safeId(node.id);
+            if (!id) continue;
+
+            let title = String(node.title || id);
+            let content = '';
+            const file = path.basename(String(node.file || `${id}.md`));
+            const filePath = path.join(CORSI_DIR, file);
+            if (fs.existsSync(filePath)) {
+                const parsed = stripFrontMatter(fs.readFileSync(filePath, 'utf8'));
+                content = parsed.body;
+                if (parsed.meta.title) title = parsed.meta.title;
+            }
+
+            rows.push({
+                id,
+                parentId,
+                position: position++,
+                type: normalizeType(node.type, parentId),
+                title,
+                content,
+                courseDate: String(node.date || ''),
+                createdAt: now,
+                updatedAt: now,
+            });
+            walk(node.children, id, depth + 1);
+        }
+    };
+    walk(legacyNav(data), null, 0);
+
+    if (!rows.length) return;
+    // Pre-ordine: il padre viene sempre inserito prima dei figli, come richiede la FK.
+    CorsiItems.tx(() => { rows.forEach((r) => CorsiItems.insert(r)); })();
+    console.log(`[CORSI] Migrate ${rows.length} sezioni dal filesystem al database`
+        + (skippedDividers ? ` (${skippedDividers} separatori obsoleti scartati)` : ''));
+}
+
+function profileName(user) {
+    if (!user) return 'Un collega';
+    const cognome = String(user.cognome || '').trim();
+    const nome = String(user.nome || '').trim();
+    if (cognome && nome) return `${cognome.toUpperCase()} ${nome}`;
+    if (nome) return nome;
+    if (cognome) return cognome.toUpperCase();
+    return String(user.email || 'Un collega');
+}
+
+function touchManagePresence(userId, name) {
+    const now = Date.now();
+    const row = managePresence.get(userId);
+    if (!row) {
+        managePresence.set(userId, { userId, profileName: name, since: now, lastSeen: now });
+    } else {
+        row.lastSeen = now;
+        row.profileName = name;
+    }
+}
+
+function pruneManagePresence() {
+    const now = Date.now();
+    for (const [id, row] of managePresence) {
+        if (now - row.lastSeen > PRESENCE_TTL_MS) managePresence.delete(id);
+    }
+}
+
+function listManagePresence(exceptUserId) {
+    pruneManagePresence();
+    return [...managePresence.values()]
+        .filter((row) => row.userId !== exceptUserId)
+        .map((row) => ({
+            userId: row.userId,
+            profileName: row.profileName,
+            since: new Date(row.since).toISOString(),
+        }));
+}
+
+// ── Routes ───────────────────────────────────────────────────────────────────
+
+function mountCorsiRoutes(app, {
+    authenticate,
+    requireDocente,
+    requireCorsiAccess,
+    notifyCorsiEditors,
+    actorLabel,
+}) {
+    try {
+        migrateFromFilesystem();
+    } catch (e) {
+        console.error('[CORSI] migrazione fallita:', e.message);
+    }
+
+    const canRead = typeof requireCorsiAccess === 'function'
+        ? requireCorsiAccess
+        : (req, res, next) => next();
+
     function notifyEditors(req, type, title, body) {
         if (typeof notifyCorsiEditors !== 'function') return;
         const full = Users.findById(req.user.id) || req.user;
@@ -246,16 +273,81 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
         notifyCorsiEditors(req.user.id, type, title, `${actor} ${body}`, '/corsi-storico');
     }
 
-    app.get('/api/auth/corsi/manifest', authenticate, (req, res) => {
+    function authorLabel(userId) {
+        if (!userId) return '';
+        const u = Users.findById(userId);
+        if (!u) return '';
+        return typeof actorLabel === 'function' ? actorLabel(u) : (u.email || '');
+    }
+
+    // ── Lettura (qualsiasi utente con la scheda Corsi) ────────────────────────
+
+    app.get('/api/auth/corsi/manifest', authenticate, canRead, (req, res) => {
         try {
-            res.json(publicNav(readManifest()));
+            res.json(publicManifest());
         } catch (e) {
-            console.error('[CORSI] read manifest:', e.message);
-            res.status(500).json({ error: 'Impossibile leggere il manifesto corsi.' });
+            console.error('[CORSI] manifest:', e.message);
+            res.status(500).json({ error: 'Impossibile leggere l\'indice dei corsi.' });
         }
     });
 
-    // Upload immagini per i contenuti (solo docenti). Body binario, nome nel query param.
+    app.post('/api/auth/corsi/presence', authenticate, requireDocente, (req, res) => {
+        try {
+            const full = Users.findById(req.user.id) || req.user;
+            touchManagePresence(req.user.id, profileName(full));
+            res.json({ success: true });
+        } catch (e) {
+            console.error('[CORSI] presence:', e.message);
+            res.status(500).json({ error: 'Impossibile registrare la presenza.' });
+        }
+    });
+
+    app.get('/api/auth/corsi/live', authenticate, requireDocente, (req, res) => {
+        try {
+            const since = String(req.query.since || '').trim();
+            const saves = since
+                ? CorsiItems.changesSince(since, req.user.id).map((row) => ({
+                    at: row.updatedAt,
+                    userId: row.updatedById,
+                    profileName: profileName(Users.findById(row.updatedById)),
+                    itemId: row.id,
+                    title: row.title || row.id,
+                }))
+                : [];
+            res.json({
+                serverTime: new Date().toISOString(),
+                saves,
+                editorsOnline: listManagePresence(req.user.id),
+            });
+        } catch (e) {
+            console.error('[CORSI] live:', e.message);
+            res.status(500).json({ error: 'Impossibile leggere l\'attività live.' });
+        }
+    });
+
+    app.get('/api/auth/corsi/content/:id', authenticate, canRead, (req, res) => {
+        const id = safeId(req.params.id);
+        if (!id) return res.status(400).json({ error: 'Identificativo non valido.' });
+        try {
+            const row = CorsiItems.findById(id);
+            if (!row) return res.status(404).json({ error: 'Contenuto non trovato.' });
+            res.json({
+                id: row.id,
+                title: row.title,
+                type: row.type,
+                date: row.courseDate || '',
+                content: row.content || '',
+                updatedAt: row.updatedAt,
+                updatedBy: authorLabel(row.updatedById),
+            });
+        } catch (e) {
+            console.error('[CORSI] content:', e.message);
+            res.status(500).json({ error: 'Impossibile leggere il contenuto.' });
+        }
+    });
+
+    // ── Upload immagini (restano su filesystem: i tag <img> non inviano token) ─
+
     const UPLOADS_DIR = path.join(CORSI_DIR, 'uploads');
     const IMG_EXT = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp' };
     app.post('/api/auth/corsi/upload', authenticate, requireDocente,
@@ -282,6 +374,8 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
                 res.status(500).json({ error: 'Caricamento immagine non riuscito.' });
             }
         });
+
+    // ── Storico versioni (solo docenti) ──────────────────────────────────────
 
     app.get('/api/auth/corsi/versions', authenticate, requireDocente, (req, res) => {
         try {
@@ -329,45 +423,61 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
 
     app.post('/api/auth/corsi/versions/:vid/restore', authenticate, requireDocente, (req, res) => {
         try {
-            const row = CorsiVersions.findById(String(req.params.vid || ''));
-            if (!row) return res.status(404).json({ error: 'Versione non trovata.' });
-            const id = safeId(row.itemId);
+            const version = CorsiVersions.findById(String(req.params.vid || ''));
+            if (!version) return res.status(404).json({ error: 'Versione non trovata.' });
+            const id = safeId(version.itemId);
             if (!id) return res.status(400).json({ error: 'Identificativo modulo non valido.' });
 
-            const manifest = readManifest();
-            let found = findNode(manifest, id);
-            const type = NODE_TYPES.has(row.kind) ? row.kind : 'course';
-            const title = String(row.title || id).trim() || id;
-            const content = String(row.content || '');
-
-            if (found) {
-                const current = readExistingSnapshot(id, found.node);
-                if (current) snapshotVersion({ ...current, action: 'update', user: req.user });
+            const title = String(version.title || id).trim() || id;
+            const content = String(version.content || '');
+            const now = new Date().toISOString();
+            const existing = CorsiItems.findById(id);
+            const type = existing
+                ? existing.type
+                : normalizeType(NODE_TYPES.has(version.kind) ? version.kind : 'course', null);
+            const restoreParentId = version.parentId ? safeId(version.parentId) : null;
+            const restorePosition = version.position != null ? Number(version.position) : 0;
+            if (version.parentId && !restoreParentId) {
+                return res.status(400).json({ error: 'Posizione nella sidebar non valida per questa versione.' });
+            }
+            if (restoreParentId && !CorsiItems.exists(restoreParentId)) {
+                return res.status(400).json({ error: 'La sezione padre di questa versione non esiste più.' });
             }
 
-            const raw = buildFrontMatter({
-                title,
-                date: type === 'course' ? new Date().toISOString().slice(0, 10) : undefined,
-                layout: type === 'page' ? 'page' : undefined,
-            }) + content.replace(/^\uFEFF/, '');
-            fs.writeFileSync(mdPath(id), raw, 'utf8');
+            CorsiItems.tx(() => {
+                if (existing) {
+                    snapshotRow(existing, 'update', req.user);
+                    CorsiItems.update(id, {
+                        type: existing.type,
+                        title,
+                        content,
+                        courseDate: existing.courseDate,
+                        updatedAt: now,
+                        updatedById: req.user.id,
+                    });
+                    if (existing.parentId !== restoreParentId || existing.position !== restorePosition) {
+                        CorsiItems.move(id, restoreParentId, restorePosition);
+                    }
+                } else {
+                    CorsiItems.insert({
+                        id,
+                        parentId: restoreParentId,
+                        position: restorePosition,
+                        type,
+                        title,
+                        content,
+                        courseDate: type === 'course' ? today() : '',
+                        createdAt: now,
+                        updatedAt: now,
+                        createdById: req.user.id,
+                        updatedById: req.user.id,
+                    });
+                }
+            })();
 
-            if (!found) {
-                const entry = {
-                    id, title, type, file: `${id}.md`, children: [],
-                    date: type === 'course' ? new Date().toISOString().slice(0, 10) : undefined,
-                };
-                if (!entry.date) delete entry.date;
-                manifest.nav.push(entry);
-            } else {
-                found.node.title = title;
-                found.node.type = type;
-                found.node.file = `${id}.md`;
-            }
-            writeManifest(manifest);
             notifyEditors(req, 'corsi_version_restored', 'Versione corso ripristinata',
                 `ha ripristinato una versione di «${title}» (${id}).`);
-            res.json({ success: true, id, type, manifest: publicNav(manifest) });
+            res.json({ success: true, id, type, manifest: publicManifest() });
         } catch (e) {
             console.error('[CORSI] restore:', e.message);
             res.status(500).json({ error: 'Impossibile ripristinare la versione.' });
@@ -388,30 +498,24 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
         }
     });
 
+    // ── Gestione contenuti (solo docenti) ────────────────────────────────────
+
     app.get('/api/auth/corsi/items/:id', authenticate, requireDocente, (req, res) => {
         const id = safeId(req.params.id);
         if (!id) return res.status(400).json({ error: 'Identificativo non valido.' });
         try {
-            const manifest = readManifest();
-            const found = findNode(manifest, id);
-            if (!found || found.node.type === 'divider') {
-                return res.status(404).json({ error: 'Modulo non trovato.' });
-            }
-            const filePath = mdPath(id);
-            if (!fs.existsSync(filePath)) {
-                return res.status(404).json({ error: 'File Markdown mancante.' });
-            }
-            const raw = fs.readFileSync(filePath, 'utf8');
-            const { meta, body } = stripFrontMatter(raw);
+            const row = CorsiItems.findById(id);
+            if (!row) return res.status(404).json({ error: 'Modulo non trovato.' });
             res.json({
-                id,
-                type: found.node.type,
-                kind: found.node.type,
-                title: meta.title || found.node.title || id,
-                date: meta.date || found.node.date || '',
-                file: found.node.file,
-                parentId: found.parent ? found.parent.id : null,
-                content: body,
+                id: row.id,
+                type: row.type,
+                kind: row.type,
+                title: row.title,
+                date: row.courseDate || '',
+                parentId: row.parentId || null,
+                content: row.content || '',
+                updatedAt: row.updatedAt,
+                updatedBy: authorLabel(row.updatedById),
             });
         } catch (e) {
             console.error('[CORSI] get item:', e.message);
@@ -421,38 +525,37 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
 
     app.put('/api/auth/corsi/settings', authenticate, requireDocente, (req, res) => {
         // Titolo e descrizione della sezione sono immutabili.
-        try {
-            const manifest = readManifest();
-            writeManifest(manifest);
-            res.json({
-                success: true,
-                manifest: publicNav(manifest),
-                message: 'Titolo e descrizione della sezione Corsi non sono modificabili.',
-            });
-        } catch (e) {
-            console.error('[CORSI] settings:', e.message);
-            res.status(500).json({ error: 'Impossibile salvare le impostazioni.' });
-        }
+        res.json({
+            success: true,
+            manifest: publicManifest(),
+            message: 'Titolo e descrizione della sezione Corsi non sono modificabili.',
+        });
     });
 
-    app.post('/api/auth/corsi/nav/divider', authenticate, requireDocente, (req, res) => {
+    app.put('/api/auth/corsi/reorder', authenticate, requireDocente, (req, res) => {
         try {
-            const parentId = (req.body || {}).parentId ? safeId(req.body.parentId) : null;
-            if ((req.body || {}).parentId && !parentId) {
-                return res.status(400).json({ error: 'Parent non valido.' });
+            const b = req.body || {};
+            const parentId = b.parentId ? safeId(b.parentId) : null;
+            if (b.parentId && !parentId) return res.status(400).json({ error: 'Parent non valido.' });
+            if (parentId && !CorsiItems.exists(parentId)) {
+                return res.status(404).json({ error: 'Nodo padre non trovato.' });
             }
-            const manifest = readManifest();
-            const container = parentContainer(manifest, parentId);
-            if (!container) return res.status(404).json({ error: 'Nodo padre non trovato.' });
-            container.siblings.push({
-                id: `divider-${crypto.randomUUID().slice(0, 8)}`,
-                type: 'divider',
-            });
-            writeManifest(manifest);
-            res.status(201).json({ success: true, manifest: publicNav(manifest) });
+            const order = Array.isArray(b.order)
+                ? b.order.map((raw) => safeId(raw)).filter(Boolean)
+                : [];
+            if (!order.length) return res.status(400).json({ error: 'Ordine non valido.' });
+            const siblings = CorsiItems.childrenOf(parentId);
+            const siblingIds = new Set(siblings.map((r) => r.id));
+            if (order.length !== siblingIds.size || !order.every((id) => siblingIds.has(id))) {
+                return res.status(400).json({ error: 'L\'ordine deve includere tutte le voci dello stesso livello.' });
+            }
+            CorsiItems.tx(() => { CorsiItems.reorderSiblings(parentId, order); })();
+            notifyEditors(req, 'corsi_reordered', 'Ordine sidebar corsi aggiornato',
+                `ha modificato l\'ordine delle sezioni nella sidebar corsi.`);
+            res.json({ success: true, manifest: publicManifest() });
         } catch (e) {
-            console.error('[CORSI] divider:', e.message);
-            res.status(500).json({ error: 'Impossibile aggiungere il separatore.' });
+            console.error('[CORSI] reorder:', e.message);
+            res.status(500).json({ error: 'Impossibile aggiornare l\'ordine.' });
         }
     });
 
@@ -462,193 +565,226 @@ function mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditor
             const id = safeId(b.id);
             if (!id) {
                 return res.status(400).json({
-                    error: 'ID non valido. Usa solo lettere minuscole, numeri e trattini (es. corso-base).',
+                    error: 'ID non valido. Usa solo lettere minuscole, numeri e trattini (es. corso_base).',
                 });
             }
             const title = String(b.title || '').trim();
             if (!title) return res.status(400).json({ error: 'Il titolo è obbligatorio.' });
-            let type = String(b.type || b.kind || 'course');
-            if (type === 'post') type = 'course';
-            if (!NODE_TYPES.has(type)) type = 'course';
-            const date = String(b.date || '').trim();
-            if (!isIsoDate(date)) return res.status(400).json({ error: 'Data non valida (YYYY-MM-DD).' });
             const content = String(b.content ?? '');
             if (content.length > MAX_CONTENT) return res.status(400).json({ error: 'Contenuto troppo lungo.' });
+            const date = String(b.date || '').trim();
+            if (!isIsoDate(date)) return res.status(400).json({ error: 'Data non valida (YYYY-MM-DD).' });
+
             const parentId = b.parentId ? safeId(b.parentId) : null;
             if (b.parentId && !parentId) return res.status(400).json({ error: 'Parent non valido.' });
-            if (parentId && type === 'course') type = 'section';
-
-            const manifest = readManifest();
-            if (allIds(manifest).has(id)) {
+            if (parentId && !CorsiItems.exists(parentId)) {
+                return res.status(404).json({ error: 'Nodo padre non trovato.' });
+            }
+            if (CorsiItems.exists(id)) {
                 return res.status(409).json({ error: 'Esiste già un elemento con questo ID.' });
             }
-            if (fs.existsSync(mdPath(id))) {
-                return res.status(409).json({ error: 'Il file Markdown esiste già.' });
-            }
-            const container = parentContainer(manifest, parentId);
-            if (!container) return res.status(404).json({ error: 'Nodo padre non trovato.' });
-            if (parentId && type === 'page') {
+            if (parentId && String(b.type || '') === 'page') {
                 return res.status(400).json({ error: 'Le pagine possono stare solo alla radice della sidebar.' });
             }
 
-            const raw = buildFrontMatter({
+            const type = normalizeType(b.type || b.kind, parentId);
+            const now = new Date().toISOString();
+            CorsiItems.insert({
+                id,
+                parentId,
+                position: CorsiItems.nextPosition(parentId),
+                type,
                 title,
-                date: type === 'course' ? (date || new Date().toISOString().slice(0, 10)) : date || undefined,
-                layout: type === 'page' ? 'page' : undefined,
-            }) + content.replace(/^\uFEFF/, '');
-            fs.writeFileSync(mdPath(id), raw, 'utf8');
+                content,
+                courseDate: type === 'course' ? (date || today()) : '',
+                createdAt: now,
+                updatedAt: now,
+                createdById: req.user.id,
+                updatedById: req.user.id,
+            });
 
-            const entry = { id, title, type, file: `${id}.md`, children: [] };
-            if (type === 'course') entry.date = date || new Date().toISOString().slice(0, 10);
-            container.siblings.push(entry);
-            writeManifest(manifest);
             notifyEditors(req, 'corsi_item_created', 'Nuovo contenuto corsi',
                 `ha aggiunto «${title}» (${id}) nella sidebar corsi.`);
-            res.status(201).json({ success: true, id, type, manifest: publicNav(manifest) });
+            res.status(201).json({ success: true, id, type, manifest: publicManifest() });
         } catch (e) {
             console.error('[CORSI] create:', e.message);
             res.status(500).json({ error: 'Impossibile creare il modulo.' });
         }
     });
 
-    function applyItemUpdate(manifest, id, b, user, { moveParent = false } = {}) {
+    /**
+     * Valida e applica una modifica. Va chiamata dentro una transazione:
+     * archivia la versione precedente e riscrive la riga corrente.
+     */
+    function applyItemUpdate(id, b, user, { moveParent = false } = {}) {
+        const row = CorsiItems.findById(id);
+        if (!row) return { error: 'Modulo non trovato.', status: 404 };
+
         const title = String(b.title || '').trim();
         if (!title) return { error: 'Il titolo è obbligatorio.', status: 400 };
-        let type = String(b.type || b.kind || 'course');
-        if (type === 'post') type = 'course';
-        if (!NODE_TYPES.has(type)) type = 'course';
-        let date = String(b.date || '').trim();
         const content = String(b.content ?? '');
         if (content.length > MAX_CONTENT) return { error: 'Contenuto troppo lungo.', status: 400 };
 
-        const found = findNode(manifest, id);
-        if (!found || found.node.type === 'divider') {
-            return { error: 'Modulo non trovato.', status: 404 };
-        }
-
-        const previous = readExistingSnapshot(id, found.node);
-        if (previous) snapshotVersion({ ...previous, action: 'update', user });
-
+        let parentId = row.parentId || null;
         if (moveParent && Object.prototype.hasOwnProperty.call(b, 'parentId')) {
             const newParentId = b.parentId ? safeId(b.parentId) : null;
             if (b.parentId && !newParentId) return { error: 'Parent non valido.', status: 400 };
             if (newParentId === id) return { error: 'Un elemento non può essere padre di se stesso.', status: 400 };
-            const currentParentId = found.parent ? found.parent.id : null;
-            if (newParentId !== currentParentId) {
+            if (newParentId !== parentId) {
                 if (newParentId) {
-                    const descendants = collectContentNodes(found.node).map((n) => n.id);
+                    if (!CorsiItems.exists(newParentId)) return { error: 'Nodo padre non trovato.', status: 404 };
+                    const descendants = subtreeRows(id).map((r) => r.id);
                     if (descendants.includes(newParentId)) {
                         return { error: 'Non puoi spostare un elemento sotto una sua sottosezione.', status: 400 };
                     }
                 }
-                const dest = parentContainer(manifest, newParentId);
-                if (!dest) return { error: 'Nodo padre non trovato.', status: 404 };
-                found.siblings.splice(found.index, 1);
-                dest.siblings.push(found.node);
-                const again = findNode(manifest, id);
-                Object.assign(found, again);
+                CorsiItems.move(id, newParentId, CorsiItems.nextPosition(newParentId));
+                parentId = newParentId;
             }
         }
 
-        if (found.parent && type === 'page') {
+        if (parentId && String(b.type || '') === 'page') {
             return { error: 'Le pagine possono stare solo alla radice della sidebar.', status: 400 };
         }
-        if (found.parent && type === 'course') type = 'section';
 
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isIsoDate(date)) {
-            date = found.node.date || new Date().toISOString().slice(0, 10);
+        const type = normalizeType(b.type || b.kind || row.type, parentId);
+        let date = String(b.date || '').trim();
+        if (!isIsoDate(date) || !date) date = row.courseDate || today();
+
+        if (Object.prototype.hasOwnProperty.call(b, 'expectedUpdatedAt')) {
+            const expected = String(b.expectedUpdatedAt || '').trim();
+            if (expected && String(row.updatedAt || '') !== expected) {
+                const by = authorLabel(row.updatedById);
+                const who = by ? ` (${by})` : '';
+                return {
+                    error: `«${row.title || id}» è stato modificato da un altro docente${who}. Ricarica prima di salvare.`,
+                    status: 409,
+                    conflict: {
+                        id,
+                        title: row.title || id,
+                        updatedAt: row.updatedAt,
+                        updatedBy: by,
+                    },
+                };
+            }
         }
 
-        const raw = buildFrontMatter({
+        snapshotRow(row, 'update', user);
+        CorsiItems.update(id, {
+            type,
             title,
-            date: type === 'course' ? date : undefined,
-            layout: type === 'page' ? 'page' : undefined,
-        }) + content.replace(/^\uFEFF/, '');
-        fs.writeFileSync(mdPath(id), raw, 'utf8');
-
-        found.node.title = title;
-        found.node.type = type;
-        found.node.file = `${id}.md`;
-        if (type === 'course') found.node.date = date;
-        else delete found.node.date;
-
-        return { ok: true, id, type, title, previous };
+            content,
+            courseDate: type === 'course' ? date : '',
+            updatedAt: new Date().toISOString(),
+            updatedById: user?.id || null,
+        });
+        return { ok: true, id, type, title };
     }
-
-    app.put('/api/auth/corsi/bulk', authenticate, requireDocente, (req, res) => {
-        try {
-            const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
-            if (!items.length) return res.status(400).json({ error: 'Nessuna sezione da salvare.' });
-            const manifest = readManifest();
-            const saved = [];
-            let archived = 0;
-            for (const b of items) {
-                const id = safeId(b && b.id);
-                if (!id) {
-                    return res.status(400).json({ error: 'Identificativo non valido.', id: b && b.id });
-                }
-                const result = applyItemUpdate(manifest, id, b, req.user, { moveParent: false });
-                if (result.error) return res.status(result.status).json({ error: result.error, id });
-                saved.push(id);
-                if (result.previous) archived += 1;
-            }
-            writeManifest(manifest);
-            if (archived) {
-                notifyEditors(req, 'corsi_version_archived', 'Nuova versione corso archiviata',
-                    `ha salvato ${saved.length} sezioni corsi (versioni precedenti nello storico).`);
-            }
-            res.json({ success: true, saved, count: saved.length, manifest: publicNav(manifest) });
-        } catch (e) {
-            console.error('[CORSI] bulk:', e.message);
-            res.status(500).json({ error: 'Impossibile salvare i contenuti.' });
-        }
-    });
 
     app.put('/api/auth/corsi/items/:id', authenticate, requireDocente, (req, res) => {
         try {
             const id = safeId(req.params.id);
             if (!id) return res.status(400).json({ error: 'Identificativo non valido.' });
-            const manifest = readManifest();
-            const result = applyItemUpdate(manifest, id, req.body || {}, req.user, { moveParent: true });
-            if (result.error) return res.status(result.status).json({ error: result.error });
-            writeManifest(manifest);
-            if (result.previous) {
-                notifyEditors(req, 'corsi_version_archived', 'Nuova versione corso archiviata',
-                    `ha modificato «${result.title}» (${id}): la versione precedente è nello storico.`);
-            }
-            res.json({ success: true, id, type: result.type, manifest: publicNav(manifest) });
+            let result;
+            CorsiItems.tx(() => {
+                result = applyItemUpdate(id, req.body || {}, req.user, { moveParent: true });
+                if (result.error) {
+                    throw Object.assign(new Error(result.error), {
+                        handled: true,
+                        status: result.status,
+                        conflict: result.conflict || null,
+                    });
+                }
+            })();
+            notifyEditors(req, 'corsi_version_archived', 'Nuova versione corso archiviata',
+                `ha modificato «${result.title}» (${id}): la versione precedente è nello storico.`);
+            res.json({ success: true, id, type: result.type, manifest: publicManifest() });
         } catch (e) {
+            if (e.handled) {
+                return res.status(e.status || 400).json({
+                    error: e.message,
+                    conflict: e.conflict || undefined,
+                });
+            }
             console.error('[CORSI] update:', e.message);
             res.status(500).json({ error: 'Impossibile aggiornare il modulo.' });
         }
     });
 
+    app.put('/api/auth/corsi/bulk', authenticate, requireDocente, (req, res) => {
+        try {
+            const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+            if (!items.length) return res.status(400).json({ error: 'Nessuna sezione da salvare.' });
+            const saved = [];
+            CorsiItems.tx(() => {
+                for (const b of items) {
+                    const id = safeId(b && b.id);
+                    if (!id) throw Object.assign(new Error('Identificativo non valido.'), { handled: true });
+                    const result = applyItemUpdate(id, b, req.user, { moveParent: false });
+                    if (result.error) {
+                        throw Object.assign(new Error(result.error), {
+                            handled: true,
+                            status: result.status || 400,
+                            conflict: result.conflict || null,
+                        });
+                    }
+                    saved.push(id);
+                }
+            })();
+            notifyEditors(req, 'corsi_version_archived', 'Nuova versione corso archiviata',
+                `ha salvato ${saved.length} sezioni corsi (versioni precedenti nello storico).`);
+            res.json({ success: true, saved, count: saved.length, manifest: publicManifest() });
+        } catch (e) {
+            if (e.handled) {
+                return res.status(e.status || 400).json({
+                    error: e.message,
+                    conflict: e.conflict || undefined,
+                });
+            }
+            console.error('[CORSI] bulk:', e.message);
+            res.status(500).json({ error: 'Impossibile salvare i contenuti.' });
+        }
+    });
+
+    app.get('/api/auth/corsi/export-bundle', authenticate, requireDocente, (req, res) => {
+        try {
+            const items = CorsiItems.all().map((row) => ({
+                id: row.id,
+                title: row.title || row.id,
+                type: row.type,
+                courseDate: row.courseDate || '',
+                content: row.content || '',
+                parentId: row.parentId || null,
+                position: row.position,
+            }));
+            res.json({
+                exportedAt: new Date().toISOString(),
+                manifest: publicManifest(),
+                items,
+            });
+        } catch (e) {
+            console.error('[CORSI] export-bundle:', e.message);
+            res.status(500).json({ error: 'Impossibile esportare i contenuti.' });
+        }
+    });
+
     app.delete('/api/auth/corsi/items/:id', authenticate, requireDocente, (req, res) => {
         try {
-            const id = String(req.params.id || '');
-            const manifest = readManifest();
-            const found = findNode(manifest, id);
-            if (!found) return res.status(404).json({ error: 'Elemento non trovato.' });
+            const id = safeId(req.params.id);
+            if (!id) return res.status(400).json({ error: 'Identificativo non valido.' });
+            const row = CorsiItems.findById(id);
+            if (!row) return res.status(404).json({ error: 'Elemento non trovato.' });
 
-            if (found.node.type === 'divider') {
-                found.siblings.splice(found.index, 1);
-                writeManifest(manifest);
-                return res.json({ success: true, manifest: publicNav(manifest) });
-            }
+            const removed = subtreeRows(id);
+            CorsiItems.tx(() => {
+                removed.forEach((node) => snapshotRow(node, 'delete', req.user));
+                // I discendenti spariscono da soli: ON DELETE CASCADE su parentId.
+                CorsiItems.remove(id);
+            })();
 
-            const nodes = collectContentNodes(found.node);
-            nodes.forEach((node) => {
-                const previous = readExistingSnapshot(node.id, node);
-                if (previous) snapshotVersion({ ...previous, action: 'delete', user: req.user });
-                const fp = mdPath(node.id);
-                if (fs.existsSync(fp)) fs.unlinkSync(fp);
-            });
-
-            found.siblings.splice(found.index, 1);
-            writeManifest(manifest);
             notifyEditors(req, 'corsi_module_deleted', 'Modulo corso eliminato',
-                `ha eliminato «${found.node.title || id}» (${id}) e le relative sottosezioni dalla sidebar.`);
-            res.json({ success: true, manifest: publicNav(manifest) });
+                `ha eliminato «${row.title || id}» (${id}) e le relative sottosezioni dalla sidebar.`);
+            res.json({ success: true, manifest: publicManifest() });
         } catch (e) {
             console.error('[CORSI] delete:', e.message);
             res.status(500).json({ error: 'Impossibile eliminare il modulo.' });

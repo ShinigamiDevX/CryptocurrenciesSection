@@ -656,6 +656,17 @@ function requireDocente(req, res, next) {
     next();
 }
 
+/** Lettura dei corsi: serve la scheda «corsi» in dashboard. */
+function requireCorsiAccess(req, res, next) {
+    if (req.user.role === 'superadmin') return next();
+    const user = Users.findById(req.user.id);
+    if (!user) return res.status(401).json({ error: 'Sessione non valida.' });
+    if (!cardsFromStored(user.allowedCards, user.role).includes('corsi')) {
+        return res.status(403).json({ error: 'Non hai accesso all\'area Corsi.' });
+    }
+    next();
+}
+
 function otpEmailHtml(otp) {
     return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Codice di verifica</h2><p style="color:#4a5568;margin:0 0 20px;">Valido <strong>10 minuti</strong>.</p><div style="background:#f0f9ff;border:2px solid #00C8FF;border-radius:10px;padding:20px 32px;text-align:center;letter-spacing:0.3rem;font-size:2.2rem;font-weight:700;color:#030E1C;">${otp}</div></td></tr></table></td></tr></table></body></html>`;
 }
@@ -1684,6 +1695,6 @@ app.post('/api/auth/notifications/read-all', authenticate,(req,res)=>{
 });
 
 // ── Corsi CMS (admin/superadmin = docenti) ────────────────────────────────────
-mountCorsiRoutes(app, { authenticate, requireDocente, notifyCorsiEditors, actorLabel });
+mountCorsiRoutes(app, { authenticate, requireDocente, requireCorsiAccess, notifyCorsiEditors, actorLabel });
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`Auth service in ascolto su http://0.0.0.0:${PORT}`));

@@ -10,9 +10,9 @@
     <link rel="stylesheet" href="/corsi/css/poole.css">
     <link rel="stylesheet" href="/corsi/css/hyde.css">
     <link rel="stylesheet" href="/corsi/css/syntax.css">
-    <link rel="stylesheet" href="/corsi/corsi-app.css?v=42">
+    <link rel="stylesheet" href="/corsi/corsi-app.css?v=70">
     <script src="/seasonal-theme.js?v=5"></script>
-    <link rel="stylesheet" href="/seasonal-theme.css?v=13">
+    <link rel="stylesheet" href="/seasonal-theme.css?v=23">
 </head>
 <body data-corsi-page="read">
     <div id="authOverlay"><span>Verifica autenticazione...</span></div>
@@ -20,7 +20,7 @@
     <div class="sidebar">
         <div class="container">
             <div class="sidebar-about">
-                <h1><a href="#home" id="siteTitle">Corsi</a></h1>
+                <h1 id="siteTitle">Corsi</h1>
                 <p class="lead" id="siteDescription">Area formazione e materiali didattici.</p>
             </div>
 
@@ -30,6 +30,7 @@
                 <a class="btn-portal" href="/portal">Torna al portale</a>
                 <a class="btn-portal" id="btnManage" href="/corsi-gestione" style="display:none;">Gestione contenuti</a>
                 <a class="btn-portal" id="btnStorico" href="/corsi-storico" style="display:none;">Storico versioni</a>
+                <button type="button" class="btn-portal" id="btnExportMd" style="display:none;">Esporta</button>
             </div>
         </div>
     </div>
@@ -51,8 +52,12 @@
     </div>
 
     <script src="/auth-token.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="/corsi-export.js?v=7"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
-    <script src="/corsi.js?v=41"></script>
+    <script src="/corsi/js/highlight.min.js?v=2"></script>
+    <script src="/corsi.js?v=70"></script>
 </body>
 </html>

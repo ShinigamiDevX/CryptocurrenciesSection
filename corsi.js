@@ -1,6 +1,4 @@
 (function () {
-    const MANIFEST_URL = '/corsi/manifest.json';
-    const MD_BASE = '/corsi/';
     const API = '/api/auth/corsi';
     const SITE_TITLE = 'Corsi';
     const SITE_DESCRIPTION = 'Area formazione e materiali didattici per i Reparti.';
@@ -39,20 +37,6 @@
         return String(s || '').replace(/[&<>"']/g, (c) => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
         }[c]));
-    }
-
-    function stripFrontMatter(raw) {
-        if (!raw.startsWith('---')) return { meta: {}, body: raw };
-        const end = raw.indexOf('\n---', 3);
-        if (end === -1) return { meta: {}, body: raw };
-        const fm = raw.slice(3, end).trim();
-        const body = raw.slice(end + 4).replace(/^\s*\n/, '');
-        const meta = {};
-        fm.split('\n').forEach((line) => {
-            const m = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-            if (m) meta[m[1]] = m[2].replace(/^["']|["']$/g, '');
-        });
-        return { meta, body };
     }
 
     function currentRoute() {
@@ -138,19 +122,35 @@
         return '<pre>' + escapeHtml(md) + '</pre>';
     }
 
-    async function loadMarkdown(file) {
-        if (cache[file]) return cache[file];
-        const res = await fetch(MD_BASE + encodeURIComponent(file) + '?t=' + Date.now());
-        if (!res.ok) throw new Error('Impossibile caricare ' + file);
-        const parsed = stripFrontMatter(await res.text());
-        cache[file] = parsed;
+    function bodyToDisplayHtml(body) {
+        const raw = unwrapWholeDocumentFence(body || '');
+        return looksLikeHtml(raw) ? raw : renderMarkdown(raw);
+    }
+
+    async function loadContent(id) {
+        if (cache[id]) return cache[id];
+        const res = await fetch(API + '/content/' + encodeURIComponent(id), { headers: authHeaders() });
+        if (!res.ok) throw new Error('Impossibile caricare ' + id);
+        const data = await res.json();
+        const split = extractTitleStyle(unwrapWholeDocumentFence(data.content || ''));
+        const parsed = {
+            meta: {
+                title: data.title || '',
+                date: data.date || '',
+                updatedAt: data.updatedAt || '',
+                updatedBy: data.updatedBy || '',
+            },
+            body: split.body,
+            titleStyle: split.style,
+        };
+        cache[id] = parsed;
         return parsed;
     }
 
     function invalidateCache() { cache = Object.create(null); }
 
     async function reloadManifest() {
-        const res = await fetch(MANIFEST_URL + '?t=' + Date.now());
+        const res = await fetch(API + '/manifest', { headers: authHeaders() });
         if (!res.ok) throw new Error();
         manifest = await res.json();
         if (!Array.isArray(manifest.nav)) {
@@ -189,29 +189,6 @@
         return id;
     }
 
-    const NAV_EXPAND_KEY = 'corsiNavExpand';
-    const TREE_EXPAND_KEY = 'corsiTreeExpand';
-
-    function loadExpandState(key) {
-        try { return JSON.parse(sessionStorage.getItem(key) || '{}'); }
-        catch (_) { return {}; }
-    }
-
-    function saveExpandState(key, state) {
-        sessionStorage.setItem(key, JSON.stringify(state));
-    }
-
-    function loadNavExpandState() { return loadExpandState(NAV_EXPAND_KEY); }
-    function saveNavExpandState(state) { saveExpandState(NAV_EXPAND_KEY, state); }
-    function loadTreeExpandState() { return loadExpandState(TREE_EXPAND_KEY); }
-    function saveTreeExpandState(state) { saveExpandState(TREE_EXPAND_KEY, state); }
-
-    function isNodeOpen(id, expandState, forceOpen) {
-        if (forceOpen && forceOpen.has(id)) return true;
-        if (Object.prototype.hasOwnProperty.call(expandState, id)) return !!expandState[id];
-        return true;
-    }
-
     function ancestorIdsOf(targetId) {
         const path = [];
         function dfs(nodes, trail) {
@@ -228,67 +205,194 @@
         return path;
     }
 
-    function activeContentId(route) {
-        const { segs } = parseRoute(route);
-        if (IS_MANAGE_PAGE) {
-            if (segs[0] === 'view' && segs[1]) return segs[1];
-            return null;
+    function parentIdOfNode(nodeId) {
+        let found = null;
+        function walk(nodes, parent) {
+            for (const n of contentNodes(nodes)) {
+                if (n.id === nodeId) {
+                    found = parent;
+                    return true;
+                }
+                if (n.children && n.children.length && walk(n.children, n.id)) return true;
+            }
+            return false;
         }
-        if (segs[0] && segs[0] !== 'home') return segs[0];
-        return null;
+        walk(navNodes(), null);
+        return found;
     }
 
-    function wireNavToggles(nav) {
-        nav.querySelectorAll('.cs50-toggle').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
+    function siblingIdsOf(nodeId) {
+        const parentId = parentIdOfNode(nodeId);
+        const siblings = parentId ? (findNodeById(parentId)?.children || []) : navNodes();
+        return contentNodes(siblings).map((n) => n.id);
+    }
+
+    function isDescendantOf(ancestorId, nodeId) {
+        if (!ancestorId || !nodeId || ancestorId === nodeId) return ancestorId === nodeId;
+        const node = findNodeById(ancestorId);
+        if (!node) return false;
+        let found = false;
+        walk(node.children || [], (n) => {
+            if (n.id === nodeId) { found = true; return true; }
+            return false;
+        });
+        return found;
+    }
+
+    let _navDragId = null;
+
+    async function persistNavOrder(parentId, order) {
+        const data = await apiJson(API + '/reorder', {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ parentId: parentId || null, order }),
+        });
+        invalidateCache();
+        if (data && data.manifest) manifest = data.manifest;
+        buildSidebar(true);
+    }
+
+    function wireNavDragDrop(nav) {
+        if (!IS_MANAGE_PAGE || !nav) return;
+        const HOLD_MS = 450;
+        nav.querySelectorAll('.cs50-item').forEach((li) => {
+            if (li.dataset.dragWired) return;
+            li.dataset.dragWired = '1';
+            li.setAttribute('draggable', 'true');
+            const link = li.querySelector('.cs50-link');
+            if (link) link.setAttribute('draggable', 'false');
+
+            let holdTimer = null;
+            let holdReady = false;
+            let suppressClick = false;
+            let didDrag = false;
+
+            const clearHold = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                }
+                holdReady = false;
+                li.classList.remove('is-drag-ready');
+            };
+
+            const startHold = (e) => {
+                if (e.type === 'mousedown' && e.button !== 0) return;
+                clearHold();
+                didDrag = false;
+                suppressClick = false;
+                holdTimer = setTimeout(() => {
+                    holdReady = true;
+                    li.classList.add('is-drag-ready');
+                }, HOLD_MS);
+            };
+
+            li.addEventListener('mousedown', startHold);
+            li.addEventListener('touchstart', startHold, { passive: true });
+            li.addEventListener('mouseup', () => {
+                if (holdReady) suppressClick = true;
+                clearHold();
+            });
+            li.addEventListener('mouseleave', clearHold);
+            li.addEventListener('touchend', () => {
+                if (holdReady) suppressClick = true;
+                clearHold();
+            });
+            li.addEventListener('touchcancel', clearHold);
+
+            li.addEventListener('dragstart', (e) => {
+                if (!holdReady) {
+                    e.preventDefault();
+                    return;
+                }
+                didDrag = true;
+                suppressClick = true;
+                _navDragId = li.getAttribute('data-nav-id');
+                li.classList.add('is-dragging');
+                if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', _navDragId);
+                }
+                clearHold();
+            });
+            li.addEventListener('dragend', () => {
+                li.classList.remove('is-dragging');
+                nav.querySelectorAll('.cs50-item.is-drop-before, .cs50-item.is-drop-after')
+                    .forEach((el) => el.classList.remove('is-drop-before', 'is-drop-after'));
+                _navDragId = null;
+            });
+            if (link) {
+                link.addEventListener('click', (e) => {
+                    if (didDrag || suppressClick) {
+                        e.preventDefault();
+                        suppressClick = false;
+                        didDrag = false;
+                    }
+                });
+            }
+            li.addEventListener('dragover', (e) => {
+                if (!_navDragId) return;
+                const targetId = li.getAttribute('data-nav-id');
+                if (!targetId || targetId === _navDragId) return;
+                if (isDescendantOf(_navDragId, targetId)) return;
+                const dragParent = parentIdOfNode(_navDragId);
+                const targetParent = parentIdOfNode(targetId);
+                if (dragParent !== targetParent) return;
                 e.preventDefault();
-                e.stopPropagation();
-                const li = btn.closest('.cs50-item');
-                if (!li) return;
-                const id = li.getAttribute('data-nav-id');
-                const open = li.classList.toggle('is-open');
-                li.classList.toggle('is-collapsed', !open);
-                btn.textContent = open ? '−' : '+';
-                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                btn.setAttribute('aria-label', open ? 'Comprimi' : 'Espandi');
-                const state = loadNavExpandState();
-                state[id] = open;
-                saveNavExpandState(state);
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                const rect = li.getBoundingClientRect();
+                const before = (e.clientY - rect.top) < rect.height / 2;
+                nav.querySelectorAll('.cs50-item.is-drop-before, .cs50-item.is-drop-after')
+                    .forEach((el) => el.classList.remove('is-drop-before', 'is-drop-after'));
+                li.classList.add(before ? 'is-drop-before' : 'is-drop-after');
+            });
+            li.addEventListener('dragleave', (e) => {
+                if (!li.contains(e.relatedTarget)) {
+                    li.classList.remove('is-drop-before', 'is-drop-after');
+                }
+            });
+            li.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                const targetId = li.getAttribute('data-nav-id');
+                const dragId = _navDragId || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+                li.classList.remove('is-drop-before', 'is-drop-after');
+                if (!dragId || !targetId || dragId === targetId) return;
+                if (isDescendantOf(dragId, targetId)) return;
+                const parentId = parentIdOfNode(dragId);
+                if (parentId !== parentIdOfNode(targetId)) return;
+                const order = siblingIdsOf(dragId);
+                const from = order.indexOf(dragId);
+                const to = order.indexOf(targetId);
+                if (from < 0 || to < 0 || from === to) return;
+                order.splice(from, 1);
+                const rect = li.getBoundingClientRect();
+                const before = (e.clientY - rect.top) < rect.height / 2;
+                let insertAt = order.indexOf(targetId);
+                if (insertAt < 0) insertAt = order.length;
+                else if (!before) insertAt += 1;
+                order.splice(insertAt, 0, dragId);
+                try {
+                    await persistNavOrder(parentId, order);
+                } catch (err) {
+                    alert(err.message);
+                }
             });
         });
     }
 
-    async function apiJson(url, options) {
-        const res = await fetch(url, options);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Operazione non riuscita.');
-        return data;
-    }
-
-    function excerptFromBody(body) {
-        const excerpt = body.split(/\n\n+/).find((p) => p.trim() && !p.trim().startsWith('#')) || '';
-        return excerpt.slice(0, 420) + (excerpt.length > 420 ? '…' : '');
-    }
-
-    function renderNavTree(nodes, depth, manageMode, expandState, forceOpen) {
+    function renderNavTree(nodes, depth, manageMode) {
         const items = contentNodes(nodes);
         if (!items.length) return '';
         return items.map((n) => {
             const kidsList = contentNodes(n.children);
             const hasKids = kidsList.length > 0;
-            const open = hasKids && isNodeOpen(n.id, expandState, forceOpen);
             const kids = hasKids
-                ? `<div class="cs50-subwrap"><ul class="cs50-sub depth-${depth + 1}">${renderNavTree(n.children, depth + 1, manageMode, expandState, forceOpen)}</ul></div>`
+                ? `<div class="cs50-subwrap"><ul class="cs50-sub depth-${depth + 1}">${renderNavTree(n.children, depth + 1, manageMode)}</ul></div>`
                 : '';
-            const toggle = hasKids
-                ? `<button type="button" class="cs50-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Comprimi' : 'Espandi'}">${open ? '−' : '+'}</button>`
-                : '<span class="cs50-toggle-spacer" aria-hidden="true"></span>';
-            const openClass = hasKids ? (open ? ' is-open' : ' is-collapsed') : '';
             return `
-                <li class="cs50-item depth-${depth} type-${escapeHtml(n.type)}${hasKids ? ' has-children' : ''}${openClass}" data-nav-id="${escapeHtml(n.id)}">
+                <li class="cs50-item depth-${depth} type-${escapeHtml(n.type)}${hasKids ? ' has-children' : ''} is-open" data-nav-id="${escapeHtml(n.id)}">
                     <div class="cs50-row">
-                        ${toggle}
-                        <a class="cs50-link" href="${contentHref(n.id, manageMode)}" data-route="${escapeHtml(n.id)}">${escapeHtml(n.title)}</a>
+                        <a class="cs50-link" href="${contentHref(n.id, manageMode)}" data-route="${escapeHtml(n.id)}"${manageMode ? ' title="Tieni premuto per spostare"' : ''}>${escapeHtml(n.title)}</a>
                     </div>
                     ${kids}
                 </li>
@@ -298,18 +402,13 @@
 
     function buildSidebar(manageMode) {
         const nav = document.getElementById('sidebarNav');
-        nav.className = 'sidebar-nav cs50-nav';
-        const expandState = loadNavExpandState();
-        const forceOpen = new Set();
-        const activeId = activeContentId(currentRoute());
-        if (activeId) ancestorIdsOf(activeId).forEach((id) => forceOpen.add(id));
-        // Home rimossa: il titolo «Corsi» in alto punta già a #home
+        nav.className = 'sidebar-nav cs50-nav' + (manageMode ? ' cs50-nav-manage' : '');
         nav.innerHTML = `
             <ul class="cs50-root">
-                ${renderNavTree(navNodes(), 0, !!manageMode, expandState, forceOpen)}
+                ${renderNavTree(navNodes(), 0, !!manageMode)}
             </ul>
         `;
-        wireNavToggles(nav);
+        if (manageMode) wireNavDragDrop(nav);
         const titleEl = document.getElementById('siteTitle');
         if (titleEl) titleEl.textContent = SITE_TITLE;
         if (!IS_MANAGE_PAGE) {
@@ -322,87 +421,22 @@
         setActiveNav(currentRoute());
     }
 
+    async function apiJson(url, options) {
+        const res = await fetch(url, options);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const err = new Error(data.error || 'Operazione non riuscita.');
+            err.status = res.status;
+            err.data = data;
+            throw err;
+        }
+        return data;
+    }
+
     function levelLabel(depth) {
         if (depth <= 0) return 'Sezione';
         if (depth === 1) return 'Sottosezione';
         return `Sottosezione liv. ${depth}`;
-    }
-
-    async function renderSectionCard(section, { manageMode, depth = 0 }) {
-        const titleTag = depth <= 0 ? 'h1' : (depth === 1 ? 'h2' : 'h3');
-        const titleClass = depth <= 0 ? 'post-title' : 'post-title nest-title';
-        const badge = `<div class="level-badge">${escapeHtml(levelLabel(depth))}</div>`;
-        const cardClass = `post manage-card depth-${depth}`;
-        try {
-            const { meta, body } = await loadMarkdown(section.file || `${section.id}.md`);
-            const title = meta.title || section.title;
-            const excerptHtml = renderMarkdown(excerptFromBody(body));
-            return `
-                <article class="${cardClass}">
-                    ${badge}
-                    <${titleTag} class="${titleClass}">
-                        <a href="${contentHref(section.id, manageMode)}">${escapeHtml(title)}</a>
-                    </${titleTag}>
-                    <div class="manage-collapsible"><div class="collapsible-inner"><div class="post-excerpt">${excerptHtml}</div></div></div>
-                </article>
-            `;
-        } catch (_) {
-            return `
-                <article class="${cardClass}">
-                    ${badge}
-                    <${titleTag} class="${titleClass}">
-                        <a href="${contentHref(section.id, manageMode)}">${escapeHtml(section.title)}</a>
-                    </${titleTag}>
-                    <div class="manage-collapsible"><div class="collapsible-inner"><p class="corsi-error">Contenuto non disponibile.</p></div></div>
-                </article>
-            `;
-        }
-    }
-
-    function manageToggleHtml(open) {
-        return `<button type="button" class="manage-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-label="${open ? 'Comprimi' : 'Espandi'}"><span class="toggle-bars" aria-hidden="true"><span class="bar bar-h"></span><span class="bar bar-v"></span></span></button>`;
-    }
-
-    async function renderTreeNode(node, depth, expandState, manageMode) {
-        const kids = contentNodes(node.children);
-        const hasKids = kids.length > 0;
-        const open = isNodeOpen(node.id, expandState);
-        const card = await renderSectionCard(node, { manageMode: !!manageMode, depth });
-        const toggle = manageToggleHtml(open);
-        let nested = '';
-        if (hasKids) {
-            const parts = [];
-            for (const k of kids) parts.push(await renderTreeNode(k, depth + 1, expandState, manageMode));
-            nested = `<div class="manage-nest depth-${depth + 1}"><div class="collapsible-inner">${parts.join('')}</div></div>`;
-        }
-        return `
-            <div class="manage-level depth-${depth} is-collapsible${open ? ' is-open' : ' is-collapsed'}" data-tree-id="${escapeHtml(node.id)}">
-                <div class="manage-level-row">
-                    ${toggle}
-                    <div class="manage-level-body">${card}</div>
-                </div>
-                ${nested}
-            </div>
-        `;
-    }
-
-    function wireTreeToggles(rootEl) {
-        rootEl.querySelectorAll('.manage-toggle').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const level = btn.closest('.manage-level');
-                if (!level) return;
-                const id = level.getAttribute('data-tree-id');
-                const open = level.classList.toggle('is-open');
-                level.classList.toggle('is-collapsed', !open);
-                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                btn.setAttribute('aria-label', open ? 'Comprimi' : 'Espandi');
-                const state = loadTreeExpandState();
-                state[id] = open;
-                saveTreeExpandState(state);
-            });
-        });
     }
 
     function wireManageTreeActions(rootEl) {
@@ -433,16 +467,78 @@
         });
     }
 
+    function wireNewSectionButton() {
+        const btn = document.getElementById('btnNewSection');
+        if (!btn || btn.dataset.wired) return;
+        btn.dataset.wired = '1';
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addSectionInline({ btn });
+        });
+    }
+
     function editTreeSelector(id) {
         return '.inline-edit-tree [data-edit-id="' + String(id).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]';
     }
 
-    async function addSubsectionInline(parentId, btn) {
-        if (!parentId) return;
+    function focusEditableTitle(art) {
+        const titleEl = directEditChild(art, 'data-edit-title');
+        if (!titleEl) return;
+        titleEl.focus();
+        const range = document.createRange();
+        range.selectNodeContents(titleEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    async function mountNewEditableArticle(id, insertParent) {
+        const newNode = findNodeById(id);
+        if (!newNode) {
+            await renderManageIndex();
+            highlightAndScrollEdit(id);
+            return;
+        }
+        const depth = ancestorIdsOf(id).length;
+        const html = await renderEditableTree(newNode, depth);
+        let host = insertParent;
+        if (host) {
+            if (!host.classList.contains('inline-doc-children')) {
+                let kidsWrap = [...host.children].find((el) => el.classList.contains('inline-doc-children'));
+                if (!kidsWrap) {
+                    kidsWrap = document.createElement('div');
+                    kidsWrap.className = 'inline-doc-children';
+                    host.appendChild(kidsWrap);
+                }
+                host = kidsWrap;
+            }
+        } else {
+            host = document.querySelector('.inline-edit-tree');
+        }
+        if (!host) {
+            await renderManageIndex();
+            highlightAndScrollEdit(id);
+            return;
+        }
+        if (host.classList.contains('inline-edit-tree') && !host.querySelector('[data-edit-id]')) {
+            host.innerHTML = '';
+        }
+        host.insertAdjacentHTML('beforeend', html);
+        const art = host.lastElementChild;
+        if (art && art.getAttribute('data-edit-id') === id) {
+            await hydrateEditableArticle(art);
+            wireManageTreeActions(art);
+            highlightAndScrollEdit(id);
+            focusEditableTitle(art);
+        }
+    }
+
+    async function addSectionInline({ parentId, btn } = {}) {
+        const isChild = !!parentId;
         if (btn) btn.disabled = true;
-        setEditorMsg('Creazione sottosezione...');
+        setEditorMsg(isChild ? 'Creazione sottosezione...' : 'Creazione sezione...');
         try {
-            const title = 'Nuova sottosezione';
+            const title = isChild ? 'Nuova sottosezione' : 'Nuova sezione';
             const id = uniqueContentId(title);
             const data = await apiJson(API + '/items', {
                 method: 'POST',
@@ -450,57 +546,40 @@
                 body: JSON.stringify({
                     id,
                     title,
-                    type: 'section',
+                    type: isChild ? 'section' : 'course',
                     date: todayIsoDate(),
                     content: '<p></p>\n',
-                    parentId,
+                    parentId: parentId || null,
                 }),
             });
             if (data && data.manifest) manifest = data.manifest;
             invalidateCache();
             buildSidebar(true);
-            const newNode = findNodeById(id);
-            if (!newNode) {
-                await renderManageIndex();
-                highlightAndScrollEdit(id);
+            if (document.querySelector('.inline-edit-tree[data-view="single"]')) {
+                window.location.hash = 'view/' + encodeURIComponent(id);
+                const created = findNodeById(id);
+                if (created) await renderManageSection(created);
+                else highlightAndScrollEdit(id);
+                setEditorMsg(isChild
+                    ? 'Sottosezione creata. Modificala qui e premi Salva.'
+                    : 'Sezione creata. Modificala qui e premi Salva.');
                 return;
             }
-            const parentArt = document.querySelector(editTreeSelector(parentId));
-            const depth = ancestorIdsOf(id).length;
-            const html = await renderEditableTree(newNode, depth);
-            if (parentArt) {
-                let kidsWrap = [...parentArt.children].find((el) => el.classList.contains('inline-doc-children'));
-                if (!kidsWrap) {
-                    kidsWrap = document.createElement('div');
-                    kidsWrap.className = 'inline-doc-children';
-                    parentArt.appendChild(kidsWrap);
-                }
-                kidsWrap.insertAdjacentHTML('beforeend', html);
-                const art = kidsWrap.lastElementChild;
-                if (art && art.getAttribute('data-edit-id') === id) {
-                    await hydrateEditableArticle(art);
-                    wireManageTreeActions(art);
-                    highlightAndScrollEdit(id);
-                    const titleEl = directEditChild(art, 'data-edit-title');
-                    if (titleEl) {
-                        titleEl.focus();
-                        const range = document.createRange();
-                        range.selectNodeContents(titleEl);
-                        const sel = window.getSelection();
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                    }
-                }
-            } else {
-                await renderManageIndex();
-                highlightAndScrollEdit(id);
-            }
-            setEditorMsg('Sottosezione aggiunta in fondo al livello. Modificala qui e premi Salva.');
+            const parentArt = parentId ? document.querySelector(editTreeSelector(parentId)) : null;
+            await mountNewEditableArticle(id, parentArt);
+            setEditorMsg(isChild
+                ? 'Sottosezione aggiunta in fondo al livello. Modificala qui e premi Salva.'
+                : 'Sezione aggiunta in fondo. Modificala qui e premi Salva.');
         } catch (err) {
             setEditorMsg(err.message, true);
         } finally {
             if (btn) btn.disabled = false;
         }
+    }
+
+    async function addSubsectionInline(parentId, btn) {
+        if (!parentId) return;
+        return addSectionInline({ parentId, btn });
     }
 
     async function deleteSectionInline(id) {
@@ -531,22 +610,116 @@
         }
     }
 
-    async function renderHome() {
-        const root = document.getElementById('contentRoot');
-        root.className = 'posts';
+    function firstContentId() {
         const roots = contentNodes(navNodes());
-        if (!roots.length) {
-            root.innerHTML = '<div class="page"><h1 class="page-title">Corsi</h1><p>Nessuna sezione disponibile.</p></div>';
+        return roots[0] ? roots[0].id : null;
+    }
+
+    async function renderHome() {
+        const first = firstContentId();
+        if (first) {
+            window.location.replace(READ_ONLY_URL + '#' + encodeURIComponent(first));
             return;
         }
-        const expandState = loadTreeExpandState();
-        const blocks = [];
-        for (const section of roots) {
-            blocks.push(await renderTreeNode(section, 0, expandState, false));
+        const root = document.getElementById('contentRoot');
+        root.className = 'page';
+        root.innerHTML = '<h1 class="page-title">Corsi</h1><p>Nessuna sezione disponibile. Scegli una voce dalla sidebar quando sarà presente.</p>';
+    }
+
+    const LOCAL_FONTS_MANIFEST = '/corsi/fonts/manifest.json?v=1';
+    const LOCAL_FONTS_CSS = '/corsi/fonts/editor-fonts.css?v=1';
+
+    let EDITOR_FONTS = [
+        { id: '', label: 'Predefinito', family: '', source: 'system' },
+    ];
+
+    async function loadEditorFontsCatalog() {
+        try {
+            const res = await fetch(LOCAL_FONTS_MANIFEST);
+            if (!res.ok) return;
+            const data = await res.json();
+            const local = (data.fonts || []).map((f) => ({
+                id: f.id,
+                label: f.label,
+                family: f.family,
+                source: 'local',
+            }));
+            if (!local.length) return;
+            EDITOR_FONTS = [
+                { id: '', label: 'Predefinito', family: '', source: 'system' },
+                ...local,
+            ];
+        } catch (_) { /* mantieni solo Predefinito */ }
+    }
+
+    function fontSelectOptionsHtml() {
+        const local = EDITOR_FONTS.filter((f) => f.source === 'local');
+        const def = EDITOR_FONTS.find((f) => f.source === 'system');
+        const opt = (f) => `<option value="${escapeHtml(f.family)}"${f.family ? ` style="font-family:${escapeHtml(f.family)}"` : ''}>${escapeHtml(f.label)}</option>`;
+        if (!local.length) return opt(def);
+        return [
+            opt(def),
+            `<optgroup label="Font del progetto">${local.map(opt).join('')}</optgroup>`,
+        ].join('');
+    }
+
+    function ensureEditorFonts() {
+        if (document.getElementById('corsiEditorFonts')) return;
+        const link = document.createElement('link');
+        link.id = 'corsiEditorFonts';
+        link.rel = 'stylesheet';
+        link.href = LOCAL_FONTS_CSS;
+        document.head.appendChild(link);
+    }
+
+    function applyFontFamily(family) {
+        saveColorSelection();
+        prepareColorCommand();
+        const host = colorPickerState.capture && colorPickerState.capture.host;
+        if (host && host.hasAttribute('data-edit-title')) {
+            if (!family) {
+                host.style.fontFamily = '';
+                if (!(host.getAttribute('style') || '').trim()) host.removeAttribute('style');
+            } else {
+                host.style.fontFamily = family;
+            }
+            return;
         }
-        root.innerHTML = `<div class="posts-list manage-hierarchy">${blocks.join('')}</div>`;
-        wireTreeToggles(root);
-        renderChartsIn(root);
+        try { document.execCommand('styleWithCSS', false, true); } catch (_) { /* ignore */ }
+        if (!family) {
+            applyFontFamilyFallback('inherit');
+            return;
+        }
+        const ok = document.execCommand('fontName', false, family);
+        if (!ok) applyFontFamilyFallback(family);
+    }
+
+    function applyFontFamilyFallback(family) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0).cloneRange();
+        if (range.collapsed) {
+            const span = document.createElement('span');
+            span.style.fontFamily = family;
+            const zw = document.createTextNode('\u200b');
+            span.appendChild(zw);
+            range.insertNode(span);
+            const next = document.createRange();
+            next.setStart(zw, 1);
+            next.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(next);
+            if (colorPickerState.capture) colorPickerState.capture.range = next.cloneRange();
+            return;
+        }
+        const span = document.createElement('span');
+        span.style.fontFamily = family;
+        try {
+            range.surroundContents(span);
+        } catch (_) {
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+        }
     }
 
     function toolbarHtml() {
@@ -555,8 +728,29 @@
                 <button type="button" data-cmd="bold" title="Grassetto"><b>G</b></button>
                 <button type="button" data-cmd="italic" title="Corsivo"><i>C</i></button>
                 <button type="button" data-cmd="underline" title="Sottolineato"><u>S</u></button>
-                <input type="color" id="edColor" value="#ff0000" title="Colore testo">
-                <button type="button" data-cmd="foreColor" title="Applica colore">A<span class="tb-color-bar" id="edColorBar"></span></button>
+                <label class="tb-font-wrap" title="Carattere">
+                    <span class="visually-hidden">Carattere</span>
+                    <select id="edFont" class="tb-font-select" aria-label="Carattere">
+                        ${fontSelectOptionsHtml()}
+                    </select>
+                </label>
+                <span class="tb-color-split" data-color-kind="bg">
+                    <button type="button" class="tb-color-btn" data-cmd="bgColor" title="Applica colore di sfondo">
+                        <svg class="tb-fill-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 9.2 8.6 2.8l3.4 3.4-6.4 6.4c-.8.8-2 .8-2.8 0-.8-.8-.8-2 0-2.8z"/><path d="M11.6 7.6c1.2 1.6 2.6 1.4 3.2.4"/></svg>
+                        <span class="tb-color-bar" id="edBgBar"></span>
+                    </button>
+                    <button type="button" class="tb-color-arrow" data-cmd="bgColorMenu" title="Scegli colore di sfondo" aria-haspopup="dialog" aria-label="Scegli colore di sfondo">
+                        <span class="tb-color-caret" aria-hidden="true"></span>
+                    </button>
+                </span>
+                <span class="tb-color-split" data-color-kind="fg">
+                    <button type="button" class="tb-color-btn" data-cmd="foreColor" title="Applica colore del testo">
+                        A<span class="tb-color-bar" id="edColorBar"></span>
+                    </button>
+                    <button type="button" class="tb-color-arrow" data-cmd="foreColorMenu" title="Scegli colore del testo" aria-haspopup="dialog" aria-label="Scegli colore del testo">
+                        <span class="tb-color-caret" aria-hidden="true"></span>
+                    </button>
+                </span>
                 <span class="tb-sep"></span>
                 <button type="button" data-cmd="insertUnorderedList" title="Elenco puntato">• Elenco</button>
                 <button type="button" data-cmd="insertOrderedList" title="Elenco numerato">1. Elenco</button>
@@ -564,6 +758,7 @@
                 <button type="button" data-cmd="image" title="Carica e inserisci un'immagine">🖼 Immagine</button>
                 <button type="button" data-cmd="chart" title="Inserisci un grafico">📊 Grafico</button>
                 <button type="button" data-cmd="table" title="Inserisci una tabella">▦ Tabella</button>
+                <button type="button" data-cmd="codeBlock" title="Inserisci un blocco codice Markdown">{} Codice</button>
                 <span class="tb-table-tools" id="edTableTools" hidden>
                     <span class="tb-sep"></span>
                     <button type="button" data-cmd="tableAddRow" title="Aggiungi riga sotto">+ Riga</button>
@@ -571,31 +766,43 @@
                     <button type="button" data-cmd="tableAddCol" title="Aggiungi colonna a destra">+ Col</button>
                     <button type="button" data-cmd="tableDelCol" title="Elimina colonna">− Col</button>
                 </span>
+                <span class="tb-sep"></span>
+                <button type="button" data-cmd="plainText" title="Esci dal blocco codice e torna al testo normale">Testo normale</button>
                 <input type="file" id="edImageFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;">
             </div>
         `;
     }
 
+    function manageHeadHtml() {
+        return `
+            <header class="manage-page-head">
+                <h1 class="page-title">Gestione contenuti</h1>
+                <button type="button" class="btn-new-section" id="btnNewSection">Nuova sezione</button>
+            </header>
+        `;
+    }
+
     function inlineEditChromeHtml() {
         return `
-            <p class="inline-edit-hint">Clicca su titolo o testo per modificare. «Salva» (o Ctrl+S) salva tutte le sezioni e sottosezioni.</p>
+            <p class="inline-edit-hint">Clicca su titolo o testo per modificare. «Salva» registra solo le sezioni che hai cambiato. Gli avvisi in alto ti segnalano se un collega entra in Gestione contenuti o salva modifiche.</p>
             <div class="inline-edit-bar">
                 ${toolbarHtml()}
                 <div class="inline-edit-actions">
                     <button type="button" class="btn-primary" id="btnInlineSave">Salva</button>
+                    <button type="button" class="btn-sm" id="btnInlineReload">Ricarica</button>
                     <span id="editorMsg" class="editor-hint"></span>
                 </div>
             </div>
         `;
     }
 
-    async function renderEditableTree(node, depth) {
+    async function renderEditableTree(node, depth, includeChildren = true) {
         const titleTag = depth <= 0 ? 'h1' : (depth === 1 ? 'h2' : 'h3');
         const kids = contentNodes(node.children);
         let childrenHtml = '';
-        if (kids.length) {
+        if (includeChildren && kids.length) {
             const parts = [];
-            for (const k of kids) parts.push(await renderEditableTree(k, depth + 1));
+            for (const k of kids) parts.push(await renderEditableTree(k, depth + 1, true));
             childrenHtml = `<div class="inline-doc-children">${parts.join('')}</div>`;
         }
         return `
@@ -629,13 +836,20 @@
             return;
         }
         try {
-            const { meta, body } = await loadMarkdown(node.file || `${node.id}.md`);
+            const { meta, body, titleStyle } = await loadContent(node.id);
             titleEl.textContent = meta.title || node.title || id;
+            if (titleStyle) titleEl.setAttribute('style', titleStyle);
+            else titleEl.removeAttribute('style');
             bodyEl.innerHTML = markdownToEditorHtml(body);
             bodyEl.querySelectorAll('.chart-edit-block').forEach(paintChartBlock);
+            highlightCodeIn(bodyEl);
+            if (meta.updatedAt) art.dataset.editUpdatedAt = meta.updatedAt;
+            else art.removeAttribute('data-edit-updated-at');
+            markArticleBaseline(art);
         } catch (_) {
             titleEl.textContent = node.title || id;
             bodyEl.innerHTML = '<p class="corsi-error">Contenuto non disponibile.</p>';
+            markArticleBaseline(art);
         }
         prepareEditableTables(art);
     }
@@ -663,6 +877,56 @@
             if (body) return body;
         }
         return document.getElementById('edWysiwyg');
+    }
+
+    function articleEditFingerprint(art) {
+        const titleEl = directEditChild(art, 'data-edit-title');
+        const bodyEl = directEditChild(art, 'data-edit-body');
+        if (!titleEl || !bodyEl) return '';
+        return (titleEl.textContent || '') + '\n---\n' + editorHtmlToStored(bodyEl);
+    }
+
+    function markArticleBaseline(art) {
+        if (!art) return;
+        art.dataset.editBaseline = articleEditFingerprint(art);
+        art.removeAttribute('data-edit-dirty');
+    }
+
+    function isArticleDirty(art) {
+        if (!art) return false;
+        if (art.dataset.editDirty === '1') return true;
+        const base = art.dataset.editBaseline;
+        if (base == null) return true;
+        return articleEditFingerprint(art) !== base;
+    }
+
+    function wireEditDirtyTracking(rootEl) {
+        if (!rootEl || rootEl.dataset.dirtyWired) return;
+        rootEl.dataset.dirtyWired = '1';
+        rootEl.addEventListener('input', (e) => {
+            const art = e.target.closest && e.target.closest('[data-edit-id]');
+            if (art) art.dataset.editDirty = '1';
+        });
+    }
+
+    async function reloadEditableContent() {
+        invalidateCache();
+        await reloadManifest();
+        buildSidebar(true);
+        const root = document.getElementById('contentRoot');
+        const tree = root && root.querySelector('.inline-edit-tree');
+        if (!tree) return;
+        const activeId = getActiveEditArticle()?.getAttribute('data-edit-id');
+        const articles = [...tree.querySelectorAll('[data-edit-id]')];
+        for (const art of articles) await hydrateEditableArticle(art);
+        highlightCodeIn(tree);
+        ensureCodeHighlighting();
+        if (activeId) {
+            tree.querySelectorAll('.inline-doc.is-active').forEach((el) => el.classList.remove('is-active'));
+            const art = tree.querySelector('[data-edit-id="' + CSS.escape(activeId) + '"]');
+            if (art) art.classList.add('is-active');
+        }
+        setEditorMsg('Contenuti ricaricati dal server.');
     }
 
     function wireEditFocusTracking(rootEl) {
@@ -697,50 +961,45 @@
         });
     }
 
+    async function renderReadTree(node, depth) {
+        const { meta, body, titleStyle } = await loadContent(node.id);
+        const title = meta.title || node.title;
+        const tag = depth <= 0 ? 'h1' : (depth === 1 ? 'h2' : 'h3');
+        const titleClass = depth <= 0 ? 'post-title' : 'post-title nest-title';
+        const titleStyleAttr = titleStyle ? ` style="${escapeHtml(titleStyle)}"` : '';
+        let html = `<section class="corsi-section depth-${depth}" id="sec-${escapeHtml(node.id)}">`;
+        html += `<${tag} class="${titleClass}"${titleStyleAttr}>${escapeHtml(title)}</${tag}>`;
+        html += `<div class="corsi-section-body">${bodyToDisplayHtml(body)}</div>`;
+        html += '</section>';
+        return html;
+    }
+
     async function renderDoc(entry, { manageMode }) {
         const root = document.getElementById('contentRoot');
         root.className = 'post';
         try {
-            const { meta, body } = await loadMarkdown(entry.file || `${entry.id}.md`);
-            const title = meta.title || entry.title;
-            const open = isNodeOpen(entry.id, loadTreeExpandState());
             const entryDepth = ancestorIdsOf(entry.id).length;
-            const kids = contentNodes(entry.children);
 
             if (manageMode) {
                 root.innerHTML = `
                     ${inlineEditChromeHtml()}
-                    <div class="inline-edit-tree">${await renderEditableTree(entry, entryDepth)}</div>
+                    <div class="inline-edit-tree">${await renderEditableTree(entry, entryDepth, false)}</div>
                 `;
                 await hydrateEditableTree(root);
+                highlightCodeIn(root);
+                ensureCodeHighlighting();
                 wireToolbar();
                 wireInlineTreeSave();
                 wireEditFocusTracking(root);
+                wireEditDirtyTracking(root);
                 wireManageTreeActions(root);
                 return;
             }
 
-            let html = `
-                <div class="manage-level is-collapsible${open ? ' is-open' : ' is-collapsed'}" data-tree-id="${escapeHtml(entry.id)}">
-                    <div class="manage-level-row">
-                        ${manageToggleHtml(open)}
-                        <div class="manage-level-body">
-                            <h1 class="post-title">${escapeHtml(title)}</h1>
-            `;
-            html += `<div class="manage-collapsible"><div class="collapsible-inner">`;
-            html += `${renderMarkdown(body)}`;
-            if (kids.length) {
-                const expandState = loadTreeExpandState();
-                const nested = [];
-                for (const k of kids) {
-                    nested.push(await renderTreeNode(k, entryDepth + 1, expandState, false));
-                }
-                html += `<div class="posts-list manage-hierarchy section-children">${nested.join('')}</div>`;
-            }
-            html += `</div></div></div></div></div>`;
-            root.innerHTML = html;
-            wireTreeToggles(root);
+            root.innerHTML = await renderReadTree(entry, entryDepth);
             renderChartsIn(root);
+            highlightCodeIn(root);
+            ensureCodeHighlighting();
         } catch (_) {
             root.innerHTML = `<h1 class="page-title">Errore</h1><p class="corsi-error">Impossibile caricare il contenuto richiesto.</p>`;
         }
@@ -765,7 +1024,7 @@
         const titleEl = directEditChild(art, 'data-edit-title');
         const bodyEl = directEditChild(art, 'data-edit-body');
         const title = (titleEl?.textContent || '').trim();
-        const content = editorHtmlToStored(bodyEl);
+        const content = wrapTitleStyle(titleEl && titleEl.getAttribute('style'), editorHtmlToStored(bodyEl));
         const type = (entry && entry.type) || art.getAttribute('data-edit-type') || 'section';
         const date = (entry && entry.date) || todayIsoDate();
         return {
@@ -773,12 +1032,14 @@
             entry,
             title,
             bodyEl,
+            art,
             payload: {
                 id,
                 title,
                 type,
                 date,
                 content,
+                expectedUpdatedAt: art.getAttribute('data-edit-updated-at') || '',
             },
         };
     }
@@ -791,12 +1052,13 @@
             seen.add(id);
             return true;
         });
-        if (!articles.length) {
-            setEditorMsg('Nessuna sezione da salvare.', true);
+        const dirtyArticles = articles.filter(isArticleDirty);
+        if (!dirtyArticles.length) {
+            setEditorMsg('Nessuna modifica da salvare.');
             return;
         }
 
-        const prepared = articles.map(payloadFromEditableArticle);
+        const prepared = dirtyArticles.map(payloadFromEditableArticle);
         for (const item of prepared) {
             if (!item.title) {
                 setEditorMsg('Ogni sezione deve avere un titolo. Controlla: ' + (item.id || 'senza id'), true);
@@ -807,7 +1069,7 @@
 
         const btn = document.getElementById('btnInlineSave');
         if (btn) btn.disabled = true;
-        setEditorMsg('Salvataggio di ' + prepared.length + ' sezioni...');
+        setEditorMsg('Salvataggio di ' + prepared.length + ' sezion' + (prepared.length === 1 ? 'e' : 'i') + '...');
         try {
             const data = await apiJson(API + '/bulk', {
                 method: 'PUT',
@@ -818,12 +1080,19 @@
             if (data && data.manifest) manifest = data.manifest;
             prepared.forEach((item) => {
                 if (item.entry) item.entry.title = item.title;
+                if (item.art) markArticleBaseline(item.art);
             });
             buildSidebar(true);
-            setActiveNav(currentRoute());
-            setEditorMsg('Salvato tutto (' + (data.count || prepared.length) + ' sezioni).');
+            const stayId = (getActiveEditArticle() && getActiveEditArticle().getAttribute('data-edit-id'))
+                || (prepared[0] && prepared[0].id)
+                || null;
+            goReadOnly(stayId);
         } catch (err) {
-            setEditorMsg(err.message, true);
+            if (err.status === 409) {
+                setEditorMsg((err.message || 'Conflitto con un altro docente.') + ' Clicca «Ricarica» per aggiornare.', true);
+            } else {
+                setEditorMsg(err.message, true);
+            }
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -836,6 +1105,14 @@
             e.preventDefault();
             saveAllEditableArticles();
         };
+        const reloadBtn = document.getElementById('btnInlineReload');
+        if (reloadBtn && !reloadBtn.dataset.wired) {
+            reloadBtn.dataset.wired = '1';
+            reloadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                reloadEditableContent();
+            });
+        }
         if (window._corsiInlineSaveKey) {
             document.removeEventListener('keydown', window._corsiInlineSaveKey);
         }
@@ -866,6 +1143,30 @@
         return opts.join('');
     }
 
+    async function renderManageSection(node) {
+        const root = document.getElementById('contentRoot');
+        root.className = 'posts';
+        const depth = ancestorIdsOf(node.id).length;
+        root.innerHTML = `
+            <div class="manage-sticky-chrome">
+                ${manageHeadHtml()}
+                ${inlineEditChromeHtml()}
+            </div>
+            <div class="inline-edit-tree" data-view="single">${await renderEditableTree(node, depth, false)}</div>
+        `;
+        await hydrateEditableTree(root);
+        highlightCodeIn(root);
+        ensureCodeHighlighting();
+        wireToolbar();
+        wireInlineTreeSave();
+        wireEditFocusTracking(root);
+        wireEditDirtyTracking(root);
+        wireManageTreeActions(root);
+        wireNewSectionButton();
+        syncStickyScrollMargin();
+        highlightAndScrollEdit(node.id);
+    }
+
     async function renderManageIndex() {
         const root = document.getElementById('contentRoot');
         root.className = 'posts';
@@ -875,40 +1176,32 @@
             blocks.push(await renderEditableTree(section, 0));
         }
         root.innerHTML = `
-            <div class="page" style="margin-bottom:1rem;">
-                <h1 class="page-title">Gestione contenuti</h1>
-                <div class="editor-actions" style="margin:0.5rem 0 0.75rem;">
-                    <a class="btn-sm btn-primary" href="#new" style="display:inline-block;padding:0.45rem 0.9rem;border:1px solid #000;background:#000;color:#fff;border-radius:3px;text-decoration:none;">Nuova sezione</a>
-                </div>
+            <div class="manage-sticky-chrome">
+                ${manageHeadHtml()}
+                ${inlineEditChromeHtml()}
             </div>
-            ${inlineEditChromeHtml()}
             <div class="inline-edit-tree">${blocks.join('') || '<p>Nessuna sezione. Crea la prima.</p>'}</div>
         `;
         await hydrateEditableTree(root);
+        highlightCodeIn(root);
+        ensureCodeHighlighting();
         wireToolbar();
         wireInlineTreeSave();
         wireEditFocusTracking(root);
+        wireEditDirtyTracking(root);
         wireManageTreeActions(root);
+        wireNewSectionButton();
+        syncStickyScrollMargin();
     }
 
     async function renderManage(route) {
         if (!canEdit) { window.location.replace(READ_ONLY_URL); return; }
-        const { segs, qs } = parseRoute(route === 'index' ? '' : route);
+        const { segs } = parseRoute(route === 'index' ? '' : route);
         const action = segs[0] || '';
 
         if (action === 'new') {
-            const parentId = qs.get('parent') || '';
-            document.getElementById('contentRoot').className = 'page';
-            document.getElementById('contentRoot').innerHTML = editorHtml({
-                mode: 'create',
-                id: '',
-                title: '',
-                date: new Date().toISOString().slice(0, 10),
-                type: parentId ? 'section' : 'course',
-                parentId,
-                content: 'Scrivi qui il contenuto della sezione.\n',
-            });
-            wireEditor('create', null, 'Scrivi qui il contenuto della sezione.\n');
+            if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+            await renderManageIndex();
             return;
         }
 
@@ -921,14 +1214,34 @@
             ? segs[1]
             : (action && action !== 'index' && action !== 'view' && action !== 'edit' && action !== 'new' ? action : null);
 
-        const treeReady = document.querySelector('.inline-edit-tree [data-edit-id]');
-        if (treeReady) {
-            highlightAndScrollEdit(focusId);
-            return;
+        if (focusId) {
+            const node = findNodeById(focusId);
+            if (node) {
+                await renderManageSection(node);
+                return;
+            }
         }
 
         await renderManageIndex();
-        highlightAndScrollEdit(focusId);
+    }
+
+    const STICKY_SCROLL_GAP = 12;
+
+    function getStickyScrollOffset() {
+        const chrome = document.querySelector('.manage-sticky-chrome');
+        if (!chrome) return STICKY_SCROLL_GAP;
+        return Math.ceil(chrome.getBoundingClientRect().height) + STICKY_SCROLL_GAP;
+    }
+
+    function syncStickyScrollMargin() {
+        if (!IS_MANAGE_PAGE) return;
+        document.documentElement.style.setProperty('--corsi-sticky-offset', getStickyScrollOffset() + 'px');
+    }
+
+    function scrollBelowStickyHeader(el, behavior) {
+        if (!el) return;
+        const y = window.scrollY + el.getBoundingClientRect().top - getStickyScrollOffset();
+        window.scrollTo({ top: Math.max(0, y), behavior: behavior || 'auto' });
     }
 
     function highlightAndScrollEdit(id) {
@@ -939,7 +1252,8 @@
         const art = [...root.querySelectorAll('[data-edit-id]')].find((el) => el.getAttribute('data-edit-id') === id);
         if (!art) return;
         art.classList.add('is-active');
-        art.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        syncStickyScrollMargin();
+        requestAnimationFrame(() => scrollBelowStickyHeader(art, 'smooth'));
     }
 
     function editorHtml(state) {
@@ -965,6 +1279,9 @@
                 <p class="editor-hint">Lascia vuoto per una sezione di livello 1; scegli un padre per le sottosezioni.</p>
         `;
         return `
+            <div class="manage-sticky-chrome">
+                ${manageHeadHtml()}
+            </div>
             <h1 class="page-title">${heading}</h1>
             <p><a href="${MANAGE_URL}">← Torna alla gestione</a></p>
             <form id="editorForm" class="editor-form editor-form--wysiwyg">
@@ -1001,7 +1318,7 @@
         labels: ['Gennaio', 'Febbraio', 'Marzo'],
         datasets: [{ label: 'Serie 1', data: [10, 25, 18] }],
     };
-    const CHART_PALETTE = ['#268bd2', '#ac4142', '#90a959', '#f4bf75', '#aa759f', '#75b5aa', '#d28445', '#6a9fb5'];
+    const CHART_PALETTE = ['#0070C0', '#FFC000', '#FF0000'];
     const CHART_TYPES = new Set(['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea']);
     const CHART_TYPE_OPTIONS = [
         { value: 'bar', label: 'Barre' },
@@ -1031,7 +1348,7 @@
     }
 
     function withAlpha(hex, alpha) {
-        const c = normalizeHexColor(hex, '#268bd2');
+        const c = normalizeHexColor(hex, '#0070C0');
         return c + alpha;
     }
 
@@ -1157,6 +1474,19 @@
         modal.dataset.chartKind = isCircularChartType(type) ? 'circular' : 'series';
     }
 
+    function chartColorSplitHtml(kindClass, value, index, ariaLabel) {
+        const hex = normalizeHexColor(value, defaultSeriesColor(index || 0));
+        return `
+            <span class="tb-color-split chart-color-split">
+                <input type="hidden" class="${kindClass}" value="${escapeHtml(hex)}">
+                <button type="button" class="chart-color-swatch-btn" data-cmd="chartColor" style="background:${escapeHtml(hex)}" title="Applica ultimo colore" aria-label="${escapeHtml(ariaLabel)}"></button>
+                <button type="button" class="tb-color-arrow" data-cmd="chartColorMenu" title="Scegli colore" aria-haspopup="dialog" aria-label="Scegli ${escapeHtml(ariaLabel)}">
+                    <span class="tb-color-caret" aria-hidden="true"></span>
+                </button>
+            </span>
+        `;
+    }
+
     function buildChartDataTableHtml(cfg) {
         const labels = cfg.labels.length ? cfg.labels : ['Categoria 1'];
         const datasets = cfg.datasets.length ? cfg.datasets : [{ label: 'Serie 1', data: labels.map(() => 0), color: defaultSeriesColor(0) }];
@@ -1164,7 +1494,7 @@
         const headCells = labels.map((lab, i) => `
             <th>
                 <div class="chart-cat-cell">
-                    <input type="color" class="chart-cat-color" value="${escapeHtml(normalizeHexColor(categoryColors[i], defaultSeriesColor(i)))}" title="Colore categoria" aria-label="Colore categoria ${i + 1}">
+                    ${chartColorSplitHtml('chart-cat-color', categoryColors[i], i, 'Colore categoria ' + (i + 1))}
                     <input type="text" class="chart-cat-label" value="${escapeHtml(lab)}" aria-label="Categoria ${i + 1}">
                     <button type="button" class="chart-cat-remove" title="Rimuovi categoria" data-cat="${i}" ${labels.length <= 1 ? 'disabled' : ''}>×</button>
             </div>
@@ -1178,7 +1508,7 @@
                 <tr>
                     <th scope="row">
                         <div class="chart-series-cell">
-                            <input type="color" class="chart-series-color" value="${escapeHtml(normalizeHexColor(d.color, defaultSeriesColor(ri)))}" title="Colore serie" aria-label="Colore serie">
+                            ${chartColorSplitHtml('chart-series-color', d.color, ri, 'Colore serie')}
                             <input type="text" class="chart-series-name" value="${escapeHtml(d.label)}" aria-label="Nome serie">
                             <button type="button" class="chart-series-remove" title="Rimuovi serie" ${datasets.length <= 1 ? 'disabled' : ''}>×</button>
                         </div>
@@ -1213,7 +1543,7 @@
 
     function ensureChartModal() {
         let modal = document.getElementById('chartModal');
-        if (modal && modal.dataset.chartUi !== 'colors-1') {
+        if (modal && modal.dataset.chartUi !== 'colors-2') {
             destroyChartPreview();
             modal.remove();
             modal = null;
@@ -1222,7 +1552,7 @@
         modal = document.createElement('div');
         modal.id = 'chartModal';
         modal.className = 'corsi-modal chart-modal';
-        modal.dataset.chartUi = 'colors-1';
+        modal.dataset.chartUi = 'colors-2';
         modal.style.display = 'none';
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
@@ -1299,6 +1629,20 @@
             syncChartGridFromState(modal);
         });
         modal.querySelector('#chartDataWrap').addEventListener('click', (e) => {
+            const colorBtn = e.target.closest('[data-cmd="chartColor"], [data-cmd="chartColorMenu"]');
+            if (colorBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const split = colorBtn.closest('.chart-color-split');
+                if (!split) return;
+                if (colorBtn.dataset.cmd === 'chartColorMenu') {
+                    openColorPicker('fg', split, { chartEl: split });
+                } else {
+                    applyChartTargetColor(split, colorPickerState.chartLast || '#FF0000');
+                    closeColorPicker();
+                }
+                return;
+            }
             const catBtn = e.target.closest('.chart-cat-remove');
             const serBtn = e.target.closest('.chart-series-remove');
             if (catBtn) {
@@ -1339,6 +1683,7 @@
     }
 
     function closeChartModal() {
+        closeColorPicker();
         const modal = document.getElementById('chartModal');
         if (!modal) return;
         destroyChartPreview();
@@ -1430,6 +1775,10 @@
 
     let _turndown = null;
     function getTurndown() {
+        if (window.CorsiExport && typeof window.CorsiExport.getTurndown === 'function') {
+            const shared = window.CorsiExport.getTurndown();
+            if (shared) return shared;
+        }
         if (_turndown) return _turndown;
         if (typeof TurndownService === 'undefined') return null;
         _turndown = new TurndownService({
@@ -1449,8 +1798,29 @@
                 return color ? `<span style="color:${color}">${content}</span>` : content;
             },
         });
+        _turndown.addRule('fontFamilySpan', {
+            filter: (node) => node.nodeName === 'SPAN' && node.getAttribute('style') && /font-family\s*:/i.test(node.getAttribute('style')),
+            replacement: (content, node) => {
+                const style = String(node.getAttribute('style') || '');
+                const fm = style.match(/font-family\s*:\s*([^;]+)/i);
+                const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+                const parts = [];
+                if (fm) parts.push('font-family:' + fm[1].trim());
+                if (cm) parts.push('color:' + cm[1].trim());
+                return parts.length ? `<span style="${parts.join(';')}">${content}</span>` : content;
+            },
+        });
+        _turndown.addRule('fontFace', {
+            filter: (node) => node.nodeName === 'FONT' && (node.getAttribute('face') || node.getAttribute('color')),
+            replacement: (content, node) => {
+                const parts = [];
+                if (node.getAttribute('face')) parts.push('font-family:' + node.getAttribute('face'));
+                if (node.getAttribute('color')) parts.push('color:' + node.getAttribute('color'));
+                return parts.length ? `<span style="${parts.join(';')}">${content}</span>` : content;
+            },
+        });
         _turndown.addRule('fontColor', {
-            filter: (node) => node.nodeName === 'FONT' && node.getAttribute('color'),
+            filter: (node) => node.nodeName === 'FONT' && node.getAttribute('color') && !node.getAttribute('face'),
             replacement: (content, node) => `<span style="color:${node.getAttribute('color')}">${content}</span>`,
         });
         _turndown.addRule('chartBlock', {
@@ -1539,13 +1909,38 @@
         });
     }
 
+    function extractTitleStyle(raw) {
+        const s = String(raw || '');
+        const m = s.match(/^<!--corsi-title-style:([^>]*?)-->\s*/);
+        if (!m) return { style: '', body: s };
+        let style = '';
+        try { style = decodeURIComponent(m[1]); } catch (_) { style = ''; }
+        return { style, body: s.slice(m[0].length) };
+    }
+
+    function wrapTitleStyle(style, body) {
+        const st = String(style || '').trim();
+        if (!st) return body;
+        return `<!--corsi-title-style:${encodeURIComponent(st)}-->` + body;
+    }
+
     function looksLikeHtml(md) {
         return /<(p|div|table|h[1-6]|ul|ol|li|img|span|blockquote|pre|figure|thead|tbody|tr|td|th)\b/i.test(md || '');
     }
 
+    /** Se tutto il contenuto è un fence senza linguaggio, era quasi sempre un errore di battitura. */
+    function unwrapWholeDocumentFence(md) {
+        const s = String(md || '').trim();
+        const m = s.match(/^```([a-zA-Z0-9_-]*)[ \t]*\n([\s\S]*?)\n```$/);
+        if (!m) return md;
+        const lang = (m[1] || '').toLowerCase();
+        if (lang && lang !== 'text' && lang !== 'plain') return md;
+        return m[2];
+    }
+
     function markdownToEditorHtml(md) {
         const wrap = document.createElement('div');
-        const raw = md || '';
+        const raw = unwrapWholeDocumentFence(md || '');
         wrap.innerHTML = looksLikeHtml(raw)
             ? raw
             : (renderMarkdown(raw) || '<p></p>');
@@ -1554,6 +1949,14 @@
             if (!pre) return;
             pre.replaceWith(buildChartEditBlock(code.textContent.trim()));
         });
+        wrap.querySelectorAll('pre').forEach((pre) => {
+            if (!pre.nextElementSibling) {
+                const p = document.createElement('p');
+                p.innerHTML = '<br>';
+                pre.after(p);
+            }
+        });
+        stripCodeThemeBars(wrap);
         return wrap.innerHTML || '<p></p>';
     }
 
@@ -1563,6 +1966,8 @@
         surface.innerHTML = markdownToEditorHtml(md);
         surface.querySelectorAll('.chart-edit-block').forEach(paintChartBlock);
         prepareEditableTables(surface);
+        highlightCodeIn(surface);
+        ensureCodeHighlighting();
     }
 
     function editorHtmlToStored(surfaceEl) {
@@ -1579,6 +1984,15 @@
             pre.appendChild(code);
             el.replaceWith(pre);
         });
+        clone.querySelectorAll('pre > code').forEach((code) => {
+            if (code.classList.contains('language-chart')) return;
+            const lang = [...code.classList].find((c) => c.startsWith('language-') && c !== 'language-chart');
+            const text = code.textContent;
+            code.className = lang || '';
+            code.removeAttribute('data-highlighted');
+            code.textContent = text;
+        });
+        stripCodeThemeBars(clone);
         return (clone.innerHTML || '').trim() + '\n';
     }
 
@@ -1895,21 +2309,1151 @@
         });
     }
 
+    function getPreFromSelection() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        let node = sel.anchorNode;
+        if (node && node.nodeType === 3) node = node.parentElement;
+        const pre = node && node.closest ? node.closest('pre') : null;
+        if (!pre) return null;
+        if (pre.querySelector('code.language-chart')) return null;
+        const surface = getActiveEditSurface();
+        if (surface && !surface.contains(pre)) return null;
+        return pre;
+    }
+
+    function placeCaretIn(el, atEnd) {
+        const sel = window.getSelection();
+        if (!sel || !el) return;
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(!atEnd);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function insertParagraphAfter(el) {
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        el.after(p);
+        placeCaretIn(p, false);
+        return p;
+    }
+
+    let _hljsConfigured = false;
+    const CODE_THEME_KEY = 'corsiCodeTheme';
+
+    function normalizeCodeTheme(theme) {
+        return theme === 'light' ? 'light' : 'dark';
+    }
+
+    function getDefaultCodeTheme() {
+        try { return normalizeCodeTheme(localStorage.getItem(CODE_THEME_KEY)); }
+        catch (_) { return 'dark'; }
+    }
+
+    function setDefaultCodeTheme(theme) {
+        try { localStorage.setItem(CODE_THEME_KEY, normalizeCodeTheme(theme)); }
+        catch (_) { /* ignore */ }
+    }
+
+    function applyCodeTheme(pre, theme) {
+        if (!pre) return;
+        const t = normalizeCodeTheme(theme);
+        pre.classList.remove('code-theme-dark', 'code-theme-light');
+        pre.classList.add(t === 'light' ? 'code-theme-light' : 'code-theme-dark');
+        pre.setAttribute('data-code-theme', t);
+    }
+
+    function getPreCodeTheme(pre) {
+        if (!pre) return getDefaultCodeTheme();
+        const attr = pre.getAttribute('data-code-theme');
+        return attr ? normalizeCodeTheme(attr) : getDefaultCodeTheme();
+    }
+
+    function applyCodeThemesIn(rootEl) {
+        if (!rootEl) return;
+        rootEl.querySelectorAll('pre').forEach((pre) => {
+            if (pre.closest('.chart-edit-block')) return;
+            const code = pre.querySelector(':scope > code');
+            if (code && isChartCode(code)) return;
+            applyCodeTheme(pre, getPreCodeTheme(pre));
+        });
+    }
+
+    function stripCodeThemeBars(rootEl) {
+        if (!rootEl) return;
+        rootEl.querySelectorAll('.code-block-theme-bar').forEach((bar) => bar.remove());
+    }
+
+    function isEditableCodePre(pre) {
+        if (!pre || pre.closest('.chart-edit-block')) return false;
+        if (!pre.closest('.inline-wysiwyg, .wysiwyg-surface, #edWysiwyg')) return false;
+        const code = pre.querySelector(':scope > code');
+        return !(code && isChartCode(code));
+    }
+
+    function syncCodeThemeBar(bar, pre) {
+        if (!bar || !pre) return;
+        const t = getPreCodeTheme(pre);
+        bar.querySelectorAll('[data-theme]').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.getAttribute('data-theme') === t);
+        });
+    }
+
+    function wireCodeThemeBar(bar, pre) {
+        if (!bar || bar.dataset.wired) return;
+        bar.dataset.wired = '1';
+        bar.querySelectorAll('[data-theme]').forEach((btn) => {
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCodeTheme(btn.getAttribute('data-theme'), { pre });
+                syncCodeThemeBar(bar, pre);
+            });
+        });
+    }
+
+    function ensureCodeThemeBar(pre) {
+        if (!isEditableCodePre(pre)) return null;
+        let bar = pre.previousElementSibling;
+        if (!bar || !bar.classList.contains('code-block-theme-bar')) {
+            bar = document.createElement('div');
+            bar.className = 'code-block-theme-bar';
+            bar.setAttribute('role', 'toolbar');
+            bar.setAttribute('aria-label', 'Tema blocco codice');
+            bar.innerHTML = `
+                <button type="button" data-theme="dark" title="Tema codice scuro">◐ Scuro</button>
+                <button type="button" data-theme="light" title="Tema codice chiaro">◑ Chiaro</button>
+            `;
+            pre.before(bar);
+            wireCodeThemeBar(bar, pre);
+        }
+        syncCodeThemeBar(bar, pre);
+        return bar;
+    }
+
+    function hideAllCodeThemeBars() {
+        document.querySelectorAll('.code-block-theme-bar').forEach((bar) => {
+            bar.classList.remove('is-visible');
+        });
+    }
+
+    function showCodeThemeBarForPre(pre) {
+        if (!isEditableCodePre(pre)) {
+            hideAllCodeThemeBars();
+            return;
+        }
+        hideAllCodeThemeBars();
+        const bar = ensureCodeThemeBar(pre);
+        if (bar) bar.classList.add('is-visible');
+    }
+
+    function updateCodeThemeBarFromSelection() {
+        const pre = getPreFromSelection();
+        if (pre) showCodeThemeBarForPre(pre);
+        else hideAllCodeThemeBars();
+    }
+
+    function removeCodeThemeBar(pre) {
+        const bar = pre && pre.previousElementSibling;
+        if (bar && bar.classList.contains('code-block-theme-bar')) bar.remove();
+    }
+
+    function setCodeTheme(theme, { pre } = {}) {
+        const t = normalizeCodeTheme(theme);
+        setDefaultCodeTheme(t);
+        const target = pre || getPreFromSelection();
+        if (target) {
+            applyCodeTheme(target, t);
+            const code = target.querySelector(':scope > code');
+            if (code && !isChartCode(code)) highlightOneCode(code, true);
+            const bar = target.previousElementSibling;
+            if (bar && bar.classList.contains('code-block-theme-bar')) syncCodeThemeBar(bar, target);
+        }
+    }
+
+    function codeHighlightReady() {
+        if (typeof hljs === 'undefined' || !hljs || typeof hljs.highlightElement !== 'function') return false;
+        if (!_hljsConfigured) {
+            try { hljs.configure({ ignoreUnescapedHTML: true }); } catch (_) { /* ignore */ }
+            _hljsConfigured = true;
+        }
+        return true;
+    }
+
+    function isChartCode(code) {
+        return !!(code && (code.classList.contains('language-chart') || code.closest('.chart-edit-block')));
+    }
+
+    function flattenHighlightedCode(code) {
+        if (!code || isChartCode(code)) return;
+        const lang = [...code.classList].find((c) => c.startsWith('language-') && c !== 'language-chart');
+        const text = code.textContent;
+        code.className = lang || '';
+        code.removeAttribute('data-highlighted');
+        code.textContent = text;
+    }
+
+    function caretTextOffset(root) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || !root) return 0;
+        const range = sel.getRangeAt(0);
+        if (!root.contains(range.startContainer) && root !== range.startContainer) return 0;
+        const pre = document.createRange();
+        pre.selectNodeContents(root);
+        try { pre.setEnd(range.startContainer, range.startOffset); } catch (_) { return 0; }
+        return pre.toString().length;
+    }
+
+    function setCaretTextOffset(root, offset) {
+        if (!root) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        let node;
+        let count = 0;
+        const sel = window.getSelection();
+        while ((node = walker.nextNode())) {
+            const len = node.textContent.length;
+            if (count + len >= offset) {
+                const r = document.createRange();
+                r.setStart(node, Math.max(0, offset - count));
+                r.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(r);
+                return;
+            }
+            count += len;
+        }
+        placeCaretIn(root, true);
+    }
+
+    function highlightOneCode(code, keepCaret) {
+        if (!code || isChartCode(code)) return;
+        const text = code.textContent || '';
+        if (!text.length) return;
+        if (!codeHighlightReady()) return;
+        const caret = keepCaret ? caretTextOffset(code) : null;
+        flattenHighlightedCode(code);
+        const langClass = [...code.classList].find((c) => c.startsWith('language-') && c !== 'language-chart');
+        const lang = langClass ? langClass.slice('language-'.length) : '';
+        try {
+            let result;
+            if (lang && hljs.getLanguage && hljs.getLanguage(lang)) {
+                result = hljs.highlight(text, { language: lang });
+            } else {
+                result = hljs.highlightAuto(text);
+            }
+            code.innerHTML = result.value;
+            code.className = 'hljs' + (result.language ? ' language-' + result.language : '');
+            code.setAttribute('data-highlighted', 'yes');
+        } catch (_) {
+            code.classList.add('hljs');
+        }
+        if (keepCaret && caret != null) setCaretTextOffset(code, caret);
+    }
+
+    function highlightCodeIn(rootEl) {
+        if (!rootEl) return;
+        stripCodeThemeBars(rootEl);
+        applyCodeThemesIn(rootEl);
+        if (!codeHighlightReady()) return;
+        const codes = [];
+        rootEl.querySelectorAll('pre').forEach((pre) => {
+            if (pre.closest('.chart-edit-block')) return;
+            let code = pre.querySelector(':scope > code');
+            if (code && isChartCode(code)) return;
+            if (!code) {
+                code = document.createElement('code');
+                code.textContent = pre.textContent;
+                pre.textContent = '';
+                pre.appendChild(code);
+            }
+            code.spellcheck = false;
+            codes.push(code);
+        });
+        const active = document.activeElement;
+        codes.forEach((code) => {
+            const focused = !!(active && (code === active || code.contains(active)
+                || (code.parentElement && code.parentElement.contains(active))));
+            highlightOneCode(code, focused);
+        });
+    }
+
+    function scheduleCodeHighlight(code) {
+        if (!code || isChartCode(code)) return;
+        clearTimeout(scheduleCodeHighlight._timer);
+        scheduleCodeHighlight._timer = setTimeout(() => highlightOneCode(code, true), 40);
+    }
+
+    function ensureCodeHighlighting() {
+        const root = document.getElementById('contentRoot');
+        if (!root || root.dataset.codeHlWired) return;
+        root.dataset.codeHlWired = '1';
+        const runForEvent = (e) => {
+            const pre = e.target.closest && e.target.closest('pre');
+            if (!pre || pre.closest('.chart-edit-block')) return;
+            const code = pre.querySelector(':scope > code') || pre;
+            if (isChartCode(code)) return;
+            scheduleCodeHighlight(code);
+        };
+        root.addEventListener('input', runForEvent);
+        root.addEventListener('keyup', runForEvent);
+        root.addEventListener('compositionend', runForEvent);
+        if (IS_MANAGE_PAGE) {
+            root.addEventListener('focusin', () => {
+                updateCodeThemeBarFromSelection();
+            });
+            root.addEventListener('focusout', () => {
+                requestAnimationFrame(() => {
+                    if (!getPreFromSelection()) hideAllCodeThemeBars();
+                });
+            });
+        }
+        root.addEventListener('blur', (e) => {
+            const pre = e.target.closest && e.target.closest('pre');
+            if (!pre || pre.closest('.chart-edit-block')) return;
+            const code = pre.querySelector(':scope > code');
+            if (code && !isChartCode(code)) highlightOneCode(code, false);
+        }, true);
+    }
+
+    function insertCodeBlock() {
+        const surface = getActiveEditSurface();
+        if (surface) surface.focus();
+        const existing = getPreFromSelection();
+        if (existing) {
+            placeCaretIn(existing.querySelector('code') || existing, true);
+            showCodeThemeBarForPre(existing);
+            setEditorMsg('Sei già nel blocco codice. Invio su riga vuota in fondo per uscirne.');
+            return;
+        }
+        const sel = window.getSelection();
+        let selected = '';
+        let range = null;
+        if (sel && sel.rangeCount) {
+            range = sel.getRangeAt(0);
+            if (surface && surface.contains(range.commonAncestorContainer) && !sel.isCollapsed) {
+                selected = sel.toString();
+            }
+        }
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.spellcheck = false;
+        code.textContent = selected || '';
+        pre.appendChild(code);
+        applyCodeTheme(pre, getDefaultCodeTheme());
+        const after = document.createElement('p');
+        after.innerHTML = '<br>';
+        if (range && surface && surface.contains(range.commonAncestorContainer)) {
+            range.deleteContents();
+            range.insertNode(after);
+            range.insertNode(pre);
+        } else if (surface) {
+            surface.appendChild(pre);
+            surface.appendChild(after);
+        }
+        placeCaretIn(code, true);
+        highlightOneCode(code, true);
+        showCodeThemeBarForPre(pre);
+        setEditorMsg('Blocco codice: scrivi liberamente. Invio su riga vuota in fondo per tornare al testo.');
+    }
+
+    function convertCodeBlockToPlainText() {
+        const surface = getActiveEditSurface();
+        if (surface) surface.focus();
+        const pre = getPreFromSelection() || (surface && surface.querySelector('pre'));
+        if (!pre) {
+            document.execCommand('formatBlock', false, 'p');
+            setEditorMsg('Formato riportato a testo normale.');
+            hideAllCodeThemeBars();
+            return;
+        }
+        removeCodeThemeBar(pre);
+        const codeEl = pre.querySelector('code');
+        if (codeEl) flattenHighlightedCode(codeEl);
+        const text = String((codeEl || pre).textContent || '').replace(/\n+$/, '');
+        const frag = document.createDocumentFragment();
+        const lines = text.split('\n');
+        (lines.length ? lines : ['']).forEach((line) => {
+            const p = document.createElement('p');
+            if (line) p.textContent = line;
+            else p.innerHTML = '<br>';
+            frag.appendChild(p);
+        });
+        const last = frag.lastChild;
+        pre.replaceWith(frag);
+        hideAllCodeThemeBars();
+        if (last) placeCaretIn(last, true);
+        setEditorMsg('Blocco codice convertito in testo normale.');
+    }
+
+    function caretAtEndOf(el) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || !el) return false;
+        const range = sel.getRangeAt(0).cloneRange();
+        range.selectNodeContents(el);
+        range.setStart(sel.focusNode, sel.focusOffset);
+        return String(range.toString() || '').replace(/\n+$/, '') === '';
+    }
+
+    function ensureCodeBlockExit() {
+        const root = document.getElementById('contentRoot');
+        if (!root || root.dataset.codeExitWired) return;
+        root.dataset.codeExitWired = '1';
+        root.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || e.shiftKey) return;
+            const pre = getPreFromSelection();
+            if (!pre) return;
+            if (!caretAtEndOf(pre)) return;
+            const text = String(pre.innerText || '');
+            const lastLineEmpty = text === '' || /\n[ \t]*$/.test(text);
+            if (!lastLineEmpty || !text.trim()) return;
+            e.preventDefault();
+            const code = pre.querySelector('code') || pre;
+            code.textContent = text.replace(/\n[ \t]*$/, '');
+            insertParagraphAfter(pre);
+        });
+    }
+
+    function getCurrentEditBlock() {
+        const host = colorPickerState.capture && colorPickerState.capture.host;
+        if (host && host.hasAttribute && host.hasAttribute('data-edit-title')) return host;
+        const surface = host || getActiveEditSurface();
+        const sel = window.getSelection();
+        let node = sel && sel.rangeCount ? sel.anchorNode : null;
+        if (!node && colorPickerState.capture && colorPickerState.capture.range) {
+            node = colorPickerState.capture.range.startContainer;
+        }
+        if (!node) return null;
+        if (node.nodeType === 3) node = node.parentElement;
+        if (!node || !surface || !surface.contains(node)) return null;
+        const block = node.closest('p, pre, h1, h2, h3, h4, h5, h6, li, blockquote, div.corsi-bg-block');
+        if (!block || !surface.contains(block) || block === surface) return null;
+        return block;
+    }
+
+    const THEME_BASE_COLORS = [
+        '#FFFFFF', '#000000', '#EEECE1', '#1F4E79', '#5B9BD5',
+        '#ED7D31', '#A5A5A5', '#FFC000', '#4472C4', '#70AD47',
+    ];
+    const STANDARD_COLORS = [
+        '#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050',
+        '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0',
+    ];
+    const colorPickerState = {
+        kind: 'fg',
+        hc: false,
+        fg: '#FF0000',
+        bg: '#FF0000',
+        chartLast: '#FF0000',
+        chartEl: null,
+        capture: null,
+        gradOpen: false,
+    };
+
+    function parseHexColor(hex) {
+        let h = String(hex || '').replace('#', '').trim();
+        if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+        if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+        return {
+            r: parseInt(h.slice(0, 2), 16),
+            g: parseInt(h.slice(2, 4), 16),
+            b: parseInt(h.slice(4, 6), 16),
+        };
+    }
+
+    function toHexColor(r, g, b) {
+        const c = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+        return '#' + c(r) + c(g) + c(b);
+    }
+
+    function mixHex(a, b, t) {
+        const A = parseHexColor(a) || { r: 0, g: 0, b: 0 };
+        const B = parseHexColor(b) || { r: 255, g: 255, b: 255 };
+        return toHexColor(A.r + (B.r - A.r) * t, A.g + (B.g - A.g) * t, A.b + (B.b - A.b) * t);
+    }
+
+    function themeShades(base) {
+        const b = String(base).toUpperCase();
+        if (b === '#FFFFFF') return ['#FFFFFF', '#F2F2F2', '#D8D8D8', '#BFBFBF', '#A5A5A5', '#7F7F7F'];
+        if (b === '#000000') return ['#000000', '#7F7F7F', '#595959', '#3F3F3F', '#262626', '#0C0C0C'];
+        return [
+            base,
+            mixHex(base, '#FFFFFF', 0.8),
+            mixHex(base, '#FFFFFF', 0.6),
+            mixHex(base, '#FFFFFF', 0.4),
+            mixHex(base, '#000000', 0.25),
+            mixHex(base, '#000000', 0.5),
+        ];
+    }
+
+    function themeGridColors() {
+        const cols = THEME_BASE_COLORS.map(themeShades);
+        const out = [];
+        for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < cols.length; c++) out.push(cols[c][r]);
+        }
+        return out;
+    }
+
+    function relativeLuminance(hex) {
+        const rgb = parseHexColor(hex);
+        if (!rgb) return 0;
+        const lin = (n) => {
+            const c = n / 255;
+            return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * lin(rgb.r) + 0.7152 * lin(rgb.g) + 0.0722 * lin(rgb.b);
+    }
+
+    function contrastRatio(a, b) {
+        const l1 = relativeLuminance(a);
+        const l2 = relativeLuminance(b);
+        const hi = Math.max(l1, l2);
+        const lo = Math.min(l1, l2);
+        return (hi + 0.05) / (lo + 0.05);
+    }
+
+    function swatchPassesHc(hex, kind) {
+        if (kind === 'bg') return contrastRatio(hex, '#313131') >= 4.5;
+        return contrastRatio(hex, '#FFFFFF') >= 4.5;
+    }
+
+    function gradientVariations(hex) {
+        const mid = hex || '#5B9BD5';
+        const light = mixHex(mid, '#FFFFFF', 0.72);
+        const dark = mixHex(mid, '#000000', 0.4);
+        return [
+            { css: `linear-gradient(90deg, ${light}, ${mid})`, title: 'Orizzontale chiara' },
+            { css: `linear-gradient(90deg, ${mid}, ${light})`, title: 'Orizzontale inversa' },
+            { css: `linear-gradient(180deg, ${light}, ${mid})`, title: 'Verticale chiara' },
+            { css: `linear-gradient(180deg, ${mid}, ${light})`, title: 'Verticale inversa' },
+            { css: `linear-gradient(135deg, ${light}, ${mid})`, title: 'Diagonale' },
+            { css: `linear-gradient(45deg, ${light}, ${mid})`, title: 'Diagonale inversa' },
+            { css: `linear-gradient(90deg, ${mid}, ${dark})`, title: 'Orizzontale scura' },
+            { css: `linear-gradient(180deg, ${mid}, ${dark})`, title: 'Verticale scura' },
+            { css: `radial-gradient(circle at center, ${light}, ${mid})`, title: 'Dal centro' },
+            { css: `radial-gradient(circle at center, ${mid}, ${dark})`, title: 'Dal centro scura' },
+            { css: `linear-gradient(90deg, ${light}, ${mid}, ${dark})`, title: 'Tre colori orizzontale' },
+            { css: `linear-gradient(180deg, ${light}, ${mid}, ${dark})`, title: 'Tre colori verticale' },
+        ];
+    }
+
+    function currentPickerColor() {
+        if (colorPickerState.chartEl) {
+            const input = colorPickerState.chartEl.querySelector('.chart-cat-color, .chart-series-color');
+            return normalizeHexColor(input && input.value, colorPickerState.chartLast || '#FF0000');
+        }
+        return colorPickerState.kind === 'bg' ? colorPickerState.bg : colorPickerState.fg;
+    }
+
+    function syncToolbarColorBars() {
+        const fgBar = document.getElementById('edColorBar');
+        const bgBar = document.getElementById('edBgBar');
+        if (fgBar) fgBar.style.background = colorPickerState.fg;
+        if (bgBar) bgBar.style.background = colorPickerState.bg;
+    }
+
+    function captureEditorSelection() {
+        const sel = window.getSelection();
+        const active = document.activeElement;
+        let host = null;
+        let range = null;
+        if (sel && sel.rangeCount) {
+            const r = sel.getRangeAt(0);
+            let node = r.commonAncestorContainer;
+            if (node.nodeType === 3) node = node.parentElement;
+            if (node && node.closest) {
+                host = node.closest('[data-edit-title], [data-edit-body], #edWysiwyg, .wysiwyg-surface');
+                if (host) range = r.cloneRange();
+            }
+        }
+        if (!host && active && active.closest) {
+            host = active.closest('[data-edit-title], [data-edit-body], #edWysiwyg, .wysiwyg-surface');
+        }
+        if (!host) {
+            const art = document.querySelector('.inline-doc.is-active[data-edit-id]')
+                || document.querySelector('[data-edit-id]');
+            host = art ? directEditChild(art, 'data-edit-body') : document.getElementById('edWysiwyg');
+        }
+        if (!host) return null;
+        return { host, range };
+    }
+
+    function saveColorSelection() {
+        const cap = captureEditorSelection();
+        if (cap) colorPickerState.capture = cap;
+    }
+
+    function restoreColorSelection() {
+        const cap = colorPickerState.capture;
+        if (!cap || !cap.host) return false;
+        cap.host.focus();
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        if (!cap.range) return true;
+        try {
+            sel.addRange(cap.range);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function prepareColorCommand() {
+        restoreColorSelection();
+        const host = colorPickerState.capture && colorPickerState.capture.host;
+        if (host) host.focus();
+        restoreColorSelection();
+        try { document.execCommand('styleWithCSS', false, true); } catch (_) { /* ignore */ }
+        return colorPickerState.capture;
+    }
+
+    function expandRangeToWord(range) {
+        if (!range.collapsed) return range;
+        const node = range.startContainer;
+        if (node.nodeType !== 3) return range;
+        const text = node.textContent || '';
+        let start = range.startOffset;
+        let end = range.endOffset;
+        while (start > 0 && /\S/.test(text[start - 1])) start -= 1;
+        while (end < text.length && /\S/.test(text[end])) end += 1;
+        if (end > start) {
+            range.setStart(node, start);
+            range.setEnd(node, end);
+        }
+        return range;
+    }
+
+    function unwrapTextFillsInSelection() {
+        const host = (colorPickerState.capture && colorPickerState.capture.host) || getActiveEditSurface();
+        const sel = window.getSelection();
+        if (!host || !sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        host.querySelectorAll('span.corsi-text-fill').forEach((el) => {
+            if (!range.intersectsNode(el)) return;
+            el.classList.remove('corsi-text-fill');
+            el.style.backgroundImage = '';
+            el.style.webkitBackgroundClip = '';
+            el.style.backgroundClip = '';
+            el.style.webkitTextFillColor = '';
+            if (el.style.color === 'transparent') el.style.color = '';
+        });
+    }
+
+    function applyBlockFill(el, color, gradientCss) {
+        if (!el) return;
+        if (gradientCss) {
+            el.style.backgroundImage = gradientCss;
+            if (color) el.style.backgroundColor = color;
+            el.classList.add('corsi-bg-block');
+            return;
+        }
+        el.style.backgroundImage = '';
+        if (!color) {
+            el.style.backgroundColor = '';
+            el.classList.remove('corsi-bg-block');
+            if (!(el.getAttribute('style') || '').trim()) el.removeAttribute('style');
+            return;
+        }
+        el.style.backgroundColor = color;
+        el.classList.add('corsi-bg-block');
+    }
+
+    function applyBlockBackground(color, gradientCss) {
+        prepareColorCommand();
+        let block = getCurrentEditBlock();
+        if (!block) {
+            const host = colorPickerState.capture && colorPickerState.capture.host;
+            if (host && host.hasAttribute('data-edit-title')) block = host;
+            else if (host) {
+                document.execCommand('formatBlock', false, 'p');
+                block = getCurrentEditBlock() || host;
+            }
+        }
+        if (!block) return;
+        applyBlockFill(block, color, gradientCss);
+    }
+
+    function applyForeColorFallback(hex) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0).cloneRange();
+        if (range.collapsed) {
+            const span = document.createElement('span');
+            span.style.color = hex;
+            const zw = document.createTextNode('\u200b');
+            span.appendChild(zw);
+            range.insertNode(span);
+            const next = document.createRange();
+            next.setStart(zw, 1);
+            next.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(next);
+            if (colorPickerState.capture) colorPickerState.capture.range = next.cloneRange();
+            return;
+        }
+        const span = document.createElement('span');
+        span.style.color = hex;
+        try {
+            range.surroundContents(span);
+        } catch (_) {
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+        }
+    }
+
+    function applyForeColor(color) {
+        prepareColorCommand();
+        unwrapTextFillsInSelection();
+        const hex = color || '#313131';
+        const ok = document.execCommand('foreColor', false, hex);
+        if (!ok) applyForeColorFallback(hex);
+    }
+
+    function applyTextGradient(css) {
+        prepareColorCommand();
+        unwrapTextFillsInSelection();
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = expandRangeToWord(sel.getRangeAt(0).cloneRange());
+        if (range.collapsed) {
+            setEditorMsg('Seleziona il testo a cui applicare la sfumatura.');
+            return;
+        }
+        sel.removeAllRanges();
+        sel.addRange(range);
+        const span = document.createElement('span');
+        span.className = 'corsi-text-fill';
+        span.style.backgroundImage = css;
+        span.style.webkitBackgroundClip = 'text';
+        span.style.backgroundClip = 'text';
+        span.style.color = 'transparent';
+        span.style.webkitTextFillColor = 'transparent';
+        try {
+            range.surroundContents(span);
+        } catch (_) {
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+        }
+        const kept = document.createRange();
+        kept.selectNodeContents(span);
+        if (colorPickerState.capture) colorPickerState.capture.range = kept;
+    }
+
+    function chartSplitIndex(split) {
+        if (!split) return 0;
+        if (split.querySelector('.chart-cat-color')) {
+            const cells = [...document.querySelectorAll('#chartDataTable thead .chart-color-split')];
+            const i = cells.indexOf(split);
+            return i < 0 ? 0 : i;
+        }
+        const rows = [...document.querySelectorAll('#chartDataTable tbody tr')];
+        const i = rows.indexOf(split.closest('tr'));
+        return i < 0 ? 0 : i;
+    }
+
+    function applyChartTargetColor(split, color, gradientCss) {
+        if (!split) split = colorPickerState.chartEl;
+        if (!split) return;
+        const hex = normalizeHexColor(color, colorPickerState.chartLast || '#FF0000');
+        const input = split.querySelector('.chart-cat-color, .chart-series-color');
+        const swatch = split.querySelector('.chart-color-swatch-btn');
+        if (input) {
+            input.value = hex;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (swatch) {
+            swatch.style.background = gradientCss || hex;
+            swatch.style.backgroundImage = gradientCss || '';
+        }
+        colorPickerState.chartLast = hex;
+    }
+
+    function applyPickerSolid(color) {
+        if (colorPickerState.chartEl) {
+            applyChartTargetColor(colorPickerState.chartEl, color);
+            closeColorPicker();
+            return;
+        }
+        if (colorPickerState.kind === 'bg') {
+            colorPickerState.bg = color;
+            applyBlockBackground(color);
+        } else {
+            colorPickerState.fg = color;
+            applyForeColor(color);
+        }
+        syncToolbarColorBars();
+        closeColorPicker();
+    }
+
+    function applyPickerAuto() {
+        if (colorPickerState.chartEl) {
+            applyChartTargetColor(colorPickerState.chartEl, defaultSeriesColor(chartSplitIndex(colorPickerState.chartEl)));
+            closeColorPicker();
+            return;
+        }
+        if (colorPickerState.kind === 'bg') {
+            applyBlockBackground('');
+        } else {
+            colorPickerState.fg = '#313131';
+            applyForeColor('#313131');
+        }
+        syncToolbarColorBars();
+        closeColorPicker();
+    }
+
+    function applyPickerGradient(css) {
+        if (colorPickerState.chartEl) {
+            const m = String(css || '').match(/#[0-9a-fA-F]{3,8}/g);
+            const hex = m && m.length
+                ? normalizeHexColor(m[Math.min(1, m.length - 1)], currentPickerColor())
+                : currentPickerColor();
+            applyChartTargetColor(colorPickerState.chartEl, hex, css);
+            closeColorPicker();
+            return;
+        }
+        if (colorPickerState.kind === 'bg') {
+            applyBlockBackground(currentPickerColor(), css);
+        } else {
+            applyTextGradient(css);
+        }
+        closeColorPicker();
+    }
+
+    function clearPickerGradient() {
+        if (colorPickerState.chartEl) {
+            applyChartTargetColor(colorPickerState.chartEl, currentPickerColor(), '');
+            closeColorPicker();
+            return;
+        }
+        restoreColorSelection();
+        if (colorPickerState.kind === 'bg') {
+            const block = getCurrentEditBlock();
+            if (block) block.style.backgroundImage = '';
+        } else {
+            unwrapTextFillsInSelection();
+            applyForeColor(colorPickerState.fg);
+        }
+        closeColorPicker();
+    }
+
+    function swatchButtonHtml(hex, extraClass) {
+        const hc = swatchPassesHc(hex, colorPickerState.kind) ? '1' : '0';
+        const light = relativeLuminance(hex) > 0.85;
+        return `<button type="button" class="corsi-swatch${light ? ' is-light' : ''}${extraClass ? ' ' + extraClass : ''}" data-color="${escapeHtml(hex)}" data-hc-ok="${hc}" style="background:${escapeHtml(hex)}" title="${escapeHtml(hex)}" aria-label="${escapeHtml(hex)}"></button>`;
+    }
+
+    function renderColorSwatches() {
+        const root = document.getElementById('corsiColorPopover');
+        if (!root) return;
+        const theme = document.getElementById('corsiThemeGrid');
+        const standard = document.getElementById('corsiStdGrid');
+        if (theme) theme.innerHTML = themeGridColors().map((hex) => swatchButtonHtml(hex)).join('');
+        if (standard) standard.innerHTML = STANDARD_COLORS.map((hex) => swatchButtonHtml(hex)).join('');
+        root.classList.toggle('is-hc', !!colorPickerState.hc);
+        const autoSwatch = root.querySelector('[data-auto] .corsi-swatch');
+        if (autoSwatch) {
+            if (colorPickerState.chartEl) {
+                const hex = defaultSeriesColor(chartSplitIndex(colorPickerState.chartEl));
+                autoSwatch.style.background = hex;
+                autoSwatch.classList.toggle('is-light', relativeLuminance(hex) > 0.85);
+            } else {
+                autoSwatch.style.background = colorPickerState.kind === 'bg' ? '#ffffff' : '#000000';
+                autoSwatch.classList.toggle('is-light', colorPickerState.kind === 'bg');
+            }
+        }
+        renderGradientVariations();
+    }
+
+    function renderGradientVariations() {
+        const grid = document.getElementById('corsiGradGrid');
+        if (!grid) return;
+        grid.innerHTML = gradientVariations(currentPickerColor()).map((g) => `
+            <button type="button" class="corsi-grad-swatch" data-grad="${escapeHtml(g.css)}" title="${escapeHtml(g.title)}" aria-label="${escapeHtml(g.title)}" style="background-image:${escapeHtml(g.css)}"></button>
+        `).join('');
+    }
+
+    function placeColorPicker(anchor) {
+        const pop = document.getElementById('corsiColorPopover');
+        if (!pop || !anchor) return;
+        const r = anchor.getBoundingClientRect();
+        const width = 272;
+        let left = r.left;
+        if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+        let top = r.bottom + 4;
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
+        pop.hidden = false;
+        requestAnimationFrame(() => {
+            const pr = pop.getBoundingClientRect();
+            if (pr.bottom > window.innerHeight - 8) {
+                pop.style.top = Math.max(8, r.top - pr.height - 4) + 'px';
+            }
+        });
+        placeGradientPanel();
+    }
+
+    function placeGradientPanel() {
+        const pop = document.getElementById('corsiColorPopover');
+        const panel = document.getElementById('corsiGradPanel');
+        const item = document.getElementById('corsiGradMenu');
+        if (!pop || !panel || panel.hidden || !item) return;
+        const pr = pop.getBoundingClientRect();
+        const ir = item.getBoundingClientRect();
+        const width = 232;
+        const height = panel.offsetHeight || 220;
+        let top = ir.top;
+        if (top + height > window.innerHeight - 8) {
+            top = Math.max(8, window.innerHeight - height - 8);
+        }
+        panel.style.top = top + 'px';
+        if (window.innerWidth - pr.right > width + 12) {
+            panel.style.left = (pr.right + 4) + 'px';
+        } else {
+            panel.style.left = Math.max(8, pr.left - width - 4) + 'px';
+        }
+    }
+
+    function setGradientPanelOpen(open) {
+        const panel = document.getElementById('corsiGradPanel');
+        const item = document.getElementById('corsiGradMenu');
+        colorPickerState.gradOpen = !!open;
+        if (panel) panel.hidden = !open;
+        if (item) item.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+            placeGradientPanel();
+            requestAnimationFrame(placeGradientPanel);
+        }
+    }
+
+    function closeColorPicker() {
+        const pop = document.getElementById('corsiColorPopover');
+        const dialog = document.getElementById('corsiGradDialog');
+        if (pop) pop.hidden = true;
+        setGradientPanelOpen(false);
+        if (dialog) dialog.hidden = true;
+        colorPickerState.chartEl = null;
+    }
+
+    function applyLastUsedColor(kind) {
+        saveColorSelection();
+        if (kind === 'bg') applyBlockBackground(colorPickerState.bg);
+        else applyForeColor(colorPickerState.fg);
+        closeColorPicker();
+    }
+
+    function openColorPicker(kind, anchor, opts) {
+        opts = opts || {};
+        ensureColorPicker();
+        const nextKind = kind === 'bg' ? 'bg' : 'fg';
+        const chartEl = opts.chartEl || null;
+        const pop = document.getElementById('corsiColorPopover');
+        if (pop && !pop.hidden && colorPickerState.kind === nextKind && colorPickerState.chartEl === chartEl) {
+            closeColorPicker();
+            return;
+        }
+        if (!chartEl) saveColorSelection();
+        colorPickerState.kind = nextKind;
+        colorPickerState.chartEl = chartEl;
+        const extra = document.getElementById('corsiColorExtra');
+        if (extra) extra.value = currentPickerColor();
+        renderColorSwatches();
+        placeColorPicker(anchor && anchor.closest ? (anchor.closest('.tb-color-split') || anchor) : anchor);
+    }
+
+    function ensureColorPicker() {
+        if (document.getElementById('corsiColorPopover')) return;
+        const wrap = document.createElement('div');
+        wrap.id = 'corsiColorRoot';
+        wrap.innerHTML = `
+            <div class="corsi-color-popover" id="corsiColorPopover" hidden role="dialog" aria-label="Selezione colore">
+                <label class="corsi-color-hc">
+                    <span>Solo contrasto elevato</span>
+                    <span class="corsi-switch">
+                        <input type="checkbox" class="corsi-color-hc-input" id="corsiColorHc">
+                        <span class="corsi-switch-ui" aria-hidden="true"></span>
+                    </span>
+                </label>
+                <div class="corsi-color-block">
+                    <div class="corsi-color-label">Automatico</div>
+                    <button type="button" class="corsi-auto-row" data-auto>
+                        <span class="corsi-swatch is-light" aria-hidden="true"></span>
+                        <span>Automatico</span>
+                    </button>
+                </div>
+                <div class="corsi-color-block">
+                    <div class="corsi-color-label">Colori tema</div>
+                    <div class="corsi-theme-grid" id="corsiThemeGrid"></div>
+                </div>
+                <div class="corsi-color-block">
+                    <div class="corsi-color-label">Colori standard</div>
+                    <div class="corsi-std-grid" id="corsiStdGrid"></div>
+                </div>
+                <button type="button" class="corsi-color-row" data-more-colors>
+                    <span class="corsi-color-row-ico" aria-hidden="true"></span>
+                    Altri colori…
+                </button>
+                <button type="button" class="corsi-color-row corsi-color-row-sub" id="corsiGradMenu" data-grad-menu aria-expanded="false">
+                    Sfumature
+                    <span class="corsi-color-chevron" aria-hidden="true">›</span>
+                </button>
+                <input type="color" id="corsiColorExtra" class="tb-fg-picker" value="#ff0000" tabindex="-1" aria-hidden="true">
+            </div>
+            <div class="corsi-color-grad-panel" id="corsiGradPanel" hidden>
+                <button type="button" class="corsi-no-grad" data-no-grad>
+                    <span class="corsi-no-grad-swatch" aria-hidden="true"></span>
+                    Nessuna sfumatura
+                </button>
+                <div class="corsi-color-label">Variazioni</div>
+                <div class="corsi-grad-grid" id="corsiGradGrid"></div>
+                <button type="button" class="corsi-color-row" data-more-grad>
+                    Altre sfumature…
+                </button>
+            </div>
+            <div class="corsi-grad-dialog" id="corsiGradDialog" hidden>
+                <p class="corsi-grad-dialog-title">Altre sfumature</p>
+                <label>Colore 1 <input type="color" id="corsiGradC1" value="#ffffff"></label>
+                <label>Colore 2 <input type="color" id="corsiGradC2" value="#5B9BD5"></label>
+                <label>Direzione
+                    <select id="corsiGradDir">
+                        <option value="90">Orizzontale</option>
+                        <option value="180">Verticale</option>
+                        <option value="135">Diagonale</option>
+                        <option value="radial">Radiale</option>
+                    </select>
+                </label>
+                <div class="corsi-grad-dialog-actions">
+                    <button type="button" data-grad-apply>Applica</button>
+                    <button type="button" data-grad-cancel>Annulla</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(wrap);
+
+        wrap.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('input, select, textarea')) e.preventDefault();
+        });
+
+        wrap.addEventListener('click', (e) => {
+            const auto = e.target.closest('[data-auto]');
+            if (auto) { applyPickerAuto(); return; }
+            const swatch = e.target.closest('[data-color]');
+            if (swatch) { applyPickerSolid(swatch.getAttribute('data-color')); return; }
+            if (e.target.closest('[data-more-colors]')) {
+                const extra = document.getElementById('corsiColorExtra');
+                if (!extra) return;
+                extra.value = currentPickerColor();
+                try {
+                    if (typeof extra.showPicker === 'function') extra.showPicker();
+                    else extra.click();
+                } catch (_) {
+                    extra.click();
+                }
+                return;
+            }
+            if (e.target.closest('[data-grad-menu]')) {
+                setGradientPanelOpen(!colorPickerState.gradOpen);
+                return;
+            }
+            const grad = e.target.closest('[data-grad]');
+            if (grad) { applyPickerGradient(grad.getAttribute('data-grad')); return; }
+            if (e.target.closest('[data-no-grad]')) { clearPickerGradient(); return; }
+            if (e.target.closest('[data-more-grad]')) {
+                const dialog = document.getElementById('corsiGradDialog');
+                const c1 = document.getElementById('corsiGradC1');
+                const c2 = document.getElementById('corsiGradC2');
+                if (c1) c1.value = mixHex(currentPickerColor(), '#FFFFFF', 0.7);
+                if (c2) c2.value = currentPickerColor();
+                if (dialog) dialog.hidden = false;
+                setGradientPanelOpen(false);
+                return;
+            }
+            if (e.target.closest('[data-grad-cancel]')) {
+                const dialog = document.getElementById('corsiGradDialog');
+                if (dialog) dialog.hidden = true;
+                return;
+            }
+            if (e.target.closest('[data-grad-apply]')) {
+                const c1 = document.getElementById('corsiGradC1')?.value || '#ffffff';
+                const c2 = document.getElementById('corsiGradC2')?.value || '#5B9BD5';
+                const dir = document.getElementById('corsiGradDir')?.value || '90';
+                const css = dir === 'radial'
+                    ? `radial-gradient(circle at center, ${c1}, ${c2})`
+                    : `linear-gradient(${dir}deg, ${c1}, ${c2})`;
+                applyPickerGradient(css);
+            }
+        });
+
+        wrap.addEventListener('change', (e) => {
+            if (e.target.id === 'corsiColorHc') {
+                colorPickerState.hc = e.target.checked;
+                renderColorSwatches();
+                return;
+            }
+            if (e.target.id === 'corsiColorExtra') applyPickerSolid(e.target.value);
+        });
+
+        const gradMenu = wrap.querySelector('#corsiGradMenu');
+        const gradPanel = wrap.querySelector('#corsiGradPanel');
+        let gradTimer = null;
+        const openSoon = () => {
+            clearTimeout(gradTimer);
+            setGradientPanelOpen(true);
+        };
+        const closeSoon = () => {
+            clearTimeout(gradTimer);
+            gradTimer = setTimeout(() => {
+                if (!colorPickerState.gradOpen) return;
+                const over = wrap.querySelector('#corsiGradMenu:hover, #corsiGradPanel:hover');
+                if (!over) setGradientPanelOpen(false);
+            }, 180);
+        };
+        if (gradMenu) {
+            gradMenu.addEventListener('mouseenter', openSoon);
+            gradMenu.addEventListener('mouseleave', closeSoon);
+        }
+        if (gradPanel) {
+            gradPanel.addEventListener('mouseenter', openSoon);
+            gradPanel.addEventListener('mouseleave', closeSoon);
+        }
+
+        document.addEventListener('mousedown', (e) => {
+            const pop = document.getElementById('corsiColorPopover');
+            if (!pop || pop.hidden) return;
+            if (wrap.contains(e.target)) return;
+            if (e.target.closest('.tb-color-split')) return;
+            closeColorPicker();
+        });
+        window.addEventListener('resize', () => {
+            const pop = document.getElementById('corsiColorPopover');
+            if (pop && !pop.hidden) closeColorPicker();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeColorPicker();
+        });
+    }
+
     function wireToolbar() {
         ensureChartEditDelegation();
         ensureTableResizeDelegation();
         ensureTableToolsVisibilityWatch();
+        ensureCodeBlockExit();
+        ensureCodeHighlighting();
         const toolbar = document.getElementById('edToolbar');
         if (!toolbar) return;
         syncTableToolsVisibility();
-        const colorInput = document.getElementById('edColor');
-        const colorBar = document.getElementById('edColorBar');
+        syncToolbarColorBars();
+        const fontSel = document.getElementById('edFont');
+        if (fontSel && !fontSel.dataset.wired) {
+            fontSel.dataset.wired = '1';
+            fontSel.addEventListener('mousedown', () => saveColorSelection());
+            fontSel.addEventListener('change', () => {
+                applyFontFamily(fontSel.value || '');
+            });
+        }
         const fileInput = document.getElementById('edImageFile');
-        const syncColorBar = () => {
-            if (colorBar && colorInput) colorBar.style.background = colorInput.value;
-        };
-        syncColorBar();
-        if (colorInput) colorInput.addEventListener('input', syncColorBar);
 
         if (fileInput && !fileInput.dataset.wired) {
             fileInput.dataset.wired = '1';
@@ -1934,6 +3478,15 @@
         toolbar.dataset.wired = '1';
 
         toolbar.addEventListener('mousedown', (e) => {
+            if (e.target.closest('select')) {
+                saveColorSelection();
+                return;
+            }
+            if (e.target.closest('.tb-color-split')) {
+                e.preventDefault();
+                saveColorSelection();
+                return;
+            }
             if (e.target.closest('button, input[type="color"]')) e.preventDefault();
         });
 
@@ -1942,13 +3495,27 @@
             if (!btn) return;
             e.preventDefault();
             const cmd = btn.dataset.cmd;
+            if (cmd === 'foreColor') {
+                applyLastUsedColor('fg');
+                return;
+            }
+            if (cmd === 'bgColor') {
+                applyLastUsedColor('bg');
+                return;
+            }
+            if (cmd === 'foreColorMenu') {
+                openColorPicker('fg', btn);
+                return;
+            }
+            if (cmd === 'bgColorMenu') {
+                openColorPicker('bg', btn);
+                return;
+            }
             const surface = getActiveEditSurface();
             if (surface) surface.focus();
             if (cmd === 'bold' || cmd === 'italic' || cmd === 'underline'
                 || cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') {
                 document.execCommand(cmd, false, null);
-            } else if (cmd === 'foreColor' && colorInput) {
-                document.execCommand('foreColor', false, colorInput.value);
             } else if (cmd === 'image') {
                 if (fileInput) fileInput.click();
             } else if (cmd === 'table') {
@@ -1967,6 +3534,10 @@
                     title: 'Inserisci grafico',
                     okLabel: 'Inserisci',
                 });
+            } else if (cmd === 'codeBlock') {
+                insertCodeBlock();
+            } else if (cmd === 'plainText') {
+                convertCodeBlockToPlainText();
             }
             requestAnimationFrame(syncTableToolsVisibility);
         });
@@ -2079,7 +3650,7 @@
                     });
                 }
                 invalidateCache();
-                window.location.hash = 'view/' + (mode === 'create' ? payload.id : existingId);
+                goReadOnly(mode === 'create' ? payload.id : existingId);
             } catch (err) {
                 setEditorMsg(err.message, true);
             }
@@ -2113,10 +3684,267 @@
         const node = findNodeById(segs[0]);
         if (!node || node.type === 'divider') {
             document.getElementById('contentRoot').innerHTML =
-                '<div class="page"><h1 class="page-title">Non trovato</h1><p>Il contenuto richiesto non esiste. <a href="#home">Torna alla home</a>.</p></div>';
+                '<div class="page"><h1 class="page-title">Non trovato</h1><p>Il contenuto richiesto non esiste.</p></div>';
             return;
         }
         await renderDoc(node, { manageMode: false });
+    }
+
+    const LIVE_POLL_MS = 20000;
+    let _liveTimer = null;
+    let _liveSince = null;
+    let _liveKnownEditors = new Set();
+    let _liveEditorsReady = false;
+    let _liveShownKeys = new Set();
+    let _liveEntryBannerShown = false;
+
+    function formatColleagueNames(editors) {
+        const names = (editors || []).map((e) => e.profileName).filter(Boolean);
+        if (!names.length) return '';
+        if (names.length === 1) return names[0];
+        if (names.length === 2) return names[0] + ' e ' + names[1];
+        return names.slice(0, -1).join(', ') + ' e ' + names[names.length - 1];
+    }
+
+    function formatTitleList(titles) {
+        const list = (titles || []).filter(Boolean);
+        if (!list.length) return '';
+        if (list.length === 1) return '«' + list[0] + '»';
+        if (list.length === 2) return '«' + list[0] + '» e «' + list[1] + '»';
+        return list.slice(0, -1).map((t) => '«' + t + '»').join(', ') + ' e «' + list[list.length - 1] + '»';
+    }
+
+    function groupRecentSavesByUser(saves) {
+        const byUser = new Map();
+        (saves || []).forEach((save) => {
+            const key = save.userId || save.profileName;
+            if (!byUser.has(key)) {
+                byUser.set(key, { profileName: save.profileName, titles: [] });
+            }
+            const title = save.title || save.itemId || 'contenuti';
+            const row = byUser.get(key);
+            if (!row.titles.includes(title)) row.titles.push(title);
+        });
+        return [...byUser.values()];
+    }
+
+    function updateOnlineEditorsBanner(editorsOnline) {
+        const editors = editorsOnline || [];
+        let root = document.getElementById('corsiManageOnlineBanner');
+        if (!editors.length) {
+            if (root) root.hidden = true;
+            return;
+        }
+        if (!root) {
+            root = document.createElement('div');
+            root.id = 'corsiManageOnlineBanner';
+            root.className = 'corsi-manage-online-banner';
+            const entry = document.getElementById('corsiManageEntryBanner');
+            const alerts = document.getElementById('corsiLiveAlerts');
+            const content = document.querySelector('.content.container');
+            if (content) {
+                if (entry && entry.nextSibling) content.insertBefore(root, entry.nextSibling);
+                else if (entry) entry.after(root);
+                else if (alerts) content.insertBefore(root, alerts);
+                else content.insertBefore(root, content.firstChild);
+            }
+        }
+        const who = formatColleagueNames(editors);
+        const n = editors.length;
+        const label = n === 1 ? '1 docente' : n + ' docenti';
+        root.innerHTML = `
+            <div class="corsi-manage-online-banner-body">
+                <strong>Colleghi in Gestione contenuti</strong>
+                <p>In questo momento ${n === 1 ? 'c\'è' : 'ci sono'} <strong>${label}</strong> oltre a te: ${escapeHtml(who)}.</p>
+            </div>
+        `;
+        root.hidden = false;
+    }
+
+    function showManageEntryBanner(editorsOnline, recentSaves) {
+        if (_liveEntryBannerShown) return;
+        const editors = editorsOnline || [];
+        const saveGroups = groupRecentSavesByUser(recentSaves);
+        if (!editors.length && !saveGroups.length) return;
+        _liveEntryBannerShown = true;
+
+        const items = [];
+        if (editors.length) {
+            const who = formatColleagueNames(editors);
+            const verb = editors.length === 1 ? 'è già' : 'sono già';
+            items.push(`${who} ${verb} in Gestione contenuti e potrebbe star modificando i contenuti.`);
+        }
+        saveGroups.forEach((group) => {
+            const where = formatTitleList(group.titles);
+            const verb = group.titles.length === 1 ? 'ha salvato di recente in' : 'ha salvato di recente in';
+            items.push(`${group.profileName} ${verb} ${where}.`);
+        });
+
+        let root = document.getElementById('corsiManageEntryBanner');
+        if (!root) {
+            root = document.createElement('div');
+            root.id = 'corsiManageEntryBanner';
+            root.className = 'corsi-manage-entry-banner';
+            const alerts = document.getElementById('corsiLiveAlerts');
+            const content = document.querySelector('.content.container');
+            if (content) {
+                if (alerts) content.insertBefore(root, alerts);
+                else content.insertBefore(root, content.firstChild);
+            }
+        }
+        root.innerHTML = `
+            <div class="corsi-manage-entry-banner-body">
+                <strong>Attenzione</strong>
+                <ul class="corsi-manage-entry-list">
+                    ${items.map((item) => '<li>' + escapeHtml(item) + '</li>').join('')}
+                </ul>
+                <p class="corsi-manage-entry-banner-hint">Coordina le modifiche con tutti i colleghi elencati o usa «Ricarica» dopo un salvataggio altrui.</p>
+            </div>
+            <button type="button" class="corsi-live-dismiss" data-entry-dismiss aria-label="Chiudi avviso">×</button>
+        `;
+        root.hidden = false;
+        const dismiss = root.querySelector('[data-entry-dismiss]');
+        if (dismiss && !dismiss.dataset.wired) {
+            dismiss.dataset.wired = '1';
+            dismiss.addEventListener('click', () => { root.hidden = true; });
+        }
+    }
+
+    function ensureLiveAlertsRoot() {
+        let root = document.getElementById('corsiLiveAlerts');
+        if (!root) {
+            root = document.createElement('div');
+            root.id = 'corsiLiveAlerts';
+            root.className = 'corsi-live-alerts';
+            root.setAttribute('aria-live', 'polite');
+            const content = document.querySelector('.content.container');
+            if (content) content.insertBefore(root, content.firstChild);
+        }
+        if (!root.dataset.wired) {
+            root.dataset.wired = '1';
+            root.addEventListener('click', (e) => {
+                const dismiss = e.target.closest && e.target.closest('[data-live-dismiss]');
+                if (dismiss) {
+                    dismiss.closest('.corsi-live-alert')?.remove();
+                    return;
+                }
+                const reload = e.target.closest && e.target.closest('[data-live-reload]');
+                if (reload) reloadEditableContent();
+            });
+        }
+        return root;
+    }
+
+    function pushLiveAlert(kind, message, dedupeKey) {
+        if (dedupeKey && _liveShownKeys.has(dedupeKey)) return;
+        if (dedupeKey) _liveShownKeys.add(dedupeKey);
+        const root = ensureLiveAlertsRoot();
+        const el = document.createElement('div');
+        el.className = 'corsi-live-alert corsi-live-alert-' + kind;
+        el.innerHTML = `
+            <span class="corsi-live-alert-text">${escapeHtml(message)}</span>
+            ${kind === 'save' ? '<button type="button" class="btn-sm" data-live-reload>Ricarica</button>' : ''}
+            <button type="button" class="corsi-live-dismiss" data-live-dismiss aria-label="Chiudi avviso">×</button>
+        `;
+        root.prepend(el);
+        while (root.children.length > 15) root.lastElementChild.remove();
+    }
+
+    function reconcileLiveEditors(editorsOnline) {
+        const online = new Set((editorsOnline || []).map((e) => e.userId));
+        for (const id of [..._liveKnownEditors]) {
+            if (!online.has(id)) _liveKnownEditors.delete(id);
+        }
+        const newcomers = [];
+        for (const ed of editorsOnline || []) {
+            if (_liveKnownEditors.has(ed.userId)) continue;
+            _liveKnownEditors.add(ed.userId);
+            if (_liveEditorsReady) newcomers.push(ed);
+        }
+        if (!_liveEditorsReady) {
+            _liveEditorsReady = true;
+            return;
+        }
+        if (!newcomers.length) return;
+        const names = formatColleagueNames(newcomers);
+        const verb = newcomers.length === 1 ? 'è entrato' : 'sono entrati';
+        const tickKey = 'presence-batch|' + newcomers.map((e) => e.userId).sort().join(',');
+        pushLiveAlert(
+            'presence',
+            `${names} ${verb} in Gestione contenuti.`,
+            tickKey + '|' + Date.now()
+        );
+    }
+
+    function reportLiveSaves(saves) {
+        const list = saves || [];
+        if (!list.length) return;
+        if (list.length === 1) {
+            const save = list[0];
+            const title = save.title || save.itemId || 'contenuti';
+            pushLiveAlert(
+                'save',
+                `${save.profileName} ha salvato modifiche in «${title}».`,
+                'save|' + save.at + '|' + save.itemId + '|' + save.userId
+            );
+            return;
+        }
+        const tickKey = 'save-batch|' + list.map((s) => s.at + '|' + s.itemId).sort().join(';');
+        const detail = groups.map((group) => `${group.profileName} in ${formatTitleList(group.titles)}`).join('; ');
+        pushLiveAlert(
+            'save',
+            `Salvataggi: ${detail}.`,
+            tickKey + '|' + Date.now()
+        );
+    }
+
+    async function corsiLiveTick() {
+        if (!IS_MANAGE_PAGE || document.hidden) return;
+        try {
+            await apiJson(API + '/presence', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: '{}',
+            });
+            const isFirst = !_liveEditorsReady;
+            const since = _liveSince || new Date(0).toISOString();
+            const data = await apiJson(API + '/live?since=' + encodeURIComponent(since), {
+                headers: authHeaders(),
+            });
+            if (isFirst) {
+                const recentSince = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+                try {
+                    const recent = await apiJson(API + '/live?since=' + encodeURIComponent(recentSince), {
+                        headers: authHeaders(),
+                    });
+                    showManageEntryBanner(data.editorsOnline, recent.saves);
+                } catch (_) {
+                    showManageEntryBanner(data.editorsOnline, []);
+                }
+            }
+            if (data.serverTime) _liveSince = data.serverTime;
+            updateOnlineEditorsBanner(data.editorsOnline);
+            reconcileLiveEditors(data.editorsOnline);
+            reportLiveSaves(data.saves);
+        } catch (_) { /* rete momentanea: riprova al tick successivo */ }
+    }
+
+    function startCorsiLiveSync() {
+        if (!IS_MANAGE_PAGE || _liveTimer) return;
+        ensureLiveAlertsRoot();
+        _liveSince = new Date().toISOString();
+        corsiLiveTick();
+        _liveTimer = setInterval(corsiLiveTick, LIVE_POLL_MS);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) corsiLiveTick();
+        });
+    }
+
+    function stopCorsiLiveSync() {
+        if (_liveTimer) {
+            clearInterval(_liveTimer);
+            _liveTimer = null;
+        }
     }
 
     async function initAuth() {
@@ -2138,8 +3966,11 @@
             }
             const btn = document.getElementById('btnManage');
             const btnStorico = document.getElementById('btnStorico');
+            const btnExport = document.getElementById('btnExportMd');
             if (btn) btn.style.display = canEdit ? 'inline' : 'none';
             if (btnStorico) btnStorico.style.display = canEdit ? 'inline' : 'none';
+            if (btnExport) btnExport.style.display = canEdit ? 'inline' : 'none';
+            if (window.CorsiExport) window.CorsiExport.wireExportMdButton({ show: canEdit });
             document.getElementById('authOverlay').style.display = 'none';
             return true;
         } catch (_) {
@@ -2156,6 +3987,12 @@
         if (descEl && !IS_MANAGE_PAGE) descEl.textContent = SITE_DESCRIPTION;
 
         if (!(await initAuth())) return;
+        if (IS_MANAGE_PAGE && canEdit) startCorsiLiveSync();
+        if (IS_MANAGE_PAGE) {
+            window.addEventListener('resize', syncStickyScrollMargin, { passive: true });
+        }
+        await loadEditorFontsCatalog();
+        ensureEditorFonts();
         try {
             await reloadManifest();
         } catch (_) {

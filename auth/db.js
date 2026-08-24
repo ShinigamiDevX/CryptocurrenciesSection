@@ -10,6 +10,8 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
+// Necessario perché SQLite applichi le FOREIGN KEY e le ON DELETE dichiarate sotto.
+db.pragma('foreign_keys = ON');
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 db.exec(`
@@ -154,6 +156,20 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_corsi_versions_item ON corsi_versions(itemId, createdAt);
     CREATE INDEX IF NOT EXISTS idx_corsi_versions_created ON corsi_versions(createdAt);
+    CREATE TABLE IF NOT EXISTS corsi_items (
+        id          TEXT PRIMARY KEY,
+        parentId    TEXT REFERENCES corsi_items(id) ON DELETE CASCADE,
+        position    INTEGER NOT NULL DEFAULT 0,
+        type        TEXT NOT NULL DEFAULT 'section',
+        title       TEXT NOT NULL DEFAULT '',
+        content     TEXT NOT NULL DEFAULT '',
+        courseDate  TEXT NOT NULL DEFAULT '',
+        createdAt   TEXT NOT NULL,
+        updatedAt   TEXT NOT NULL,
+        createdById TEXT REFERENCES users(id) ON DELETE SET NULL,
+        updatedById TEXT REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_corsi_items_parent ON corsi_items(parentId, position);
     CREATE TABLE IF NOT EXISTS password_resets (
         token      TEXT PRIMARY KEY,
         userId     TEXT NOT NULL,
@@ -303,6 +319,15 @@ const PCR_EXTRA_COLS = [
 ];
 PCR_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE profile_change_requests ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+const CORSI_VERSION_EXTRA_COLS = [
+    ['parentId', 'TEXT'],
+    ['position', 'INTEGER NOT NULL DEFAULT 0'],
+];
+CORSI_VERSION_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE corsi_versions ADD COLUMN ${col} ${def}`); }
     catch { /* già presente */ }
 });
 
@@ -604,9 +629,11 @@ const PasswordResets = {
 const CorsiVersions = {
     insert: v => db.prepare(`
         INSERT INTO corsi_versions (
-            id, itemId, title, kind, content, action, editedById, editedByEmail, createdAt
+            id, itemId, title, kind, content, action, editedById, editedByEmail, createdAt,
+            parentId, position
         ) VALUES (
-            @id, @itemId, @title, @kind, @content, @action, @editedById, @editedByEmail, @createdAt
+            @id, @itemId, @title, @kind, @content, @action, @editedById, @editedByEmail, @createdAt,
+            @parentId, @position
         )
     `).run({
         title: '',
@@ -615,6 +642,8 @@ const CorsiVersions = {
         action: 'update',
         editedById: '',
         editedByEmail: '',
+        parentId: null,
+        position: 0,
         ...v,
     }),
     list: ({ itemId, limit = 500 } = {}) => {
@@ -652,6 +681,71 @@ const CorsiVersions = {
     },
 };
 
+// ── Corsi items (albero e versione corrente dei contenuti) ────────────────────
+const CorsiItems = {
+    count: () => db.prepare('SELECT COUNT(*) AS c FROM corsi_items').get().c,
+    all: () => db.prepare('SELECT * FROM corsi_items ORDER BY position, createdAt').all(),
+    findById: id => db.prepare('SELECT * FROM corsi_items WHERE id = ?').get(id) || null,
+    exists: id => !!db.prepare('SELECT 1 FROM corsi_items WHERE id = ?').get(id),
+    childrenOf: parentId => db.prepare(
+        'SELECT * FROM corsi_items WHERE parentId IS ? ORDER BY position, createdAt'
+    ).all(parentId || null),
+    /** Prima posizione libera tra i figli di parentId (NULL = radice). */
+    nextPosition: parentId => {
+        const row = db.prepare('SELECT MAX(position) AS m FROM corsi_items WHERE parentId IS ?').get(parentId || null);
+        return (row && row.m !== null ? Number(row.m) : -1) + 1;
+    },
+    insert: item => db.prepare(`
+        INSERT INTO corsi_items (
+            id, parentId, position, type, title, content, courseDate,
+            createdAt, updatedAt, createdById, updatedById
+        ) VALUES (
+            @id, @parentId, @position, @type, @title, @content, @courseDate,
+            @createdAt, @updatedAt, @createdById, @updatedById
+        )
+    `).run({
+        parentId: null,
+        position: 0,
+        type: 'section',
+        title: '',
+        content: '',
+        courseDate: '',
+        createdById: null,
+        updatedById: null,
+        ...item,
+    }),
+    update: (id, patch) => db.prepare(`
+        UPDATE corsi_items SET
+            type = @type, title = @title, content = @content, courseDate = @courseDate,
+            updatedAt = @updatedAt, updatedById = @updatedById
+        WHERE id = @id
+    `).run({ id, courseDate: '', updatedById: null, ...patch }),
+    move: (id, parentId, position) => db.prepare(
+        'UPDATE corsi_items SET parentId = ?, position = ? WHERE id = ?'
+    ).run(parentId || null, position, id),
+    /** Imposta position 0..n-1 per tutti i figli di parentId (NULL = radice). */
+    reorderSiblings: (parentId, orderedIds) => {
+        const stmt = db.prepare(
+            'UPDATE corsi_items SET position = ? WHERE id = ? AND parentId IS ?'
+        );
+        const tx = db.transaction((ids) => {
+            ids.forEach((id, i) => stmt.run(i, id, parentId || null));
+        });
+        return tx(orderedIds);
+    },
+    /** Modifiche recenti (per avvisi live in gestione contenuti). */
+    changesSince: (since, exceptUserId) => db.prepare(`
+        SELECT id, title, updatedAt, updatedById FROM corsi_items
+        WHERE updatedAt > ? AND updatedById IS NOT NULL AND updatedById != '' AND updatedById != ?
+        ORDER BY updatedAt DESC
+        LIMIT 30
+    `).all(since, exceptUserId || ''),
+    /** Elimina il nodo; i discendenti seguono via ON DELETE CASCADE. */
+    remove: id => db.prepare('DELETE FROM corsi_items WHERE id = ?').run(id),
+    /** Esegue fn in una transazione: o passa tutto, o non passa niente. */
+    tx: fn => db.transaction(fn),
+};
+
 module.exports = {
     Users,
     Invitations,
@@ -660,5 +754,6 @@ module.exports = {
     Notifications,
     PasswordResets,
     CorsiVersions,
+    CorsiItems,
     profileDefaults,
 };

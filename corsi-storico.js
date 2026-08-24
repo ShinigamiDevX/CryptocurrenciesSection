@@ -384,11 +384,16 @@
                 <p id="restoreMsg" class="editor-hint"></p>
                 <div class="editor-preview" style="display:block;">
                     <h2>Anteprima</h2>
-                    <div>${preview}</div>
+                    <div id="storicoPreview">${preview}</div>
                 </div>
                 <h2>Markdown</h2>
                 <pre><code>${escapeHtml(row.content || '')}</code></pre>
             `;
+            if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+                document.querySelectorAll('#storicoPreview pre code, #contentRoot > pre > code').forEach((el) => {
+                    try { hljs.highlightElement(el); } catch (_) { /* ignore */ }
+                });
+            }
             document.getElementById('btnRestore').addEventListener('click', () => {
                 showConfirm(
                     'Ripristinare questa versione come contenuto attuale del modulo? Lo stato corrente verrà archiviato nello storico.',
@@ -397,13 +402,13 @@
                         msg.textContent = 'Ripristino...';
                         msg.className = 'editor-hint';
                         try {
-                            await apiJson(API + '/' + encodeURIComponent(id) + '/restore', {
+                            const result = await apiJson(API + '/' + encodeURIComponent(id) + '/restore', {
                                 method: 'POST',
                                 headers: authHeaders(),
                                 body: '{}',
                             });
-                            msg.textContent = 'Versione ripristinata. Gli altri docenti e il Super Admin sono stati notificati.';
-                            msg.className = 'editor-hint corsi-ok';
+                            const itemId = result && result.id ? result.id : row.itemId;
+                            window.location.replace('/corsi#' + encodeURIComponent(itemId));
                         } catch (err) {
                             msg.textContent = err.message;
                             msg.className = 'editor-hint corsi-error';
@@ -427,6 +432,8 @@
         else await renderList();
     }
 
+    let canEdit = false;
+
     async function initAuth() {
         const token = typeof getAuthToken === 'function' ? getAuthToken() : '';
         if (!token) {
@@ -444,11 +451,13 @@
                 window.location.replace('/portal');
                 return false;
             }
-            const canEdit = !!user.canManageCorsi || !!user.docente || user.role === 'superadmin';
+            canEdit = !!user.canManageCorsi || !!user.docente || user.role === 'superadmin';
             if (!canEdit) {
                 window.location.replace('/corsi');
                 return false;
             }
+            const btnExport = document.getElementById('btnExportMd');
+            if (btnExport) btnExport.style.display = canEdit ? 'inline' : 'none';
             document.getElementById('authOverlay').style.display = 'none';
             return true;
         } catch (_) {
@@ -461,6 +470,7 @@
     async function boot() {
         const ok = await initAuth();
         if (!ok) return;
+        if (window.CorsiExport) window.CorsiExport.wireExportMdButton({ show: canEdit });
         window.addEventListener('hashchange', () => { route(); });
         await route();
     }

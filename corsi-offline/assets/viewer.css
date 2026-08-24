@@ -1,0 +1,221 @@
+/* Presentazione offline Corsi — stile simile alla lettura nel portale */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: "PT Sans", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #313131;
+    background: #fff;
+}
+
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    flex: 0 0 18rem;
+    background: #000;
+    color: #fff;
+    padding: 1.5rem 1rem 2rem;
+    overflow-y: auto;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    margin-bottom: 1.35rem;
+}
+
+.sidebar-brand-logo {
+    flex: 0 0 auto;
+    width: 3rem;
+    height: auto;
+    object-fit: contain;
+    align-self: center;
+}
+
+.sidebar-brand-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.sidebar-brand-text h1 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.sidebar-brand-text p {
+    margin: 0.35rem 0 0;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.78);
+    line-height: 1.35;
+}
+
+.nav-tree, .nav-tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-tree ul {
+    margin-left: 0.65rem;
+    padding-left: 0.55rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.nav-tree .nav-link {
+    display: block;
+    padding: 0.28rem 0.35rem;
+    color: rgba(255, 255, 255, 0.82) !important;
+    text-decoration: none !important;
+    font-size: 0.92rem;
+    border-radius: 2px;
+}
+
+.nav-tree > li > .nav-link {
+    font-weight: 600;
+}
+
+.nav-tree .nav-link:hover,
+.nav-tree .nav-link:focus,
+.nav-tree .nav-link.active {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.content {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+    padding: 2rem 2.5rem 3rem;
+}
+
+.post-title {
+    margin: 0 0 1rem;
+    font-size: 1.75rem;
+    line-height: 1.2;
+}
+
+.post-title.nest-title {
+    font-size: 1.35rem;
+    margin-top: 1.75rem;
+}
+
+.corsi-section-body > :first-child { margin-top: 0; }
+
+.corsi-section.depth-1,
+.corsi-section.depth-2,
+.corsi-section.depth-3 {
+    margin-top: 1.5rem;
+    padding-left: 0.85rem;
+    border-left: 2px solid #e8e8e8;
+}
+
+.corsi-section-body img {
+    max-width: 100%;
+    height: auto;
+}
+
+.corsi-section-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.92rem;
+}
+
+.corsi-section-body th,
+.corsi-section-body td {
+    border: 1px solid #ddd;
+    padding: 0.45rem 0.55rem;
+    vertical-align: top;
+}
+
+.corsi-section-body thead th {
+    background: #f5f5f5;
+    font-weight: 700;
+}
+
+.corsi-section-body tbody tr:nth-child(even) {
+    background: #fafafa;
+}
+
+pre.code-theme-light,
+pre.code-theme-light > code.hljs {
+    background: #fafafa;
+    color: #383a42;
+}
+
+pre.code-theme-light {
+    border: 1px solid #e1e4e8;
+    padding: 0;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+pre.code-theme-light > code.hljs {
+    display: block;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    white-space: pre;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    border-radius: 4px;
+}
+
+pre.code-theme-light code.hljs .hljs-keyword { color: #a626a4; }
+pre.code-theme-light code.hljs .hljs-string { color: #50a14f; }
+pre.code-theme-light code.hljs .hljs-comment { color: #a0a1a7; font-style: italic; }
+pre.code-theme-light code.hljs .hljs-number,
+pre.code-theme-light code.hljs .hljs-literal { color: #986801; }
+pre.code-theme-light code.hljs .hljs-title,
+pre.code-theme-light code.hljs .hljs-function,
+pre.code-theme-light code.hljs .hljs-built_in,
+pre.code-theme-light code.hljs .hljs-name { color: #4078f2; }
+pre.code-theme-light code.hljs .hljs-variable,
+pre.code-theme-light code.hljs .hljs-attr { color: #e45649; }
+
+.chart-block {
+    max-width: 100%;
+    margin: 1.25rem 0;
+    padding: 0.5rem;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.chart-block canvas {
+    max-width: 100%;
+}
+
+.empty-state {
+    color: #777;
+    font-style: italic;
+}
+
+@media (max-width: 48em) {
+    .layout { flex-direction: column; }
+    .sidebar { flex: none; width: 100%; max-height: 40vh; }
+    .content { padding: 1.25rem 1rem 2rem; }
+}
+
+@media print {
+    .sidebar { display: none; }
+    .content { max-width: none; padding: 0; }
+}
