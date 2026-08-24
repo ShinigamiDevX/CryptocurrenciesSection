@@ -9,9 +9,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=13">
-    <link rel="stylesheet" href="style.css?v=6">
-    <link rel="stylesheet" href="analisi-report.css?v=1">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=10">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="analisi-report.css?v=10">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
     <div id="authOverlay"><span>Verifica autenticazione...</span></div>
@@ -28,7 +33,7 @@
                     <li><a href="/profilo">Il mio profilo</a></li>
                     <li>
                         <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 3.5 10.2c-.3.25-.3.7 0 .95l.7.55c.25.2.6.15.8-.1L12 5.9l6.99 5.7c.2.25.55.3.8.1l.7-.55c.3-.25.3-.7 0-.95L12 3.2zM5.5 12.5V20c0 .55.45 1 1 1h3.75c.4 0 .75-.35.75-.75V16.5c0-.55.45-1 1-1h.5c.55 0 1 .45 1 1v3.75c0 .4.35.75.75.75H17.5c.55 0 1-.45 1-1v-7.5L12 7.2 5.5 12.5z"/></svg>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
                         </a>
                     </li>
                     <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
@@ -53,14 +58,14 @@
     </div>
 
     <main>
-        <div class="page-title">📊 Analisi Report</div>
-        <p class="page-sub">Carica file Excel, CSV o PDF. Lo strumento analizza i dati in sessione e genera statistiche e grafici.</p>
+        <div class="page-title"><img src="/icons/line/analytics.svg" alt=""> Analisi Report</div>
+        <p class="page-sub">Carica report CSV, Excel o PDF: lo strumento estrae profilo, transazioni wallet e log IP, poi produce un riassunto con grafici e indicazione VPN.</p>
 
         <div class="ar-card">
             <div id="dropZone" class="ar-drop">
                 <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls,.pdf,application/pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                 <p class="ar-drop-title">Trascina qui i file oppure clicca per selezionarli</p>
-                <p class="ar-drop-hint">Formati: Excel (.xlsx / .xls), CSV, PDF con tabelle · max 25 MB per file</p>
+                <p class="ar-drop-hint">Formati: .csv, .xls, .xlsx, .pdf · max 25 MB per file</p>
             </div>
             <ul id="fileList" class="ar-file-list"></ul>
             <div class="ar-actions">
@@ -71,12 +76,7 @@
         </div>
 
         <div id="resultsWrap" class="ar-results" style="display:none;">
-            <div class="ar-tabs" id="datasetTabs"></div>
-            <div class="ar-card ar-result-card">
-                <div id="datasetMeta" class="ar-meta"></div>
-                <div id="columnsTableWrap" class="ar-table-wrap"></div>
-                <div id="chartsGrid" class="ar-charts"></div>
-            </div>
+            <div id="fileReports"></div>
         </div>
     </main>
 
@@ -90,10 +90,24 @@
         </div>
     </div>
 
+    <div class="confirm-bg" id="passwordModal" style="display:none;" hidden>
+        <div class="confirm-box ar-password-box">
+            <p id="passwordMsg">Questo file è protetto da password.</p>
+            <p class="ar-password-file" id="passwordFile"></p>
+            <label class="ar-password-label" for="passwordInput">Password</label>
+            <input type="password" id="passwordInput" autocomplete="off" spellcheck="false">
+            <p class="ar-password-error" id="passwordError" hidden></p>
+            <div class="confirm-btns">
+                <button type="button" class="btn-cancel" id="passwordCancel">Annulla</button>
+                <button type="button" class="btn-ok" id="passwordOk">Sblocca</button>
+            </div>
+        </div>
+    </div>
+
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
     <script src="auth-token.js?v=2"></script>
     <script src="nav-notifications.js?v=5"></script>
-    <script src="analisi-report.js?v=3"></script>
+    <script src="analisi-report.js?v=13"></script>
 </body>
 </html>

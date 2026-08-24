@@ -52,3 +52,10 @@ services:
       dockerfile: Dockerfile
     container_name: cryptovault-analisi
     restart: unless-stopped
+    environment:
+      - AUTH_VERIFY_URL=http://auth:4000/api/auth/verify
+      - IPQS_API_KEY=${IPQS_API_KEY:-}
+      - SPUR_API_TOKEN=${SPUR_API_TOKEN:-}
+      - IPGEOLOCATION_API_KEY=${IPGEOLOCATION_API_KEY:-}
+    depends_on:
+      - auth

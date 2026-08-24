@@ -9,7 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=13">
-    <link rel="stylesheet" href="style.css?v=6">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=3">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
     <link rel="stylesheet" href="custom-select.css?v=8">
     <link rel="stylesheet" href="custom-date.css?v=8">
     <link rel="stylesheet" href="luogo-nascita.css?v=5">
@@ -22,7 +25,7 @@
             border-radius: 9px; color: #7ACCE0; cursor: pointer;
         }
         .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
-        .nav-bell-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-btn svg, .nav-bell-btn img { width: 18px; height: 18px; fill: currentColor; display: block; }
         .nav-bell-badge {
             position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
             padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
@@ -85,7 +88,8 @@
         #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
 
         main { max-width: none; width: 100%; padding: 1.5rem 2rem; margin: 0 auto; }
-        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .page-title img, .page-title-icon { width: 1.35em; height: 1.35em; display: block; flex-shrink: 0; }
         .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 2rem; text-align: center; max-width: 720px; }
 
         .profile-card {
@@ -218,7 +222,7 @@
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
                     <li>
                         <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 3.5 10.2c-.3.25-.3.7 0 .95l.7.55c.25.2.6.15.8-.1L12 5.9l6.99 5.7c.2.25.55.3.8.1l.7-.55c.3-.25.3-.7 0-.95L12 3.2zM5.5 12.5V20c0 .55.45 1 1 1h3.75c.4 0 .75-.35.75-.75V16.5c0-.55.45-1 1-1h.5c.55 0 1 .45 1 1v3.75c0 .4.35.75.75.75H17.5c.55 0 1-.45 1-1v-7.5L12 7.2 5.5 12.5z"/></svg>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
                         </a>
                     </li>
                     <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
@@ -243,7 +247,10 @@
     </div>
 
     <main>
-        <div class="page-title">👤 Il mio profilo</div>
+        <div class="page-title">
+            <svg class="page-title-icon" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ug-line-user" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7dd3fc"/><stop offset="48%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs><path fill="url(#ug-line-user)" d="M15.71,12.71a6,6,0,1,0-7.42,0,10,10,0,0,0-6.22,8.18,1,1,0,0,0,2,.22,8,8,0,0,1,15.9,0,1,1,0,0,0,1,.89h.11a1,1,0,0,0,.88-1.1A10,10,0,0,0,15.71,12.71ZM12,12a4,4,0,1,1,4-4A4,4,0,0,1,12,12Z"/></svg>
+            Il mio profilo
+        </div>
         <p class="page-sub">Visualizza i tuoi dati anagrafici e modifica la password di accesso.</p>
 
         <div class="feedback" id="profileMsg"></div>

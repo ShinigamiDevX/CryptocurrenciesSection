@@ -21,10 +21,10 @@ const PAGE_ROUTES = {
     '/portal':          '/portal.html',
     '/gestione-utenti': '/gestione-utenti.html',
     '/profilo':         '/profilo.html',
-    '/analisi-report':  '/analisi-report.html',
     '/corsi':           '/corsi.html',
     '/corsi-storico':   '/corsi-storico.html',
     '/corsi-gestione':  '/corsi-gestione.html',
+    '/analisi-report':  '/analisi-report.html',
 };
 
 const MIME = {
@@ -86,12 +86,12 @@ const server = http.createServer((req, res) => {
         proxy(req, res, AUTH_PORT, req.url);
         return;
     }
-    if (urlPath.startsWith('/api/analisi/')) {
-        proxy(req, res, ANALISI_PORT, req.url);
-        return;
-    }
     if (urlPath.startsWith('/cluster/')) {
         proxy(req, res, CLUSTER_PORT, req.url.replace(/^\/cluster/, '') || '/');
+        return;
+    }
+    if (urlPath.startsWith('/api/analisi/')) {
+        proxy(req, res, ANALISI_PORT, req.url);
         return;
     }
     serveStatic(req, res, PAGE_ROUTES[urlPath] || urlPath);
@@ -99,5 +99,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
     console.log(`[DEV] Portale disponibile su http://localhost:${PORT}`);
-    console.log(`[DEV] Proxy /api/auth/ -> :${AUTH_PORT}, /api/analisi/ -> :${ANALISI_PORT}, /cluster/ -> :${CLUSTER_PORT}`);
+    console.log(`[DEV] Proxy /api/auth/ -> :${AUTH_PORT}, /cluster/ -> :${CLUSTER_PORT}, /api/analisi/ -> :${ANALISI_PORT}`);
 });

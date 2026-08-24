@@ -9,7 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=13">
-    <link rel="stylesheet" href="style.css?v=6">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=4">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
     <style>
         /* Campanella: regole critiche (evita layout rotto se CSS in cache) */
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
@@ -20,7 +23,7 @@
             border-radius: 9px; color: #7ACCE0; cursor: pointer;
         }
         .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
-        .nav-bell-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-btn svg, .nav-bell-btn img { width: 18px; height: 18px; fill: currentColor; display: block; }
         .nav-bell-badge {
             position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
             padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
@@ -172,49 +175,49 @@
         </section>
         <div class="cards" id="dashboardCards">
             <div class="card" data-card="blockchain">
-                <div class="icon">🔗</div>
+                <div class="icon"><img src="/icons/line/link.svg" alt=""></div>
                 <h3>Tracciamento Blockchain</h3>
                 <p>Analisi del flusso di transazioni su blockchain. Visualizzazione grafica dei percorsi wallet.</p>
                 <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="osint">
-                <div class="icon">🕵️</div>
+                <div class="icon"><img src="/icons/line/search-alt.svg" alt=""></div>
                 <h3>OSINT & Intelligence</h3>
                 <p>Ricerca e correlazione di identità, exchange, indirizzi IP e metadati associati a wallet e transazioni sospette.</p>
                 <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="chainholder">
-                <div class="icon">🔒</div>
+                <div class="icon"><img src="/icons/line/folder-lock.svg" alt=""></div>
                 <h3>Chainholder</h3>
                 <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
                 <a href="http://192.168.1.73:3000/login?callbackUrl=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="corsi">
-                <div class="icon">🎓</div>
+                <div class="icon"><img src="/icons/line/graduation-cap.svg" alt=""></div>
                 <h3>Corsi</h3>
                 <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
                 <a href="/corsi" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="cluster">
-                <div class="icon">🧩</div>
+                <div class="icon"><img src="/icons/line/layer-group.svg" alt=""></div>
                 <h3>Cluster</h3>
                 <p>Clusterizzazione dei report forniti dagli Exchange.</p>
                 <a href="/cluster/" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="ai">
-                <div class="icon">🤖</div>
+                <div class="icon"><img src="/icons/line/robot.svg" alt=""></div>
                 <h3>AI</h3>
                 <p>Assistenza intelligente per analisi, ricerche e supporto operativo sulle attività del portale.</p>
                 <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="analisi-report">
-                <div class="icon">📊</div>
+                <div class="icon"><img src="/icons/line/analytics.svg" alt=""></div>
                 <h3>Analisi Report</h3>
-                <p>Consultazione e analisi dei report operativi, con strumenti di lettura e correlazione dei dati.</p>
+                <p>Carica CSV, Excel o PDF: profilo, transazioni wallet, IP di accesso e riassunto con grafici.</p>
                 <a href="/analisi-report" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
             </div>
             <div class="card" data-card="gestione-utenti" style="display:none;">
-                <div class="icon">👥</div>
+                <div class="icon"><img src="/icons/line/users-alt.svg" alt=""></div>
                 <h3>Gestione Utenti</h3>
                 <p>Inviti, ruoli, profili e richieste di modifica. Area riservata ad amministratori e super admin.</p>
                 <a href="/gestione-utenti" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>

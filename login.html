@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=13">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=3">
+    <script src="light-theme.js?v=1"></script>
     <link rel="stylesheet" href="otp-boxes.css?v=1">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -163,7 +166,8 @@
             padding: 2.2rem 2rem; width: 100%; max-width: 400px;
             box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.8);
         }
-        .modal-box h3 { color: #00C8FF; font-size: 1.15rem; margin-bottom: 0.4rem; }
+        .modal-box h3 { color: #00C8FF; font-size: 1.15rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.45rem; }
+        .modal-box h3 img { width: 1.2em; height: 1.2em; display: block; }
         .modal-box p  { color: #5ABBC8; font-size: 0.85rem; margin-bottom: 1.4rem; }
     </style>
 </head>
@@ -223,7 +227,7 @@
     <!-- Modale cambio password obbligatorio -->
     <div class="modal-bg" id="changePwdModal" style="display:none;">
         <div class="modal-box">
-            <h3>🔒 Cambio password obbligatorio</h3>
+            <h3><img src="/icons/line/lock.svg" alt=""> Cambio password obbligatorio</h3>
             <p>Per continuare devi impostare una nuova password personale.</p>
             <div class="error-msg" id="changePwdError" style="margin-bottom:1rem;"></div>
             <div class="field">

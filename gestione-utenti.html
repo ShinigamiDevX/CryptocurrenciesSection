@@ -9,7 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=13">
-    <link rel="stylesheet" href="style.css?v=6">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=3">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
     <link rel="stylesheet" href="custom-select.css?v=8">
     <link rel="stylesheet" href="custom-date.css?v=8">
     <link rel="stylesheet" href="luogo-nascita.css?v=5">
@@ -23,7 +26,7 @@
             border-radius: 9px; color: #7ACCE0; cursor: pointer;
         }
         .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
-        .nav-bell-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-btn svg, .nav-bell-btn img { width: 18px; height: 18px; fill: currentColor; display: block; }
         .nav-bell-badge {
             position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
             padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
@@ -94,7 +97,8 @@
             margin: 0 auto;
             box-sizing: border-box;
         }
-        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .page-title img { width: 1.35em; height: 1.35em; display: block; }
         .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 2rem; text-align: center; }
         .tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(0,200,255,0.15); margin-bottom: 1.8rem; justify-content: center; }
         .tab-btn {
@@ -233,7 +237,8 @@
             padding:1.8rem 2rem;width:100%;max-width:560px;max-height:92vh;overflow:auto;
             box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75);
         }
-        .view-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; }
+        .view-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; display:flex; align-items:center; gap:0.45rem; }
+        .view-modal-box h3 img { width:1.2em; height:1.2em; display:block; }
         .view-dl { display:grid; grid-template-columns:120px 1fr; gap:0.75rem 1rem; align-items:center; }
         .view-dl dt { font-size:0.75rem; font-weight:600; color:#7ACCE0; text-transform:uppercase; letter-spacing:0.05em; }
         .view-dl dd { margin:0; color:#C8F0E8; font-size:0.95rem; }
@@ -656,7 +661,7 @@
                     <li><a href="/profilo">Il mio profilo</a></li>
                     <li>
                         <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 3.5 10.2c-.3.25-.3.7 0 .95l.7.55c.25.2.6.15.8-.1L12 5.9l6.99 5.7c.2.25.55.3.8.1l.7-.55c.3-.25.3-.7 0-.95L12 3.2zM5.5 12.5V20c0 .55.45 1 1 1h3.75c.4 0 .75-.35.75-.75V16.5c0-.55.45-1 1-1h.5c.55 0 1 .45 1 1v3.75c0 .4.35.75.75.75H17.5c.55 0 1-.45 1-1v-7.5L12 7.2 5.5 12.5z"/></svg>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
                         </a>
                     </li>
                     <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
@@ -681,7 +686,7 @@
     </div>
 
     <main>
-        <div class="page-title">⚙️ Gestione Utenti</div>
+        <div class="page-title"><img src="/icons/line/users-alt.svg" alt=""> Gestione Utenti</div>
         <p class="page-sub">Amministrazione degli accessi al portale operativo.</p>
 
         <div class="tabs">
@@ -804,7 +809,7 @@
     <!-- Modale visualizza profilo utente -->
     <div class="view-modal-bg" id="viewModal" style="display:none;" onclick="if(event.target===this)closeViewModal()">
         <div class="view-modal-box">
-            <h3>👤 Profilo utente</h3>
+            <h3><img src="/icons/line/user-circle.svg" alt=""> Profilo utente</h3>
             <dl class="view-dl">
                 <dt>Email</dt>
                 <dd id="viewEmail">—</dd>

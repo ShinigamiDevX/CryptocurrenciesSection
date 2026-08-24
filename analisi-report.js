@@ -5,9 +5,8 @@
     ];
 
     let _files = [];
-    let _datasets = [];
-    let _activeIdx = 0;
     let _charts = [];
+    let _maps = [];
 
     function tokenOrEmpty() {
         return typeof getAuthToken === 'function' ? getAuthToken() : '';
@@ -37,10 +36,7 @@
 
     function setStatus(text, type) {
         const el = document.getElementById('statusMsg');
-        if (!text) {
-            el.style.display = 'none';
-            return;
-        }
+        if (!text) { el.style.display = 'none'; return; }
         el.className = 'ar-status ' + (type || 'info');
         el.textContent = text;
         el.style.display = 'block';
@@ -50,6 +46,21 @@
         if (n < 1024) return n + ' B';
         if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
         return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function escapeHtml(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function fmtNum(n) {
+        if (n == null || Number.isNaN(n)) return '—';
+        return Number(n).toLocaleString('it-IT', { maximumFractionDigits: 8 });
+    }
+
+    function badge(kind, label) {
+        return `<span class="ar-badge ar-badge-${escapeHtml(kind)}">${escapeHtml(label)}</span>`;
     }
 
     function renderFileList() {
@@ -64,7 +75,7 @@
         }
         list.innerHTML = _files.map((f, i) => `
             <li>
-                <span>${f.name} <span class="ar-file-meta">· ${formatBytes(f.size)}</span></span>
+                <span>${escapeHtml(f.name)} <span class="ar-file-meta">· ${formatBytes(f.size)}</span></span>
                 <button type="button" data-remove="${i}">Rimuovi</button>
             </li>
         `).join('');
@@ -83,11 +94,11 @@
         for (const f of fileList) {
             const ext = '.' + (f.name.split('.').pop() || '').toLowerCase();
             if (!allowed.includes(ext)) {
-                setStatus(`File ignorato (formato non supportato): ${f.name}`, 'error');
+                setStatus('File ignorato (formato non supportato): ' + f.name, 'error');
                 continue;
             }
             if (f.size > 25 * 1024 * 1024) {
-                setStatus(`File troppo grande (max 25 MB): ${f.name}`, 'error');
+                setStatus('File troppo grande (max 25 MB): ' + f.name, 'error');
                 continue;
             }
             if (_files.some((x) => x.name === f.name && x.size === f.size)) continue;
@@ -99,102 +110,46 @@
     function destroyCharts() {
         _charts.forEach((c) => { try { c.destroy(); } catch (_) {} });
         _charts = [];
+        _maps.forEach((m) => { try { m.remove(); } catch (_) {} });
+        _maps = [];
     }
 
-    function chartColors(n) {
-        const out = [];
-        for (let i = 0; i < n; i++) out.push(CHART_COLORS[i % CHART_COLORS.length]);
-        return out;
+    function isLight() {
+        return document.documentElement.classList.contains('light-theme');
     }
 
-    function renderDataset(idx) {
-        _activeIdx = idx;
-        const ds = _datasets[idx];
-        if (!ds) return;
+    function tickColor() {
+        return isLight() ? '#8B5E00' : '#5ABBC8';
+    }
 
-        document.querySelectorAll('.ar-tab').forEach((t, i) => {
-            t.classList.toggle('active', i === idx);
-        });
-
-        const sheetLabel = ds.sheet ? ds.sheet : 'Dati';
-        document.getElementById('datasetMeta').innerHTML = `
-            <div class="ar-meta-item"><span class="label">File</span><span class="value" style="font-size:0.9rem;font-weight:600;">${escapeHtml(ds.source || '—')}</span></div>
-            <div class="ar-meta-item"><span class="label">Foglio / Tabella</span><span class="value" style="font-size:0.9rem;font-weight:600;">${escapeHtml(sheetLabel)}</span></div>
-            <div class="ar-meta-item"><span class="label">Righe</span><span class="value">${ds.summary?.rows ?? ds.rows ?? 0}</span></div>
-            <div class="ar-meta-item"><span class="label">Colonne</span><span class="value">${ds.summary?.columns ?? (ds.columns || []).length}</span></div>
-            <div class="ar-meta-item"><span class="label">Numeriche</span><span class="value">${ds.summary?.numeric_columns ?? '—'}</span></div>
-            <div class="ar-meta-item"><span class="label">Categoriali</span><span class="value">${ds.summary?.categorical_columns ?? '—'}</span></div>
-        `;
-
-        const details = ds.columns_detail || [];
-        const tableWrap = document.getElementById('columnsTableWrap');
-        if (!details.length) {
-            tableWrap.innerHTML = ds.error
-                ? `<p style="color:#FF6B7A;font-size:0.88rem;">${escapeHtml(ds.error)}</p>`
-                : '';
-        } else {
-            tableWrap.innerHTML = `
-                <table class="ar-table">
-                    <thead>
-                        <tr>
-                            <th>Colonna</th>
-                            <th>Tipo</th>
-                            <th>Unici</th>
-                            <th>Null / vuoti</th>
-                            <th>Dettaglio</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${details.map((c) => {
-                            let detail = '—';
-                            if (c.type === 'numeric' && c.stats) {
-                                detail = `min ${fmtNum(c.stats.min)} · max ${fmtNum(c.stats.max)} · media ${fmtNum(c.stats.mean)}`;
-                            } else if (c.type === 'categorical' && c.top_values?.length) {
-                                detail = c.top_values.slice(0, 3).map((t) => `${t.value} (${t.count})`).join(', ');
-                            }
-                            return `<tr>
-                                <td>${escapeHtml(c.name)}</td>
-                                <td>${c.type === 'numeric' ? 'Numerica' : 'Categoriale'}</td>
-                                <td>${c.unique}</td>
-                                <td>${c.nulls}</td>
-                                <td>${escapeHtml(detail)}</td>
-                            </tr>`;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-
-        destroyCharts();
-        const grid = document.getElementById('chartsGrid');
-        const charts = ds.charts || [];
-        if (!charts.length) {
-            grid.innerHTML = '<p style="color:#5ABBC8;font-size:0.88rem;">Nessun grafico generabile per questo dataset.</p>';
+    function renderCharts(charts, grid, prefix) {
+        if (!grid) return;
+        if (!charts || !charts.length) {
+            grid.innerHTML = '';
             return;
         }
         grid.innerHTML = charts.map((_, i) => `
             <div class="ar-chart-box">
-                <h4 id="chartTitle${i}"></h4>
-                <canvas id="chartCanvas${i}"></canvas>
+                <h4 id="${prefix}-title-${i}"></h4>
+                <canvas id="${prefix}-canvas-${i}"></canvas>
             </div>
         `).join('');
-
         charts.forEach((ch, i) => {
-            document.getElementById('chartTitle' + i).textContent = ch.title || 'Grafico';
-            const ctx = document.getElementById('chartCanvas' + i);
+            document.getElementById(prefix + '-title-' + i).textContent = ch.title || 'Grafico';
             const type = ch.type === 'histogram' ? 'bar' : (ch.type || 'bar');
-            const colors = chartColors((ch.labels || []).length);
-            const chart = new Chart(ctx, {
+            const colors = (ch.labels || []).map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]);
+            const chart = new Chart(document.getElementById(prefix + '-canvas-' + i), {
                 type,
                 data: {
                     labels: ch.labels || [],
                     datasets: [{
                         label: ch.title || '',
                         data: ch.values || [],
-                        backgroundColor: type === 'pie' ? colors : 'rgba(0,200,255,0.55)',
-                        borderColor: type === 'pie' ? colors.map(() => '#030E1C') : '#00C8FF',
-                        borderWidth: type === 'pie' ? 1 : 1.5,
-                        borderRadius: type === 'bar' ? 4 : 0,
+                        backgroundColor: (type === 'pie' || type === 'doughnut') ? colors : 'rgba(0,200,255,0.55)',
+                        borderColor: type === 'pie' ? colors : '#00C8FF',
+                        borderWidth: 1.4,
+                        fill: type === 'line',
+                        tension: 0.25,
                     }],
                 },
                 options: {
@@ -203,19 +158,12 @@
                     plugins: {
                         legend: {
                             display: type === 'pie',
-                            labels: { color: '#7ACCE0', boxWidth: 12 },
+                            labels: { color: tickColor(), boxWidth: 12 },
                         },
                     },
                     scales: type === 'pie' ? {} : {
-                        x: {
-                            ticks: { color: '#5ABBC8', maxRotation: 45, minRotation: 0 },
-                            grid: { color: 'rgba(0,200,255,0.08)' },
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#5ABBC8' },
-                            grid: { color: 'rgba(0,200,255,0.08)' },
-                        },
+                        x: { ticks: { color: tickColor(), maxRotation: 40 }, grid: { color: 'rgba(0,200,255,0.08)' } },
+                        y: { beginAtZero: true, ticks: { color: tickColor() }, grid: { color: 'rgba(0,200,255,0.08)' } },
                     },
                 },
             });
@@ -223,45 +171,277 @@
         });
     }
 
-    function renderResults(payload) {
-        _datasets = payload.datasets || [];
-        const wrap = document.getElementById('resultsWrap');
-        const tabs = document.getElementById('datasetTabs');
-        if (!_datasets.length) {
-            wrap.style.display = 'none';
-            return;
-        }
-        wrap.style.display = 'block';
-        tabs.innerHTML = _datasets.map((ds, i) => {
-            const label = ds.sheet
-                ? `${shortName(ds.source)} · ${ds.sheet}`
-                : shortName(ds.source);
-            return `<button type="button" class="ar-tab${i === 0 ? ' active' : ''}" data-idx="${i}">${escapeHtml(label)}</button>`;
-        }).join('');
-        tabs.querySelectorAll('.ar-tab').forEach((btn) => {
-            btn.addEventListener('click', () => renderDataset(Number(btn.getAttribute('data-idx'))));
+    function kindLabel(kind) {
+        return ({
+            vpn: 'VPN',
+            hosting: 'Hosting',
+            residenziale: 'Residenziale',
+            privato: 'Privato',
+            sconosciuto: 'Sconosciuto',
+        })[kind] || kind;
+    }
+
+    const KIND_COLOR = {
+        vpn: '#FF6B7A',
+        hosting: '#FFB84D',
+        residenziale: '#00E676',
+        sconosciuto: '#7ACCE0',
+        privato: '#A78BFA',
+    };
+
+    function hasGeo(row) {
+        return Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon));
+    }
+
+    function tileUrl() {
+        return 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
+    }
+
+    function renderIpMap(el, rows) {
+        if (!el || typeof L === 'undefined') return;
+        const points = (rows || []).filter(hasGeo);
+        if (!points.length) return;
+        const map = L.map(el, {
+            scrollWheelZoom: false,
+            worldCopyJump: false,
+            minZoom: 1,
+            maxZoom: 8,
+            maxBounds: [[-85, -180], [85, 180]],
+            maxBoundsViscosity: 1,
         });
-        renderDataset(0);
+        L.tileLayer(tileUrl(), {
+            attribution: '&copy; OpenStreetMap, &copy; CARTO',
+            subdomains: 'abcd',
+            noWrap: true,
+            bounds: [[-85, -180], [85, 180]],
+        }).addTo(map);
+
+        const seen = {};
+        const latlngs = [];
+        points.forEach((row) => {
+            let lat = Number(row.lat);
+            let lon = Number(row.lon);
+            const key = lat.toFixed(3) + ',' + lon.toFixed(3);
+            seen[key] = (seen[key] || 0) + 1;
+            const n = seen[key] - 1;
+            if (n) {
+                lat += 0.22 * Math.sin(n * 1.1);
+                lon += 0.22 * Math.cos(n * 1.1);
+            }
+            const color = KIND_COLOR[row.kind] || KIND_COLOR.sconosciuto;
+            const marker = L.circleMarker([lat, lon], {
+                radius: 8,
+                color,
+                weight: 2,
+                fillColor: color,
+                fillOpacity: 0.85,
+            }).addTo(map);
+            marker.bindPopup(
+                '<strong>' + escapeHtml(row.ip) + '</strong><br>' +
+                escapeHtml(kindLabel(row.kind)) +
+                (row.country && row.country !== '—' ? '<br>' + escapeHtml(row.country) : '') +
+                (row.city && row.city !== '—' ? '<br>' + escapeHtml(row.city) : '') +
+                (row.isp && row.isp !== '—' ? '<br>' + escapeHtml(row.isp) : '')
+            );
+            latlngs.push([lat, lon]);
+        });
+        if (latlngs.length === 1) {
+            map.setView(latlngs[0], 3);
+        } else {
+            map.fitBounds(L.latLngBounds(latlngs), { padding: [28, 28], maxZoom: 5 });
+        }
+        _maps.push(map);
+        setTimeout(() => { try { map.invalidateSize(); } catch (_) {} }, 80);
     }
 
-    function shortName(name) {
-        const s = String(name || 'file');
-        return s.length > 28 ? s.slice(0, 25) + '…' : s;
+    function fileReportHtml(entry, index, total) {
+        const report = entry.report || {};
+        const name = entry.name || ('File ' + (index + 1));
+        const profile = report.profile || [];
+        const tx = report.transactions || {};
+        const sample = tx.sample || [];
+        const ips = report.ips || {};
+        const ipRows = ips.rows || [];
+        const geoRows = ipRows.filter(hasGeo);
+        const warnings = report.warnings || [];
+        const inEntries = Object.entries(tx.in_total || {}).sort((a, b) => Number(b[1]) - Number(a[1]));
+        const outEntries = Object.entries(tx.out_total || {}).sort((a, b) => Number(b[1]) - Number(a[1]));
+        const flowList = (entries) => entries.length
+            ? `<ul class="ar-flow-list">${entries.map(([asset, amount]) => `
+                    <li>
+                        <span class="ar-flow-asset" title="${escapeHtml(asset)}">${escapeHtml(asset || '—')}</span>
+                        <span class="ar-flow-amount">${escapeHtml(fmtNum(amount))}</span>
+                    </li>`).join('')}</ul>`
+            : '<p class="ar-flow-empty">Nessun movimento</p>';
+        const indexLabel = total > 1 ? `<span class="ar-file-index">File ${index + 1} di ${total}</span>` : '';
+        return `
+            <section class="ar-file-block" data-file="${escapeHtml(name)}">
+                <header class="ar-file-head">${indexLabel}<h2>${escapeHtml(name)}</h2></header>
+                <div class="ar-card">
+                    <h3 class="ar-section-title">${escapeHtml(report.headline || 'Riassunto')}</h3>
+                    <div class="ar-kpis">
+                        ${(report.kpis || []).map((k) => `
+                            <div class="ar-kpi"><span class="label">${escapeHtml(k.label)}</span><span class="value">${escapeHtml(k.value)}</span></div>
+                        `).join('')}
+                    </div>
+                    <ul class="ar-bullets">${(report.bullets || []).map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>
+                </div>
+                <div class="ar-charts" id="charts-${index}"></div>
+                ${profile.length ? `
+                <div class="ar-card">
+                    <h3 class="ar-section-title">Profilo utente</h3>
+                    <dl class="ar-dl">${profile.map((p) => `
+                        <dt>${escapeHtml(p.label)}</dt><dd>${escapeHtml(p.value)}</dd>
+                    `).join('')}</dl>
+                </div>` : ''}
+                ${tx.count ? `
+                <div class="ar-card">
+                    <h3 class="ar-section-title">Transazioni wallet</h3>
+                    <div class="ar-flow">
+                        <div class="ar-flow-col in">
+                            <div class="ar-flow-head">
+                                <span class="ar-flow-title">${badge('in', 'IN')} Entrata</span>
+                                <span class="ar-flow-count">${inEntries.length} asset · ${tx.in_count || 0} tx</span>
+                            </div>
+                            ${flowList(inEntries)}
+                        </div>
+                        <div class="ar-flow-col out">
+                            <div class="ar-flow-head">
+                                <span class="ar-flow-title">${badge('out', 'OUT')} Uscita</span>
+                                <span class="ar-flow-count">${outEntries.length} asset · ${tx.out_count || 0} tx</span>
+                            </div>
+                            ${flowList(outEntries)}
+                        </div>
+                    </div>
+                    ${warnings.length ? `<ul class="ar-warnings">${warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>` : ''}
+                    <div class="ar-table-wrap">
+                        <table class="ar-table">
+                            <thead><tr>
+                                <th>Direzione</th><th>Importo</th><th>Asset</th><th>Data</th><th>Wallet</th><th>TxID</th>
+                            </tr></thead>
+                            <tbody>
+                                ${sample.map((t) => `<tr>
+                                    <td>${badge(t.direction === 'in' ? 'in' : 'out', t.direction === 'in' ? 'IN' : 'OUT')}</td>
+                                    <td>${escapeHtml(fmtNum(t.amount))}</td>
+                                    <td>${escapeHtml(t.asset || '—')}</td>
+                                    <td>${escapeHtml(t.when || '—')}</td>
+                                    <td>${escapeHtml(t.wallet || '—')}</td>
+                                    <td>${escapeHtml(t.txid || '—')}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>` : warnings.length ? `
+                <div class="ar-card">
+                    <h3 class="ar-section-title">Transazioni wallet</h3>
+                    <ul class="ar-warnings">${warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+                </div>` : ''}
+                ${ipRows.length ? `
+                <div class="ar-card">
+                    <h3 class="ar-section-title">Indirizzi IP di accesso</h3>
+                    <p style="color:#5ABBC8;font-size:0.82rem;margin:0 0 0.9rem;">Indicazione VPN/proxy/Tor/datacenter da ${escapeHtml(ips.provider || 'servizi di IP intelligence')}. È una stima, non una prova forense.</p>
+                    ${geoRows.length ? `
+                    <div class="ar-map-wrap">
+                        <div class="ar-map" id="ip-map-${index}"></div>
+                        <div class="ar-map-legend">
+                            <span><i style="background:#FF6B7A"></i>VPN</span>
+                            <span><i style="background:#FFB84D"></i>Hosting</span>
+                            <span><i style="background:#00E676"></i>Residenziale</span>
+                            <span><i style="background:#7ACCE0"></i>Sconosciuto</span>
+                        </div>
+                    </div>` : ''}
+                    <div class="ar-table-wrap">
+                        <table class="ar-table">
+                            <thead><tr>
+                                <th>IP</th><th>Tipo</th><th>Paese</th><th>ISP</th><th>Nota</th>
+                            </tr></thead>
+                            <tbody>
+                                ${ipRows.map((r) => `<tr>
+                                    <td>${escapeHtml(r.ip)}</td>
+                                    <td>${badge(r.kind, kindLabel(r.kind))}</td>
+                                    <td>${escapeHtml(r.country || '—')}</td>
+                                    <td>${escapeHtml(r.isp || '—')}</td>
+                                    <td>${escapeHtml(r.reason || '—')}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>` : ''}
+            </section>
+        `;
     }
 
-    function escapeHtml(s) {
-        return String(s ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+    function renderFiles(files) {
+        destroyCharts();
+        const wrap = document.getElementById('resultsWrap');
+        const host = document.getElementById('fileReports');
+        wrap.style.display = 'block';
+        const total = files.length;
+        const overview = total > 1
+            ? `<div class="ar-card ar-overview">Analizzati ${total} file. Ogni blocco sotto è il report di un singolo file.</div>`
+            : '';
+        host.innerHTML = overview + files.map((f, i) => fileReportHtml(f, i, total)).join('');
+        files.forEach((f, i) => {
+            renderCharts((f.report || {}).charts || [], document.getElementById('charts-' + i), 'c' + i);
+            const rows = ((f.report || {}).ips || {}).rows || [];
+            renderIpMap(document.getElementById('ip-map-' + i), rows);
+        });
     }
 
-    function fmtNum(n) {
-        if (n == null || Number.isNaN(n)) return '—';
-        const abs = Math.abs(n);
-        if (abs >= 1000 || (abs > 0 && abs < 0.01)) return Number(n).toPrecision(4);
-        return Number(n).toLocaleString('it-IT', { maximumFractionDigits: 3 });
+    function askPassword(fileName, errorText) {
+        const modal = document.getElementById('passwordModal');
+        const input = document.getElementById('passwordInput');
+        const err = document.getElementById('passwordError');
+        const ok = document.getElementById('passwordOk');
+        const cancel = document.getElementById('passwordCancel');
+        document.getElementById('passwordFile').textContent = fileName || '';
+        document.getElementById('passwordMsg').textContent = errorText
+            ? 'Password non valida. Riprova.'
+            : 'Questo file è protetto da password.';
+        if (errorText) {
+            err.textContent = errorText;
+            err.hidden = false;
+        } else {
+            err.textContent = '';
+            err.hidden = true;
+        }
+        input.value = '';
+        modal.hidden = false;
+        modal.style.display = 'flex';
+        setTimeout(() => input.focus(), 30);
+        return new Promise((resolve) => {
+            function close(value) {
+                modal.style.display = 'none';
+                modal.hidden = true;
+                ok.onclick = null;
+                cancel.onclick = null;
+                input.onkeydown = null;
+                document.removeEventListener('keydown', onEsc);
+                resolve(value);
+            }
+            function onEsc(e) {
+                if (e.key === 'Escape') close(null);
+            }
+            function submit() {
+                const v = input.value;
+                if (!v) {
+                    err.textContent = 'Inserisci la password.';
+                    err.hidden = false;
+                    input.focus();
+                    return;
+                }
+                close(v);
+            }
+            ok.onclick = submit;
+            cancel.onclick = () => close(null);
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submit();
+                }
+            };
+            document.addEventListener('keydown', onEsc);
+        });
     }
 
     async function analyze() {
@@ -273,37 +453,74 @@
         document.getElementById('resultsWrap').style.display = 'none';
         destroyCharts();
 
-        const form = new FormData();
-        _files.forEach((f) => form.append('files', f, f.name));
-
+        const passwords = {};
         try {
-            const res = await fetch('/api/analisi/analyze', {
-                method: 'POST',
-                headers: { Authorization: 'Bearer ' + tokenOrEmpty() },
-                body: form,
-            });
-            let data = {};
-            try { data = await res.json(); } catch (_) {}
-
-            if (!res.ok) {
+            while (true) {
+                const form = new FormData();
+                _files.forEach((f) => form.append('files', f, f.name));
+                if (Object.keys(passwords).length) {
+                    form.append('file_passwords', JSON.stringify(passwords));
+                }
+                const res = await fetch('/api/analisi/analyze', {
+                    method: 'POST',
+                    headers: { Authorization: 'Bearer ' + tokenOrEmpty() },
+                    body: form,
+                });
+                let data = {};
+                try { data = await res.json(); } catch (_) {}
+                if (res.status === 401) {
+                    if (typeof clearAuth === 'function') clearAuth();
+                    window.location.replace('/login');
+                    return;
+                }
                 const detail = data.detail;
-                let msg = 'Analisi fallita.';
-                if (typeof detail === 'string') msg = detail;
-                else if (detail?.message) msg = detail.message;
-                else if (detail?.errors?.length) msg = detail.errors.map((e) => `${e.file}: ${e.error}`).join(' · ');
-                else if (data.error) msg = data.error;
-                setStatus(msg, 'error');
-                return;
+                const code = detail && typeof detail === 'object' ? detail.code : '';
+                if (res.status === 409 && code === 'password_required') {
+                    const names = detail.files || [];
+                    let cancelled = false;
+                    for (const fname of names) {
+                        const pw = await askPassword(fname);
+                        if (pw === null) { cancelled = true; break; }
+                        passwords[fname] = pw;
+                    }
+                    if (cancelled) {
+                        setStatus('Analisi annullata: manca la password del file.', 'info');
+                        return;
+                    }
+                    setStatus('Sblocco del file in corso…', 'info');
+                    continue;
+                }
+                if (res.status === 400 && code === 'wrong_password') {
+                    const fname = detail.file || '';
+                    const pw = await askPassword(fname, detail.message || 'Password errata.');
+                    if (pw === null) {
+                        setStatus('Analisi annullata: manca la password del file.', 'info');
+                        return;
+                    }
+                    passwords[fname] = pw;
+                    setStatus('Sblocco del file in corso…', 'info');
+                    continue;
+                }
+                if (!res.ok) {
+                    let msg = 'Analisi fallita.';
+                    if (typeof detail === 'string') msg = detail;
+                    else if (detail?.message) msg = detail.message;
+                    else if (detail?.errors?.length) msg = detail.errors.map((e) => e.file + ': ' + e.error).join(' · ');
+                    setStatus(msg, 'error');
+                    return;
+                }
+                const warn = (data.errors || []).map((e) => e.file + ': ' + e.error).join(' · ');
+                setStatus(
+                    warn ? 'Analisi completata con avvisi. ' + warn : 'Analisi completata.',
+                    warn ? 'info' : 'success'
+                );
+                renderFiles(
+                    (data.files && data.files.length)
+                        ? data.files
+                        : [{ name: 'Report', report: data.report || {} }]
+                );
+                break;
             }
-
-            const warn = (data.errors || []).map((e) => `${e.file}: ${e.error}`).join(' · ');
-            setStatus(
-                warn
-                    ? `Analisi completata con avvisi. ${warn}`
-                    : `Analisi completata: ${data.count || (data.datasets || []).length} dataset.`,
-                warn ? 'info' : 'success'
-            );
-            renderResults(data);
         } catch (_) {
             setStatus('Errore di rete durante l\'analisi.', 'error');
         } finally {
@@ -314,18 +531,13 @@
 
     async function initAuth() {
         const token = tokenOrEmpty();
-        if (!token) {
-            window.location.replace('/login');
-            return;
-        }
+        if (!token) { window.location.replace('/login'); return; }
         try {
-            const res = await fetch('/api/auth/verify', {
-                headers: { Authorization: 'Bearer ' + token },
-            });
+            const res = await fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + token } });
             if (!res.ok) throw new Error();
             const user = await res.json();
             const cards = Array.isArray(user.cards) ? user.cards : [];
-            if (!cards.includes('analisi-report')) {
+            if (user.role !== 'superadmin' && !cards.includes('analisi-report')) {
                 window.location.replace('/portal');
                 return;
             }
@@ -341,11 +553,7 @@
     function wireUi() {
         const drop = document.getElementById('dropZone');
         const input = document.getElementById('fileInput');
-
-        drop.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            drop.classList.add('dragover');
-        });
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
         drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
         drop.addEventListener('drop', (e) => {
             e.preventDefault();
@@ -356,7 +564,6 @@
             if (input.files?.length) addFiles(input.files);
             input.value = '';
         });
-
         document.getElementById('btnClear').addEventListener('click', () => {
             _files = [];
             renderFileList();
@@ -365,6 +572,19 @@
             destroyCharts();
         });
         document.getElementById('btnAnalyze').addEventListener('click', analyze);
+        new MutationObserver(() => {
+            _maps.forEach((map) => {
+                map.eachLayer((layer) => {
+                    if (layer instanceof L.TileLayer) map.removeLayer(layer);
+                });
+                L.tileLayer(tileUrl(), {
+                    attribution: '&copy; OpenStreetMap, &copy; CARTO',
+                    subdomains: 'abcd',
+                    noWrap: true,
+                    bounds: [[-85, -180], [85, 180]],
+                }).addTo(map);
+            });
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     }
 
     initAuth();
