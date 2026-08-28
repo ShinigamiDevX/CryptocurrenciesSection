@@ -1,0 +1,787 @@
+'use strict';
+const Database = require('better-sqlite3');
+const path     = require('path');
+const fs       = require('fs');
+
+const DATA_DIR = path.join(__dirname, 'data');
+const DB_PATH  = path.join(DATA_DIR, 'portal.db');
+
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const db = new Database(DB_PATH);
+db.pragma('journal_mode = WAL');
+// Necessario perché SQLite applichi le FOREIGN KEY e le ON DELETE dichiarate sotto.
+db.pragma('foreign_keys = ON');
+
+// ── Schema ───────────────────────────────────────────────────────────────────
+db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        id                      TEXT PRIMARY KEY,
+        email                   TEXT UNIQUE NOT NULL COLLATE NOCASE,
+        passwordHash            TEXT NOT NULL DEFAULT '',
+        role                    TEXT NOT NULL DEFAULT 'user',
+        createdAt               TEXT NOT NULL,
+        revokedAt               TEXT,
+        visible                 INTEGER NOT NULL DEFAULT 1,
+        hiddenAt                TEXT,
+        mustChangePassword      INTEGER NOT NULL DEFAULT 0,
+        nome                    TEXT NOT NULL DEFAULT '',
+        cognome                 TEXT NOT NULL DEFAULT '',
+        grado                   TEXT NOT NULL DEFAULT '',
+        dataNascita             TEXT NOT NULL DEFAULT '',
+        luogoNascita            TEXT NOT NULL DEFAULT '',
+        luogoNascitaTipo        TEXT NOT NULL DEFAULT '',
+        luogoNascitaProvincia   TEXT NOT NULL DEFAULT '',
+        luogoNascitaComune      TEXT NOT NULL DEFAULT '',
+        luogoNascitaStato       TEXT NOT NULL DEFAULT '',
+        residenza               TEXT NOT NULL DEFAULT '',
+        residenzaTipo           TEXT NOT NULL DEFAULT '',
+        residenzaProvincia      TEXT NOT NULL DEFAULT '',
+        residenzaComune         TEXT NOT NULL DEFAULT '',
+        residenzaStato          TEXT NOT NULL DEFAULT '',
+        residenzaIndirizzo      TEXT NOT NULL DEFAULT '',
+        residenzaCivico         TEXT NOT NULL DEFAULT '',
+        domicilio               TEXT NOT NULL DEFAULT '',
+        domicilioTipo           TEXT NOT NULL DEFAULT '',
+        domicilioProvincia      TEXT NOT NULL DEFAULT '',
+        domicilioComune         TEXT NOT NULL DEFAULT '',
+        domicilioStato          TEXT NOT NULL DEFAULT '',
+        domicilioIndirizzo      TEXT NOT NULL DEFAULT '',
+        domicilioCivico         TEXT NOT NULL DEFAULT '',
+        domicilioComeResidenza  INTEGER NOT NULL DEFAULT 0,
+        telefono                TEXT NOT NULL DEFAULT '',
+        telefonoPrefisso        TEXT NOT NULL DEFAULT '+39',
+        allowedCards            TEXT NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS invitations (
+        token         TEXT PRIMARY KEY,
+        email         TEXT NOT NULL,
+        role          TEXT NOT NULL DEFAULT 'user',
+        invitedBy     TEXT,
+        createdAt     TEXT NOT NULL,
+        expiresAt     TEXT NOT NULL,
+        used          INTEGER NOT NULL DEFAULT 0,
+        otp           TEXT,
+        otpExpiry     TEXT,
+        otpUsed       INTEGER NOT NULL DEFAULT 0,
+        allowedCards  TEXT NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS role_change_requests (
+        id               TEXT PRIMARY KEY,
+        requestedById    TEXT NOT NULL,
+        requestedByEmail TEXT NOT NULL,
+        targetId         TEXT NOT NULL,
+        targetEmail      TEXT NOT NULL,
+        currentRole      TEXT NOT NULL,
+        newRole          TEXT NOT NULL,
+        createdAt        TEXT NOT NULL,
+        expiresAt        TEXT NOT NULL,
+        status           TEXT NOT NULL DEFAULT 'pending',
+        approvedById     TEXT,
+        approvedByEmail  TEXT,
+        approvedAt       TEXT,
+        cancelledAt      TEXT
+    );
+    CREATE TABLE IF NOT EXISTS profile_change_requests (
+        id                     TEXT PRIMARY KEY,
+        userId                 TEXT NOT NULL,
+        userEmail              TEXT NOT NULL,
+        nome                   TEXT NOT NULL,
+        cognome                TEXT NOT NULL,
+        grado                  TEXT NOT NULL,
+        dataNascita            TEXT NOT NULL DEFAULT '',
+        luogoNascita           TEXT NOT NULL DEFAULT '',
+        luogoNascitaTipo       TEXT NOT NULL DEFAULT '',
+        luogoNascitaProvincia  TEXT NOT NULL DEFAULT '',
+        luogoNascitaComune     TEXT NOT NULL DEFAULT '',
+        luogoNascitaStato      TEXT NOT NULL DEFAULT '',
+        residenza              TEXT NOT NULL DEFAULT '',
+        residenzaTipo          TEXT NOT NULL DEFAULT '',
+        residenzaProvincia     TEXT NOT NULL DEFAULT '',
+        residenzaComune        TEXT NOT NULL DEFAULT '',
+        residenzaStato         TEXT NOT NULL DEFAULT '',
+        residenzaIndirizzo     TEXT NOT NULL DEFAULT '',
+        residenzaCivico        TEXT NOT NULL DEFAULT '',
+        domicilio              TEXT NOT NULL DEFAULT '',
+        domicilioTipo          TEXT NOT NULL DEFAULT '',
+        domicilioProvincia     TEXT NOT NULL DEFAULT '',
+        domicilioComune        TEXT NOT NULL DEFAULT '',
+        domicilioStato         TEXT NOT NULL DEFAULT '',
+        domicilioIndirizzo     TEXT NOT NULL DEFAULT '',
+        domicilioCivico        TEXT NOT NULL DEFAULT '',
+        domicilioComeResidenza INTEGER NOT NULL DEFAULT 0,
+        telefono               TEXT NOT NULL DEFAULT '',
+        telefonoPrefisso       TEXT NOT NULL DEFAULT '+39',
+        requestedAt            TEXT NOT NULL,
+        status                 TEXT NOT NULL DEFAULT 'pending',
+        reviewedBy             TEXT,
+        reviewedAt             TEXT
+    );
+    CREATE TABLE IF NOT EXISTS admin_action_requests (
+        id               TEXT PRIMARY KEY,
+        type             TEXT NOT NULL,
+        targetUserId     TEXT NOT NULL,
+        targetEmail      TEXT NOT NULL,
+        payload          TEXT NOT NULL DEFAULT '{}',
+        summary          TEXT NOT NULL DEFAULT '',
+        requestedById    TEXT NOT NULL,
+        requestedByEmail TEXT NOT NULL,
+        requestedAt      TEXT NOT NULL,
+        status           TEXT NOT NULL DEFAULT 'pending',
+        approvals        TEXT NOT NULL DEFAULT '[]',
+        resolvedByEmail  TEXT,
+        resolvedAt       TEXT
+    );
+    CREATE TABLE IF NOT EXISTS notifications (
+        id        TEXT PRIMARY KEY,
+        userId    TEXT NOT NULL,
+        type      TEXT NOT NULL,
+        title     TEXT NOT NULL,
+        body      TEXT NOT NULL DEFAULT '',
+        link      TEXT NOT NULL DEFAULT '',
+        createdAt TEXT NOT NULL,
+        readAt    TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId, createdAt);
+    CREATE TABLE IF NOT EXISTS corsi_versions (
+        id             TEXT PRIMARY KEY,
+        itemId         TEXT NOT NULL,
+        title          TEXT NOT NULL DEFAULT '',
+        kind           TEXT NOT NULL DEFAULT 'post',
+        content        TEXT NOT NULL DEFAULT '',
+        action         TEXT NOT NULL DEFAULT 'update',
+        editedById     TEXT NOT NULL DEFAULT '',
+        editedByEmail  TEXT NOT NULL DEFAULT '',
+        createdAt      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_corsi_versions_item ON corsi_versions(itemId, createdAt);
+    CREATE INDEX IF NOT EXISTS idx_corsi_versions_created ON corsi_versions(createdAt);
+    CREATE TABLE IF NOT EXISTS corsi_items (
+        id          TEXT PRIMARY KEY,
+        parentId    TEXT REFERENCES corsi_items(id) ON DELETE CASCADE,
+        position    INTEGER NOT NULL DEFAULT 0,
+        type        TEXT NOT NULL DEFAULT 'section',
+        title       TEXT NOT NULL DEFAULT '',
+        content     TEXT NOT NULL DEFAULT '',
+        courseDate  TEXT NOT NULL DEFAULT '',
+        createdAt   TEXT NOT NULL,
+        updatedAt   TEXT NOT NULL,
+        createdById TEXT REFERENCES users(id) ON DELETE SET NULL,
+        updatedById TEXT REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_corsi_items_parent ON corsi_items(parentId, position);
+    CREATE TABLE IF NOT EXISTS password_resets (
+        token      TEXT PRIMARY KEY,
+        userId     TEXT NOT NULL,
+        email      TEXT NOT NULL,
+        createdAt  TEXT NOT NULL,
+        expiresAt  TEXT NOT NULL,
+        used       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_password_resets_active ON password_resets(used, expiresAt);
+`);
+
+// ── Migrazione da JSON (eseguita una sola volta) ──────────────────────────────
+function migrateFromJson() {
+    const count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+    if (count > 0) return;
+
+    const usersFile = path.join(DATA_DIR, 'users.json');
+    const invFile   = path.join(DATA_DIR, 'invitations.json');
+
+    if (fs.existsSync(usersFile)) {
+        const users = JSON.parse(fs.readFileSync(usersFile, 'utf-8'));
+        const stmt  = db.prepare(`
+            INSERT OR IGNORE INTO users (id, email, passwordHash, role, createdAt, revokedAt, mustChangePassword)
+            VALUES (@id, @email, @passwordHash, @role, @createdAt, @revokedAt, @mustChangePassword)
+        `);
+        db.transaction(() => users.forEach(u => stmt.run({
+            id: u.id, email: u.email, passwordHash: u.passwordHash || '',
+            role: u.role || 'user', createdAt: u.createdAt,
+            revokedAt: u.revokedAt || null, mustChangePassword: u.mustChangePassword ? 1 : 0
+        })))();
+        console.log(`[DB] Migrati ${users.length} utenti da users.json`);
+    }
+
+    if (fs.existsSync(invFile)) {
+        const invs = JSON.parse(fs.readFileSync(invFile, 'utf-8'));
+        const stmt = db.prepare(`
+            INSERT OR IGNORE INTO invitations (token, email, role, invitedBy, createdAt, expiresAt, used, otp, otpExpiry, otpUsed)
+            VALUES (@token, @email, @role, @invitedBy, @createdAt, @expiresAt, @used, @otp, @otpExpiry, @otpUsed)
+        `);
+        db.transaction(() => invs.forEach(i => stmt.run({
+            token: i.token, email: i.email, role: i.role || 'user',
+            invitedBy: i.invitedBy || null, createdAt: i.createdAt,
+            expiresAt: i.expiresAt, used: i.used ? 1 : 0,
+            otp: i.otp || null, otpExpiry: i.otpExpiry || null, otpUsed: i.otpUsed ? 1 : 0
+        })))();
+        console.log(`[DB] Migrati ${invs.length} inviti da invitations.json`);
+    }
+}
+migrateFromJson();
+
+// Migrazione colonne opzionali (aggiunta su DB esistenti)
+const USER_EXTRA_COLS = [
+    ['nome', "TEXT NOT NULL DEFAULT ''"],
+    ['cognome', "TEXT NOT NULL DEFAULT ''"],
+    ['grado', "TEXT NOT NULL DEFAULT ''"],
+    ['dataNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenza', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaCivico', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilio', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComune', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioCivico', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComeResidenza', 'INTEGER NOT NULL DEFAULT 0'],
+    ['telefono', "TEXT NOT NULL DEFAULT ''"],
+    ['telefonoPrefisso', "TEXT NOT NULL DEFAULT '+39'"],
+    ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
+    ['docente', 'INTEGER NOT NULL DEFAULT 0'],
+    ['loginOtp', 'TEXT'],
+    ['loginOtpExpiry', 'TEXT'],
+    ['tokenVersion', 'INTEGER NOT NULL DEFAULT 0'],
+    ['otpFailCount', 'INTEGER NOT NULL DEFAULT 0'],
+    ['otpSendCount', 'INTEGER NOT NULL DEFAULT 0'],
+    ['loginLockedUntil', 'TEXT'],
+    ['loginLockedReason', "TEXT NOT NULL DEFAULT ''"],
+    ['visible', 'INTEGER NOT NULL DEFAULT 1'],
+    ['hiddenAt', 'TEXT'],
+    ['username', 'TEXT'],
+    ['accountType', "TEXT NOT NULL DEFAULT 'user'"],
+];
+USER_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+try {
+    db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
+        ON users(username COLLATE NOCASE)
+        WHERE username IS NOT NULL AND TRIM(username) != ''
+    `);
+} catch { /* già presente o non supportato */ }
+
+(function migrateHiddenUsers() {
+    const now = new Date().toISOString();
+    db.prepare(`
+        UPDATE users SET hiddenAt = ?
+        WHERE visible = 0 AND (hiddenAt IS NULL OR hiddenAt = '')
+    `).run(now);
+    db.prepare(`
+        UPDATE users SET
+            passwordHash = '',
+            tokenVersion = tokenVersion + 1,
+            loginOtp = NULL,
+            loginOtpExpiry = NULL
+        WHERE visible = 0
+          AND revokedAt IS NULL
+          AND IFNULL(passwordHash, '') != ''
+    `).run();
+})();
+
+const INV_EXTRA_COLS = [
+    ['allowedCards', "TEXT NOT NULL DEFAULT ''"],
+    ['docente', 'INTEGER NOT NULL DEFAULT 0'],
+];
+INV_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE invitations ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+const PCR_EXTRA_COLS = [
+    ['dataNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascita', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['luogoNascitaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenza', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaComune', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaStato', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['residenzaCivico', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilio', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioTipo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioProvincia', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComune', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioStato', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioIndirizzo', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioCivico', "TEXT NOT NULL DEFAULT ''"],
+    ['domicilioComeResidenza', 'INTEGER NOT NULL DEFAULT 0'],
+    ['telefono', "TEXT NOT NULL DEFAULT ''"],
+    ['telefonoPrefisso', "TEXT NOT NULL DEFAULT '+39'"],
+];
+PCR_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE profile_change_requests ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+const CORSI_VERSION_EXTRA_COLS = [
+    ['parentId', 'TEXT'],
+    ['position', 'INTEGER NOT NULL DEFAULT 0'],
+];
+CORSI_VERSION_EXTRA_COLS.forEach(([col, def]) => {
+    try { db.exec(`ALTER TABLE corsi_versions ADD COLUMN ${col} ${def}`); }
+    catch { /* già presente */ }
+});
+
+// ── Helper ────────────────────────────────────────────────────────────────────
+const toBool = v => !!v;
+const fromRow = (r) => r ? {
+    ...r,
+    mustChangePassword: toBool(r.mustChangePassword),
+    domicilioComeResidenza: toBool(r.domicilioComeResidenza),
+    docente: toBool(r.docente),
+    visible: r.visible === undefined || r.visible === null ? true : toBool(r.visible),
+    tokenVersion: Number(r.tokenVersion) || 0,
+    otpFailCount: Number(r.otpFailCount) || 0,
+    otpSendCount: Number(r.otpSendCount) || 0,
+    username: r.username ? String(r.username) : null,
+    accountType: r.accountType === 'strumento' ? 'strumento' : 'user',
+} : null;
+
+function geoBlock(p, prefix, { withAddress = false } = {}) {
+    const tipo = p[`${prefix}Tipo`] === 'IT' || p[`${prefix}Tipo`] === 'ESTERO' ? p[`${prefix}Tipo`] : '';
+    const out = {
+        [prefix]: p[prefix] || '',
+        [`${prefix}Tipo`]: tipo,
+        [`${prefix}Provincia`]: tipo === 'IT' ? (p[`${prefix}Provincia`] || '') : '',
+        [`${prefix}Comune`]: tipo === 'IT' ? (p[`${prefix}Comune`] || '') : '',
+        [`${prefix}Stato`]: tipo === 'ESTERO' ? (p[`${prefix}Stato`] || '') : '',
+    };
+    if (withAddress) {
+        out[`${prefix}Indirizzo`] = p[`${prefix}Indirizzo`] || '';
+        out[`${prefix}Civico`] = p[`${prefix}Civico`] || '';
+    }
+    return out;
+}
+
+function profileDefaults(p = {}) {
+    const comeRes = !!p.domicilioComeResidenza;
+    const luogo = geoBlock(p, 'luogoNascita');
+    const residenza = geoBlock(p, 'residenza', { withAddress: true });
+    const domicilio = comeRes ? {
+        domicilio: residenza.residenza,
+        domicilioTipo: residenza.residenzaTipo,
+        domicilioProvincia: residenza.residenzaProvincia,
+        domicilioComune: residenza.residenzaComune,
+        domicilioStato: residenza.residenzaStato,
+        domicilioIndirizzo: residenza.residenzaIndirizzo,
+        domicilioCivico: residenza.residenzaCivico,
+    } : geoBlock(p, 'domicilio', { withAddress: true });
+    const telefonoPrefisso = String(p.telefonoPrefisso || '+39').trim() || '+39';
+    return {
+        nome: p.nome || '',
+        cognome: p.cognome || '',
+        grado: p.grado || '',
+        dataNascita: p.dataNascita || '',
+        ...luogo,
+        ...residenza,
+        ...domicilio,
+        domicilioComeResidenza: comeRes ? 1 : 0,
+        telefono: p.telefono || '',
+        telefonoPrefisso,
+    };
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+const Users = {
+    findById:    id    => fromRow(db.prepare('SELECT * FROM users WHERE id = ?').get(id)),
+    findByEmail: email => fromRow(db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').get(email)),
+    findByUsername: username => {
+        const u = String(username || '').trim();
+        if (!u) return null;
+        return fromRow(db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(u));
+    },
+    /** Login con email oppure username (profili strumento). */
+    findByLogin: login => {
+        const s = String(login || '').trim();
+        if (!s) return null;
+        if (s.includes('@')) return Users.findByEmail(s);
+        return Users.findByUsername(s) || Users.findByEmail(`${s}@strumento.local`);
+    },
+    findActive:  ()    => db.prepare('SELECT * FROM users WHERE revokedAt IS NULL').all().map(fromRow),
+    insert: u => {
+        const p = profileDefaults(u);
+        return db.prepare(`
+            INSERT INTO users (
+                id,email,passwordHash,role,createdAt,mustChangePassword,
+                nome,cognome,grado,dataNascita,luogoNascita,
+                luogoNascitaTipo,luogoNascitaProvincia,luogoNascitaComune,luogoNascitaStato,
+                residenza,residenzaTipo,residenzaProvincia,residenzaComune,residenzaStato,
+                residenzaIndirizzo,residenzaCivico,
+                domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
+                domicilioIndirizzo,domicilioCivico,
+                domicilioComeResidenza,telefono,telefonoPrefisso,allowedCards,docente,
+                username,accountType
+            ) VALUES (
+                @id,@email,@passwordHash,@role,@createdAt,@mustChangePassword,
+                @nome,@cognome,@grado,@dataNascita,@luogoNascita,
+                @luogoNascitaTipo,@luogoNascitaProvincia,@luogoNascitaComune,@luogoNascitaStato,
+                @residenza,@residenzaTipo,@residenzaProvincia,@residenzaComune,@residenzaStato,
+                @residenzaIndirizzo,@residenzaCivico,
+                @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
+                @domicilioIndirizzo,@domicilioCivico,
+                @domicilioComeResidenza,@telefono,@telefonoPrefisso,@allowedCards,@docente,
+                @username,@accountType
+            )
+        `).run({
+            id: u.id,
+            email: u.email,
+            passwordHash: u.passwordHash,
+            role: u.role || 'user',
+            createdAt: u.createdAt,
+            mustChangePassword: u.mustChangePassword ? 1 : 0,
+            allowedCards: u.allowedCards || '',
+            docente: u.docente ? 1 : 0,
+            username: u.username ? String(u.username).trim() : null,
+            accountType: u.accountType === 'strumento' ? 'strumento' : 'user',
+            ...p,
+        });
+    },
+    /** Riattiva un utente revocato (stesso id/email) con nuove credenziali e profilo. */
+    reactivate: (id, u) => {
+        const p = profileDefaults(u);
+        return db.prepare(`
+            UPDATE users SET
+                passwordHash=@passwordHash, role=@role, createdAt=@createdAt,
+                revokedAt=NULL, visible=1, hiddenAt=NULL, mustChangePassword=@mustChangePassword,
+                nome=@nome, cognome=@cognome, grado=@grado,
+                dataNascita=@dataNascita, luogoNascita=@luogoNascita,
+                luogoNascitaTipo=@luogoNascitaTipo, luogoNascitaProvincia=@luogoNascitaProvincia,
+                luogoNascitaComune=@luogoNascitaComune, luogoNascitaStato=@luogoNascitaStato,
+                residenza=@residenza, residenzaTipo=@residenzaTipo, residenzaProvincia=@residenzaProvincia,
+                residenzaComune=@residenzaComune, residenzaStato=@residenzaStato,
+                residenzaIndirizzo=@residenzaIndirizzo, residenzaCivico=@residenzaCivico,
+                domicilio=@domicilio, domicilioTipo=@domicilioTipo, domicilioProvincia=@domicilioProvincia,
+                domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
+                domicilioIndirizzo=@domicilioIndirizzo, domicilioCivico=@domicilioCivico,
+                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono, telefonoPrefisso=@telefonoPrefisso,
+                allowedCards=@allowedCards, docente=@docente
+            WHERE id=@id
+        `).run({
+            id,
+            passwordHash: u.passwordHash,
+            role: u.role || 'user',
+            createdAt: u.createdAt,
+            mustChangePassword: u.mustChangePassword ? 1 : 0,
+            allowedCards: u.allowedCards || '',
+            docente: u.docente ? 1 : 0,
+            ...p,
+        });
+    },
+    /** Aggiorna il ruolo e invalida i JWT precedenti (tokenVersion++), come per il cambio password. */
+    updateRole: (id, role) => db.prepare('UPDATE users SET role = ?, tokenVersion = tokenVersion + 1 WHERE id = ?').run(role, id),
+    updateAllowedCards: (id, allowedCards) => db.prepare('UPDATE users SET allowedCards = ? WHERE id = ?').run(allowedCards || '', id),
+    updateDocente: (id, docente) => db.prepare('UPDATE users SET docente = ? WHERE id = ?').run(docente ? 1 : 0, id),
+    updateProfile: (id, profile) => {
+        const p = profileDefaults(profile);
+        return db.prepare(`
+            UPDATE users SET
+                nome=@nome, cognome=@cognome, grado=@grado,
+                dataNascita=@dataNascita, luogoNascita=@luogoNascita,
+                luogoNascitaTipo=@luogoNascitaTipo, luogoNascitaProvincia=@luogoNascitaProvincia,
+                luogoNascitaComune=@luogoNascitaComune, luogoNascitaStato=@luogoNascitaStato,
+                residenza=@residenza, residenzaTipo=@residenzaTipo, residenzaProvincia=@residenzaProvincia,
+                residenzaComune=@residenzaComune, residenzaStato=@residenzaStato,
+                residenzaIndirizzo=@residenzaIndirizzo, residenzaCivico=@residenzaCivico,
+                domicilio=@domicilio, domicilioTipo=@domicilioTipo, domicilioProvincia=@domicilioProvincia,
+                domicilioComune=@domicilioComune, domicilioStato=@domicilioStato,
+                domicilioIndirizzo=@domicilioIndirizzo, domicilioCivico=@domicilioCivico,
+                domicilioComeResidenza=@domicilioComeResidenza, telefono=@telefono, telefonoPrefisso=@telefonoPrefisso
+            WHERE id=@id
+        `).run({ id, ...p });
+    },
+    revoke: id => db.prepare("UPDATE users SET revokedAt = ?, passwordHash = '', tokenVersion = tokenVersion + 1 WHERE id = ?").run(new Date().toISOString(), id),
+    /** Elimina: non visibile, credenziali revocate, sessioni invalidate. Ripristina: torna visibile (nuova password lato server). */
+    setVisible: (id, visible) => {
+        if (visible) {
+            return db.prepare('UPDATE users SET visible = 1, hiddenAt = NULL WHERE id = ?').run(id);
+        }
+        return db.prepare(`
+            UPDATE users SET
+                visible = 0,
+                hiddenAt = ?,
+                passwordHash = '',
+                tokenVersion = tokenVersion + 1,
+                loginOtp = NULL,
+                loginOtpExpiry = NULL
+            WHERE id = ?
+        `).run(new Date().toISOString(), id);
+    },
+    /** Aggiorna password e invalida tutte le sessioni JWT precedenti (tokenVersion++). */
+    changePassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 0, tokenVersion = tokenVersion + 1 WHERE id = ?').run(hash, id),
+    /** Reset admin: nuova password, obbligo cambio, invalida sessioni JWT. */
+    resetPassword:(id, hash) => db.prepare('UPDATE users SET passwordHash = ?, mustChangePassword = 1, tokenVersion = tokenVersion + 1 WHERE id = ?').run(hash, id),
+    setLoginOtp: (id, hash, exp) => db.prepare('UPDATE users SET loginOtp = ?, loginOtpExpiry = ? WHERE id = ?').run(hash, exp, id),
+    clearLoginOtp: id => db.prepare('UPDATE users SET loginOtp = NULL, loginOtpExpiry = NULL WHERE id = ?').run(id),
+    incrementOtpFail: id => db.prepare('UPDATE users SET otpFailCount = otpFailCount + 1 WHERE id = ?').run(id),
+    incrementOtpSend: id => db.prepare('UPDATE users SET otpSendCount = otpSendCount + 1 WHERE id = ?').run(id),
+    setLoginLock: (id, until, reason) => db.prepare('UPDATE users SET loginLockedUntil = ?, loginLockedReason = ? WHERE id = ?').run(until, reason || '', id),
+    clearLoginLock: id => db.prepare("UPDATE users SET loginLockedUntil = NULL, loginLockedReason = '', otpFailCount = 0, otpSendCount = 0, loginOtp = NULL, loginOtpExpiry = NULL WHERE id = ?").run(id),
+};
+
+// ── Profile Change Requests ─────────────────────────────────────────────────
+const ProfileChangeRequests = {
+    findPending: () => db.prepare("SELECT * FROM profile_change_requests WHERE status='pending' ORDER BY requestedAt DESC").all()
+        .map(r => ({ ...r, domicilioComeResidenza: toBool(r.domicilioComeResidenza) })),
+    findById: id => {
+        const r = db.prepare('SELECT * FROM profile_change_requests WHERE id=?').get(id);
+        return r ? { ...r, domicilioComeResidenza: toBool(r.domicilioComeResidenza) } : null;
+    },
+    findPendingByUser: userId => {
+        const r = db.prepare("SELECT * FROM profile_change_requests WHERE userId=? AND status='pending'").get(userId);
+        return r ? { ...r, domicilioComeResidenza: toBool(r.domicilioComeResidenza) } : null;
+    },
+    insert: r => {
+        const p = profileDefaults(r);
+        return db.prepare(`
+            INSERT INTO profile_change_requests (
+                id,userId,userEmail,nome,cognome,grado,
+                dataNascita,luogoNascita,luogoNascitaTipo,luogoNascitaProvincia,luogoNascitaComune,luogoNascitaStato,
+                residenza,residenzaTipo,residenzaProvincia,residenzaComune,residenzaStato,
+                residenzaIndirizzo,residenzaCivico,
+                domicilio,domicilioTipo,domicilioProvincia,domicilioComune,domicilioStato,
+                domicilioIndirizzo,domicilioCivico,
+                domicilioComeResidenza,telefono,telefonoPrefisso,
+                requestedAt
+            ) VALUES (
+                @id,@userId,@userEmail,@nome,@cognome,@grado,
+                @dataNascita,@luogoNascita,@luogoNascitaTipo,@luogoNascitaProvincia,@luogoNascitaComune,@luogoNascitaStato,
+                @residenza,@residenzaTipo,@residenzaProvincia,@residenzaComune,@residenzaStato,
+                @residenzaIndirizzo,@residenzaCivico,
+                @domicilio,@domicilioTipo,@domicilioProvincia,@domicilioComune,@domicilioStato,
+                @domicilioIndirizzo,@domicilioCivico,
+                @domicilioComeResidenza,@telefono,@telefonoPrefisso,
+                @requestedAt
+            )
+        `).run({
+            id: r.id,
+            userId: r.userId,
+            userEmail: r.userEmail,
+            requestedAt: r.requestedAt,
+            ...p,
+        });
+    },
+    approve: (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='approved',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
+    reject:  (id, reviewedBy) => db.prepare("UPDATE profile_change_requests SET status='rejected',reviewedBy=?,reviewedAt=? WHERE id=?").run(reviewedBy, new Date().toISOString(), id),
+};
+
+// ── Admin Action Requests (modifica/visibilità utenti da parte di admin) ───
+const AdminActionRequests = {
+    findPending: () => db.prepare("SELECT * FROM admin_action_requests WHERE status='pending' ORDER BY requestedAt DESC").all(),
+    findById: id => db.prepare('SELECT * FROM admin_action_requests WHERE id=?').get(id) || null,
+    findPendingByTarget: (targetUserId, type) =>
+        db.prepare("SELECT * FROM admin_action_requests WHERE targetUserId=? AND type=? AND status='pending'").get(targetUserId, type) || null,
+    insert: r => db.prepare(`
+        INSERT INTO admin_action_requests (
+            id,type,targetUserId,targetEmail,payload,summary,
+            requestedById,requestedByEmail,requestedAt
+        ) VALUES (
+            @id,@type,@targetUserId,@targetEmail,@payload,@summary,
+            @requestedById,@requestedByEmail,@requestedAt
+        )
+    `).run(r),
+    setApprovals: (id, approvalsJson) => db.prepare('UPDATE admin_action_requests SET approvals=? WHERE id=?').run(approvalsJson, id),
+    approve: (id, byEmail) => db.prepare("UPDATE admin_action_requests SET status='approved', resolvedByEmail=?, resolvedAt=? WHERE id=?").run(byEmail, new Date().toISOString(), id),
+    reject: (id, byEmail) => db.prepare("UPDATE admin_action_requests SET status='rejected', resolvedByEmail=?, resolvedAt=? WHERE id=?").run(byEmail, new Date().toISOString(), id),
+};
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+const toInv = r => r ? { ...r, used: toBool(r.used), otpUsed: toBool(r.otpUsed), docente: toBool(r.docente) } : null;
+const Invitations = {
+    findByToken:      token => toInv(db.prepare('SELECT * FROM invitations WHERE token = ?').get(token)),
+    findActive:       ()    => db.prepare("SELECT * FROM invitations WHERE used=0 AND expiresAt > datetime('now')").all().map(toInv),
+    invalidateByEmail:email => db.prepare('UPDATE invitations SET used=1 WHERE email=? COLLATE NOCASE').run(email),
+    insert: i => db.prepare(
+        'INSERT INTO invitations (token,email,role,invitedBy,createdAt,expiresAt,allowedCards,docente) VALUES (@token,@email,@role,@invitedBy,@createdAt,@expiresAt,@allowedCards,@docente)'
+    ).run({ allowedCards: '', ...i, docente: i.docente ? 1 : 0 }),
+    setOtp:  (token, hash, exp) => db.prepare('UPDATE invitations SET otp=?,otpExpiry=?,otpUsed=0 WHERE token=?').run(hash, exp, token),
+    markUsed:token => db.prepare('UPDATE invitations SET used=1,otpUsed=1 WHERE token=?').run(token),
+    cancel:  token => db.prepare('UPDATE invitations SET used=1 WHERE token=?').run(token),
+};
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+const Notifications = {
+    insert: n => db.prepare(
+        'INSERT INTO notifications (id,userId,type,title,body,link,createdAt) VALUES (@id,@userId,@type,@title,@body,@link,@createdAt)'
+    ).run({ body: '', link: '', ...n }),
+    findForUser: (userId, limit = 40) => db.prepare(
+        'SELECT * FROM notifications WHERE userId=? ORDER BY createdAt DESC LIMIT ?'
+    ).all(userId, limit),
+    countUnread: userId => db.prepare(
+        'SELECT COUNT(*) AS c FROM notifications WHERE userId=? AND readAt IS NULL'
+    ).get(userId).c,
+    markRead: (id, userId) => db.prepare(
+        "UPDATE notifications SET readAt=? WHERE id=? AND userId=? AND readAt IS NULL"
+    ).run(new Date().toISOString(), id, userId),
+    markAllRead: userId => db.prepare(
+        "UPDATE notifications SET readAt=? WHERE userId=? AND readAt IS NULL"
+    ).run(new Date().toISOString(), userId),
+};
+
+// ── Password resets (self-service) ────────────────────────────────────────────
+const PasswordResets = {
+    invalidateForUser: userId => db.prepare(
+        'UPDATE password_resets SET used = 1 WHERE userId = ? AND used = 0'
+    ).run(userId),
+    create: ({ token, userId, email, createdAt, expiresAt }) => db.prepare(`
+        INSERT INTO password_resets (token, userId, email, createdAt, expiresAt, used)
+        VALUES (?, ?, ?, ?, ?, 0)
+    `).run(token, userId, email, createdAt, expiresAt),
+    findByToken: token => db.prepare(
+        'SELECT * FROM password_resets WHERE token = ?'
+    ).get(token) || null,
+    markUsed: token => db.prepare(
+        'UPDATE password_resets SET used = 1 WHERE token = ?'
+    ).run(token),
+};
+
+// ── Corsi versions (storico Markdown) ─────────────────────────────────────────
+const CorsiVersions = {
+    insert: v => db.prepare(`
+        INSERT INTO corsi_versions (
+            id, itemId, title, kind, content, action, editedById, editedByEmail, createdAt,
+            parentId, position
+        ) VALUES (
+            @id, @itemId, @title, @kind, @content, @action, @editedById, @editedByEmail, @createdAt,
+            @parentId, @position
+        )
+    `).run({
+        title: '',
+        kind: 'post',
+        content: '',
+        action: 'update',
+        editedById: '',
+        editedByEmail: '',
+        parentId: null,
+        position: 0,
+        ...v,
+    }),
+    list: ({ itemId, limit = 500 } = {}) => {
+        const lim = Math.min(Math.max(Number(limit) || 500, 1), 1000);
+        if (itemId) {
+            return db.prepare(`
+                SELECT id, itemId, title, kind, action, editedById, editedByEmail, createdAt,
+                       length(content) AS contentLength
+                FROM corsi_versions
+                WHERE itemId = ?
+                ORDER BY createdAt DESC
+                LIMIT ?
+            `).all(itemId, lim);
+        }
+        return db.prepare(`
+            SELECT id, itemId, title, kind, action, editedById, editedByEmail, createdAt,
+                   length(content) AS contentLength
+            FROM corsi_versions
+            ORDER BY createdAt DESC
+            LIMIT ?
+        `).all(lim);
+    },
+    findById: id => db.prepare('SELECT * FROM corsi_versions WHERE id = ?').get(id) || null,
+    remove: id => db.prepare('DELETE FROM corsi_versions WHERE id = ?').run(id),
+    removeMany: (ids) => {
+        const list = Array.isArray(ids) ? ids.map(String).filter(Boolean) : [];
+        if (!list.length) return 0;
+        const stmt = db.prepare('DELETE FROM corsi_versions WHERE id = ?');
+        const tx = db.transaction((rows) => {
+            let n = 0;
+            for (const id of rows) n += stmt.run(id).changes;
+            return n;
+        });
+        return tx(list);
+    },
+};
+
+// ── Corsi items (albero e versione corrente dei contenuti) ────────────────────
+const CorsiItems = {
+    count: () => db.prepare('SELECT COUNT(*) AS c FROM corsi_items').get().c,
+    all: () => db.prepare('SELECT * FROM corsi_items ORDER BY position, createdAt').all(),
+    findById: id => db.prepare('SELECT * FROM corsi_items WHERE id = ?').get(id) || null,
+    exists: id => !!db.prepare('SELECT 1 FROM corsi_items WHERE id = ?').get(id),
+    childrenOf: parentId => db.prepare(
+        'SELECT * FROM corsi_items WHERE parentId IS ? ORDER BY position, createdAt'
+    ).all(parentId || null),
+    /** Prima posizione libera tra i figli di parentId (NULL = radice). */
+    nextPosition: parentId => {
+        const row = db.prepare('SELECT MAX(position) AS m FROM corsi_items WHERE parentId IS ?').get(parentId || null);
+        return (row && row.m !== null ? Number(row.m) : -1) + 1;
+    },
+    insert: item => db.prepare(`
+        INSERT INTO corsi_items (
+            id, parentId, position, type, title, content, courseDate,
+            createdAt, updatedAt, createdById, updatedById
+        ) VALUES (
+            @id, @parentId, @position, @type, @title, @content, @courseDate,
+            @createdAt, @updatedAt, @createdById, @updatedById
+        )
+    `).run({
+        parentId: null,
+        position: 0,
+        type: 'section',
+        title: '',
+        content: '',
+        courseDate: '',
+        createdById: null,
+        updatedById: null,
+        ...item,
+    }),
+    update: (id, patch) => db.prepare(`
+        UPDATE corsi_items SET
+            type = @type, title = @title, content = @content, courseDate = @courseDate,
+            updatedAt = @updatedAt, updatedById = @updatedById
+        WHERE id = @id
+    `).run({ id, courseDate: '', updatedById: null, ...patch }),
+    move: (id, parentId, position) => db.prepare(
+        'UPDATE corsi_items SET parentId = ?, position = ? WHERE id = ?'
+    ).run(parentId || null, position, id),
+    /** Imposta position 0..n-1 per tutti i figli di parentId (NULL = radice). */
+    reorderSiblings: (parentId, orderedIds) => {
+        const stmt = db.prepare(
+            'UPDATE corsi_items SET position = ? WHERE id = ? AND parentId IS ?'
+        );
+        const tx = db.transaction((ids) => {
+            ids.forEach((id, i) => stmt.run(i, id, parentId || null));
+        });
+        return tx(orderedIds);
+    },
+    /** Modifiche recenti (per avvisi live in gestione contenuti). */
+    changesSince: (since, exceptUserId) => db.prepare(`
+        SELECT id, title, updatedAt, updatedById FROM corsi_items
+        WHERE updatedAt > ? AND updatedById IS NOT NULL AND updatedById != '' AND updatedById != ?
+        ORDER BY updatedAt DESC
+        LIMIT 30
+    `).all(since, exceptUserId || ''),
+    /** Elimina il nodo; i discendenti seguono via ON DELETE CASCADE. */
+    remove: id => db.prepare('DELETE FROM corsi_items WHERE id = ?').run(id),
+    /** Esegue fn in una transazione: o passa tutto, o non passa niente. */
+    tx: fn => db.transaction(fn),
+};
+
+module.exports = {
+    Users,
+    Invitations,
+    ProfileChangeRequests,
+    AdminActionRequests,
+    Notifications,
+    PasswordResets,
+    CorsiVersions,
+    CorsiItems,
+    profileDefaults,
+};

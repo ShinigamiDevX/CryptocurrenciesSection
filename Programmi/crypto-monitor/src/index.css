@@ -1,0 +1,368 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg-app: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-header: #ffffff;
+  --bg-dropdown: #ffffff;
+  --bg-input: #ffffff;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --secondary: #64748b;
+
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --text-inverse: #ffffff;
+
+  --border-color: #e5e7eb;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  --font-main: 'Inter', sans-serif;
+  --radius: 8px;
+}
+
+body.dark-mode {
+  --bg-app: #0f172a;
+  --bg-card: #1e293b;
+  --bg-header: #1e293b;
+  --bg-dropdown: #1e293b;
+  --bg-input: #334155;
+
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --secondary: #94a3b8;
+
+  --text-main: #f8fafc;
+  --text-muted: #cbd5e1;
+  --text-inverse: #0f172a;
+
+  --border-color: #334155;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+html {
+  /* Fluid typography: Reduced base from 16px to 14px for more compactness */
+  font-size: clamp(14px, 0.8rem + 0.4vw, 20px);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s, color 0.2s;
+  min-height: 100vh;
+  overflow: hidden;
+  /* Prevent body scroll, handle inside containers */
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utilities */
+.glass-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius);
+  transition: box-shadow 0.2s ease, background-color 0.2s, border-color 0.2s;
+}
+
+.glass-panel:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.text-gradient {
+  background: none;
+  -webkit-text-fill-color: var(--text-main);
+  color: var(--text-main);
+}
+
+.neon-text-primary {
+  color: var(--primary);
+  text-shadow: none;
+}
+
+.neon-text-secondary {
+  color: var(--text-main);
+  text-shadow: none;
+  font-weight: 700;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  font-family: var(--font-main);
+  font-size: 0.875rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: none;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background-color: var(--bg-card);
+  /* Changed from white to adapt */
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  font-family: var(--font-main);
+  font-size: 0.875rem;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-app);
+}
+
+.input-field {
+  background: var(--bg-input);
+  /* Changed from white to adapt */
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  width: 100%;
+  font-family: var(--font-main);
+  outline: none;
+  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  /* Fix width issues */
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Print Styles for PDF Export */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  body,
+  html {
+    background-color: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  header,
+  .hidden-mobile,
+  button,
+  [class*="Dashboard_searchBarContainer"],
+  [class*="Dashboard_exportButton"],
+  [class*="Dashboard_searchHeader"] {
+    display: none !important;
+  }
+
+  /* Break the main app flexbox */
+  [class*="app-container"],
+  main {
+    height: auto !important;
+    overflow: visible !important;
+    background-color: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  /* Break the CSS Grid / Flexbox of the Dashboard */
+  [class*="Dashboard_dashboardContainer"] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    gap: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Stack columns vertically */
+  [class*="Dashboard_leftColumn"],
+  [class*="Dashboard_rightColumn"] {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    background: white !important;
+    padding: 0 !important;
+    margin-bottom: 2rem !important;
+  }
+
+  /* Hide scrollbars specifically */
+  [class*="Dashboard_rightColumn"]::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Reset all cards to white background with black text */
+  .print-friendly-card,
+  .glass-panel,
+  [class*="AssetCard_card"],
+  [class*="Dashboard_glass-panel"] {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    margin-bottom: 1rem !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ensure text inside cards is visible */
+  .glass-panel *,
+  [class*="AssetCard_card"] * {
+    color: black !important;
+  }
+
+  /* Recharts Specific */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+    margin: 0 auto !important;
+  }
+
+  /* Tables */
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  th,
+  td {
+    color: black !important;
+    border-bottom: 1px solid #ddd !important;
+    padding: 8px !important;
+  }
+}
+
+/* Professional PDF Export Layout (html2pdf) */
+.pdf-export-active {
+  background-color: white !important;
+  color: black !important;
+  width: 210mm !important;
+  /* A4 Width */
+  padding: 15mm !important;
+  display: block !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.pdf-export-active [class*="Dashboard_dashboardGrid"] {
+  display: block !important;
+  gap: 0 !important;
+}
+
+.pdf-export-active [class*="Dashboard_leftColumn"],
+.pdf-export-active [class*="Dashboard_rightColumn"] {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.pdf-export-active [class*="Dashboard_searchHeader"],
+.pdf-export-active button,
+.pdf-export-active [class*="Dashboard_exportButton"],
+.pdf-export-active [class*="Header_header"] {
+  display: none !important;
+}
+
+.pdf-export-active .glass-panel,
+.pdf-export-active .print-friendly-card {
+  background: white !important;
+  color: black !important;
+  border: 1px solid #eee !important;
+  box-shadow: none !important;
+  margin-bottom: 15px !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-export-active .glass-panel *,
+.pdf-export-active .print-friendly-card * {
+  color: black !important;
+}
+
+.pdf-export-active [class*="Dashboard_statsGrid"] {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 15px !important;
+  margin-bottom: 20px !important;
+}
+
+.pdf-export-active [class*="Dashboard_chartsRow"] {
+  display: block !important;
+}
+
+.pdf-export-active [class*="Dashboard_pieChartPanel"] {
+  margin-bottom: 20px !important;
+}
+
+.pdf-export-active [class*="Dashboard_assetGrid"] {
+  display: block !important;
+}

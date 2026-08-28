@@ -1,0 +1,16 @@
+[Unit]
+Description=Crypto Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/crypto-monitor
+ExecStart=/usr/bin/node server.js
+Restart=always
+Environment=NODE_ENV=production
+# Se usi porte < 1024 occorre questa riga, altrimenti opzionale
+# CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

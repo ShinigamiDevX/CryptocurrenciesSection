@@ -1,0 +1,14 @@
+{
+  "name": "dashboard-xlsx-upload",
+  "version": "1.0.0",
+  "description": "Dashboard per upload file .xlsx via HTTPS",
+  "main": "cluster.js",
+  "scripts": {
+    "start": "node cluster.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^1.4.4",
+    "pm2": "^6.0.14"
+  }
+}

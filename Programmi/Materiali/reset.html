@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://world.openfoodfacts.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+    <title>Reset Dati</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .reset-container {
+            text-align: center;
+            padding: 40px;
+            border: 2px solid var(--accent-primary);
+            border-radius: var(--border-radius);
+            background: var(--bg-card);
+            max-width: 500px;
+            margin-left: 100px;
+        }
+        h1 { 
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+        .success { 
+            color: var(--accent-success);
+        }
+        .reset-container a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .reset-container a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
+                <span id="themeIcon">🌙</span>
+            </button>
+            <h2 class="sidebar-title">Menu</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="sidebar-link">
+                <span class="sidebar-icon">📊</span>
+                <span class="sidebar-text">Dashboard</span>
+            </a>
+            <a href="fondi.html" class="sidebar-link">
+                <span class="sidebar-icon">💰</span>
+                <span class="sidebar-text">Fondi</span>
+            </a>
+            <a href="materiale.html" class="sidebar-link">
+                <span class="sidebar-icon">💻</span>
+                <span class="sidebar-text">Materiale</span>
+            </a>
+            <a href="licenze.html" class="sidebar-link">
+                <span class="sidebar-icon">📜</span>
+                <span class="sidebar-text">Licenze</span>
+            </a>
+            <a href="personale.html" class="sidebar-link">
+                <span class="sidebar-icon">👤</span>
+                <span class="sidebar-text">Personale</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="reset-container">
+        <h1>Reset Database</h1>
+        <p id="status">Resetting...</p>
+    </div>
+    <script src="js/db-storage.js"></script>
+    <script>
+        const prefixes = ['fondi_database', 'materiale_informatico', 'licenze_database', 'personale_database', 'materiali_barcode_catalog'];
+        const toRemove = [];
+        if (window.DBStorage) prefixes.forEach(p => DBStorage.getKeysByPrefix(p + '_').forEach(k => toRemove.push(k)));
+        prefixes.forEach(p => toRemove.push(p));
+        toRemove.forEach(k => {
+            if (window.DBStorage) DBStorage.remove(k);
+        });
+        document.getElementById('status').innerHTML = '<span class="success">✓ Dati resettati con successo!</span><br><br><a href="dashboard.html">Torna alla Dashboard</a>';
+
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const html = document.documentElement;
+
+        function initTheme() {
+            const savedTheme = sessionStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                html.setAttribute('data-theme', savedTheme);
+            } else if (prefersDark) {
+                html.setAttribute('data-theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            sessionStorage.setItem('theme', newTheme);
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const currentTheme = html.getAttribute('data-theme');
+            themeIcon.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        initTheme();
+    </script>
+</body>
+</html>
+

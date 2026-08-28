@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Crypto Monitor
+Comment=Sistema Monitoraggio Sequestri Cripto
+Exec=bash -c "cd %k && ./crypto-monitor.sh"
+Terminal=true
+Type=Application
+Icon=utilities-terminal
+Categories=Office;Finance;
+path=%k

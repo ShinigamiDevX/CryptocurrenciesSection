@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://world.openfoodfacts.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+    <title>Materiale</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .sort-icon {
+            font-size: 0.8em;
+            opacity: 0.5;
+            margin-left: 5px;
+        }
+        .sortable.sort-asc .sort-icon::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        .sortable.sort-desc .sort-icon::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        .sortable.sort-asc .sort-icon,
+        .sortable.sort-desc .sort-icon {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
+                <span id="themeIcon">🌙</span>
+            </button>
+            <h2 class="sidebar-title">Menu</h2>
+        </div>
+        <div class="sidebar-anno" style="padding: 12px 24px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+            <span class="sidebar-text">Anno <strong id="sidebarAnno">—</strong></span>
+            <a href="home.html" class="sidebar-link" style="padding: 8px 0; margin-top: 4px;">Cambia anno</a>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="sidebar-link">
+                <span class="sidebar-icon">📊</span>
+                <span class="sidebar-text">Dashboard</span>
+            </a>
+            <a href="fondi.html" class="sidebar-link">
+                <span class="sidebar-icon">💰</span>
+                <span class="sidebar-text">Fondi</span>
+            </a>
+            <a href="materiale.html" class="sidebar-link">
+                <span class="sidebar-icon">💻</span>
+                <span class="sidebar-text">Materiale</span>
+            </a>
+            <a href="licenze.html" class="sidebar-link">
+                <span class="sidebar-icon">📜</span>
+                <span class="sidebar-text">Licenze</span>
+            </a>
+            <a href="personale.html" class="sidebar-link">
+                <span class="sidebar-icon">👤</span>
+                <span class="sidebar-text">Personale</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <h1 style="margin: 0;">GESTIONE MATERIALE</h1>
+                <button class="btn btn-primary" onclick="openAddMaterialModal()" style="font-size: 1em; padding: 12px 25px; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); backdrop-filter: blur(10px);">
+                    ➕ Aggiungi Nuovo Materiale
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="stats" id="stats"></div>
+
+            <div class="filters">
+            <div class="filters">
+                <input type="text" id="searchInput" placeholder="Cerca per tipo, nome o seriale...">
+            </div>
+
+            <div id="urlFilterBanner" class="url-filter-banner" style="display: none; margin-bottom: 16px; padding: 12px 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); font-size: 0.95em;">
+                <span id="urlFilterBannerText"></span>
+                <a id="urlFilterBannerClear" href="materiale.html" style="margin-left: 10px; font-weight: 600;">Rimuovi filtro</a>
+            </div>
+
+            <div class="table-section">
+                <table id="materialTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="tipo">Tipo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="nome">Nome <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="seriale">Seriale <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="fondo">Fondo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="capitolo">Capitolo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="stato">Stato <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="utente">Utente <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="dataAcquisto">Data Acquisto <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="costo">Costo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="garanzia">Garanzia <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="note">Note <span class="sort-icon">⇅</span></th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="materialTableBody"></tbody>
+                </table>
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <h3>Nessun materiale trovato</h3>
+                    <p>Aggiungi del materiale utilizzando il form sopra</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale per aggiungere/modificare materiale -->
+    <div id="addMaterialModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <button class="modal-close" onclick="closeAddMaterialModal()">×</button>
+            <div class="modal-header">
+                <h2 id="modalMaterialTitle">Aggiungi Nuovo Materiale</h2>
+            </div>
+            <div class="modal-body">
+                <form id="materialForm">
+                    <div id="modalBarcodeWrap" style="margin-bottom: 20px; padding: 12px; background: var(--bg-secondary); border: 2px dashed var(--border-color); border-radius: var(--border-radius-sm);">
+                        <label for="modalBarcode" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600; color: var(--text-secondary);">
+                            <span aria-hidden="true">📷</span> Scansione barcode
+                        </label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="modalBarcode" autocomplete="off" placeholder="Inquadra il barcode con il lettore oppure incolla il codice..."
+                                style="flex: 1; padding: 12px 16px; font-size: 1rem; border: 2px solid var(--border-color); border-radius: var(--border-radius-sm);">
+                            <button type="button" class="btn btn-primary" id="modalBarcodeApply" style="flex-shrink: 0; padding: 12px 20px;">Applica codice</button>
+                        </div>
+                        <small style="display: block; margin-top: 6px; color: var(--text-muted);">Scansiona con il lettore oppure incolla il codice e clicca «Applica codice». Numero di serie sempre; tipo e nome da catalogo o da database (codici numerici EAN/UPC).</small>
+                        <small id="modalBarcodeStatus" style="display: block; margin-top: 6px; color: var(--accent-primary); font-weight: 600;"></small>
+                        <label id="modalMemorizzaBarcodeWrap" style="display: none; margin-top: 10px; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+                            <input type="checkbox" id="modalMemorizzaBarcode"> Memorizza questo barcode per precompilare i prossimi inserimenti
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <div>
+                            <label for="modalTipo">Tipo *</label>
+                            <input type="text" id="modalTipo" required placeholder="Es. Monitor, HDD, SSD, Laptop">
+                        </div>
+                        <div>
+                            <label for="modalNome">Nome *</label>
+                            <input type="text" id="modalNome" required placeholder="Es. Dell XPS 15 9520" maxlength="200">
+                        </div>
+                        <div>
+                            <label for="modalSeriale">Numero di Serie</label>
+                            <input type="text" id="modalSeriale" placeholder="Es. ABC123456 o scansione barcode" maxlength="100">
+                        </div>
+                        <div style="grid-column: 1 / -1; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 180px;">
+                                <label for="modalFondo">Fondo di Acquisto *</label>
+                                <select id="modalFondo" required class="modal-select">
+                                    <option value="">Seleziona fondo...</option>
+                                </select>
+                            </div>
+                            <div id="modalCapitoloGroup" class="modal-capitolo-appear" style="display: none; flex: 1; min-width: 180px;">
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <label for="modalCapitoloNumeroMateriale">Capitolo (numero) *</label>
+                                    <input type="number" id="modalCapitoloNumeroMateriale" required placeholder="Es. 944" min="1" step="1" style="margin-bottom: 4px;">
+                                    <label for="modalCapitoloDescrizioneMateriale">Descrizione capitolo *</label>
+                                    <input type="text" id="modalCapitoloDescrizioneMateriale" required placeholder="Es. Voce acquisti informatica" maxlength="200">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="grid-column: 1 / -1; margin-top: -8px; margin-bottom: 8px;">
+                            <small id="modalFondoBudgetInfo" style="display: none; color: var(--text-secondary); font-weight: 600;"></small>
+                        </div>
+                        <div id="modalStatoGroup" style="display: none;">
+                            <label for="modalStato">Stato *</label>
+                            <select id="modalStato">
+                                <option value="Magazzino">In Magazzino</option>
+                                <option value="In Uso">In Uso</option>
+                            </select>
+                        </div>
+                        <div id="modalUtenteGroup" style="display: none;">
+                            <label for="modalUtente">Utente (chi lo sta usando)</label>
+                            <input type="text" id="modalUtente" placeholder="Nome e cognome della persona" maxlength="200" list="personaleDatalist">
+                            <datalist id="personaleDatalist"></datalist>
+                        </div>
+                        <div>
+                            <label for="modalDataAcquisto">Data Acquisto *</label>
+                            <input type="date" id="modalDataAcquisto" required>
+                        </div>
+                        <div>
+                            <label for="modalCosto">Costo (€) *</label>
+                            <div class="number-spinner-wrap">
+                                <input type="number" id="modalCosto" step="0.01" min="0.01" required placeholder="0.00">
+                                <div class="number-spinner">
+                                    <button type="button" aria-label="Aumenta">▲</button>
+                                    <button type="button" aria-label="Diminuisci">▼</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="modalGaranzia">Garanzia (anni)</label>
+                            <div class="number-spinner-wrap">
+                                <input type="number" id="modalGaranzia" min="1" value="1" placeholder="1" title="Default 1 anno, può essere prolungata">
+                                <div class="number-spinner">
+                                    <button type="button" aria-label="Aumenta">▲</button>
+                                    <button type="button" aria-label="Diminuisci">▼</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label for="modalNote">Note</label>
+                            <input type="text" id="modalNote" placeholder="Note aggiuntive" maxlength="500">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddMaterialModal()">Annulla</button>
+                <button class="btn btn-primary" id="modalMaterialSubmit" onclick="confirmAddMaterial()">Aggiungi Materiale</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db-storage.js"></script>
+    <script src="js/escape-utils.js"></script>
+    <script>
+        function getMaterialiAnno() {
+            const fromSession = sessionStorage.getItem('materiali_anno');
+            if (fromSession && /^\d{4}$/.test(fromSession)) return fromSession;
+            const fromUrl = new URLSearchParams(window.location.search).get('anno');
+            if (fromUrl && /^\d{4}$/.test(fromUrl)) return fromUrl;
+            return String(new Date().getFullYear());
+        }
+        const ANNO = getMaterialiAnno();
+        const STORAGE_KEY = 'materiale_informatico_' + ANNO;
+        const FONDI_STORAGE_KEY = 'fondi_database_' + ANNO;
+        const BARCODE_CATALOG_KEY = 'materiali_barcode_catalog_' + ANNO;
+
+        if (document.getElementById('sidebarAnno')) document.getElementById('sidebarAnno').textContent = ANNO;
+
+        // Catalogo barcode → { tipo, nome, fondo, capitolo } (persistito su DB)
+        let lastScannedBarcode = null;
+
+        function loadBarcodeCatalog() {
+            if (!window.DBStorage) return {};
+            return DBStorage.getObject(BARCODE_CATALOG_KEY);
+        }
+
+        function saveBarcodeCatalog(catalog) {
+            if (window.DBStorage) DBStorage.set(BARCODE_CATALOG_KEY, catalog);
+        }
+
+        function normalizeBarcode(code) {
+            return (code || '').replace(/\r?\n/g, '').trim();
+        }
+
+        function isNumericBarcode(code) {
+            return /^\d{8,14}$/.test(code);
+        }
+
+        function fillFormFromBarcode(code, entry) {
+            document.getElementById('modalSeriale').value = code;
+            if (!entry) return;
+            if (entry.tipo) document.getElementById('modalTipo').value = entry.tipo;
+            if (entry.nome) document.getElementById('modalNome').value = entry.nome;
+            if (entry.fondo) {
+                document.getElementById('modalFondo').value = entry.fondo;
+                updateCapitoloGroupMateriale();
+                if (entry.capitolo) {
+                    const p = parseCapitolo(entry.capitolo);
+                    const n = document.getElementById('modalCapitoloNumeroMateriale');
+                    const d = document.getElementById('modalCapitoloDescrizioneMateriale');
+                    if (n) n.value = p.numero || '';
+                    if (d) d.value = p.descrizione || '';
+                }
+            }
+        }
+
+        function applyBarcodeScanned(code) {
+            code = normalizeBarcode(code);
+            if (!code) return;
+            const catalog = loadBarcodeCatalog();
+            const entry = catalog[code];
+            document.getElementById('modalSeriale').value = code;
+            if (entry) {
+                fillFormFromBarcode(code, entry);
+            } else if (isNumericBarcode(code)) {
+                setBarcodeStatus('Ricerca in corso…');
+                fetch('https://world.openfoodfacts.org/api/v0/product/' + code + '.json')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        setBarcodeStatus('');
+                        if (data && data.status === 1 && data.product) {
+                            var p = data.product;
+                            var nome = (p.product_name || p.generic_name || '').trim();
+                            var tipo = (p.categories || p.generic_name || 'Prodotto').split(',')[0].trim();
+                            if (nome) document.getElementById('modalNome').value = nome;
+                            if (tipo) document.getElementById('modalTipo').value = tipo;
+                        } else {
+                            setBarcodeStatus('Codice non in database. Compila Tipo/Nome e spunta «Memorizza barcode».');
+                        }
+                    })
+                    .catch(function() {
+                        setBarcodeStatus('');
+                    });
+            } else {
+                setBarcodeStatus('Prima volta: compila Tipo e Nome, spunta «Memorizza barcode» e salva. Le prossime volte si compileranno da soli.');
+            }
+            lastScannedBarcode = code;
+            document.getElementById('modalBarcode').value = '';
+            const wrap = document.getElementById('modalMemorizzaBarcodeWrap');
+            if (wrap) {
+                wrap.style.display = 'flex';
+                const check = wrap.querySelector('input');
+                if (check) check.checked = true;
+            }
+        }
+
+        function setBarcodeStatus(msg) {
+            var el = document.getElementById('modalBarcodeStatus');
+            if (el) el.textContent = msg;
+        }
+
+        let editingMaterialId = null;
+        
+        // Variabili per ordinamento
+        let currentSortColumn = null;
+        let currentSortDirection = 'asc';
+
+        // Filtro da URL (da fondi.html: link "pezzi materiale" per fondo/capitolo)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlFilterFondo = urlParams.get('fondo') || null;
+        const urlFilterCapitolo = urlParams.get('capitolo') || null;
+
+        function applyUrlFilter(data) {
+            if (!urlFilterFondo && !urlFilterCapitolo) return data;
+            return data.filter(m => {
+                if (urlFilterFondo && (m.fondo || '') !== urlFilterFondo) return false;
+                if (urlFilterCapitolo) {
+                    const cap = (m.capitolo || '').trim();
+                    if (urlFilterCapitolo === 'Non specificato') {
+                        if (cap !== '') return false;
+                    } else if (cap !== urlFilterCapitolo) return false;
+                }
+                return true;
+            });
+        }
+
+        function loadData() {
+            if (!window.DBStorage) return [];
+            return DBStorage.getArray(STORAGE_KEY);
+        }
+
+        function saveData(data) {
+            if (window.DBStorage) DBStorage.set(STORAGE_KEY, data);
+        }
+
+        function loadFondi() {
+            if (!window.DBStorage) return [];
+            return DBStorage.getArray(FONDI_STORAGE_KEY);
+        }
+
+        function saveFondi(data) {
+            if (window.DBStorage) DBStorage.set(FONDI_STORAGE_KEY, data);
+        }
+
+        // Parsing capitolo: da stringa "944 - Voce" o "Capitolo 944" -> { numero, descrizione }
+        function parseCapitolo(str) {
+            if (!str || !String(str).trim()) return { numero: '', descrizione: '' };
+            const s = String(str).trim();
+            const m = s.match(/^(?:Capitolo\s*)?(\d+)\s*(?:[-–]\s*(.*))?$/i) || s.match(/^(\d+)\s*(?:[-–]\s*(.*))?$/);
+            if (m) return { numero: m[1].trim(), descrizione: (m[2] || '').trim() };
+            if (/^\d+$/.test(s)) return { numero: s, descrizione: '' };
+            return { numero: '', descrizione: s };
+        }
+        function buildCapitolo(numero, descrizione) {
+            const n = (numero || '').toString().trim();
+            const d = (descrizione || '').trim();
+            return n ? (d ? n + ' - ' + d : n) : '';
+        }
+        // Catalogo numero -> descrizione da materiale, licenze, fondi (per auto-compilazione)
+        function getCapitoliCensiti() {
+            const map = {};
+            function add(str) {
+                const p = parseCapitolo(str);
+                if (p.numero && p.descrizione && !map[p.numero]) map[p.numero] = p.descrizione;
+            }
+            (loadData() || []).forEach(m => add(m.capitolo));
+            try {
+                const lic = window.DBStorage ? DBStorage.getArray('licenze_database_' + ANNO) : [];
+                (lic || []).forEach(l => add(l.capitolo));
+            } catch (e) {}
+            (loadFondi() || []).forEach(f => add(f.capitolo));
+            return map;
+        }
+        function fillPersonaleDatalist() {
+            try {
+                var arr = window.DBStorage ? DBStorage.getArray('personale_database_' + ANNO) : [];
+                var list = document.getElementById('personaleDatalist');
+                if (!list) return;
+                list.innerHTML = '';
+                if (Array.isArray(arr)) {
+                    arr.forEach(function(p) {
+                    var displayName = [p.nome, p.cognome].filter(Boolean).join(' ').trim() || (p.nome || '');
+                    if (displayName) { var o = document.createElement('option'); o.value = displayName; list.appendChild(o); }
+                    });
+                }
+            } catch (_) {}
+        }
+        function populateFondiSelect() {
+            const fondi = loadFondi();
+            const modalFondo = document.getElementById('modalFondo');
+            
+            if (modalFondo) {
+                modalFondo.innerHTML = '<option value="">Seleziona fondo...</option>';
+                fondi.forEach(fondo => {
+                    const option = document.createElement('option');
+                    option.value = fondo.nome;
+                    option.textContent = fondo.nome;
+                    modalFondo.appendChild(option);
+                });
+            }
+        }
+
+        // Mostra/aggiorna Capitolo e budget residuo quando si seleziona un fondo (materiale)
+        function updateCapitoloGroupMateriale() {
+            const gruppo = document.getElementById('modalCapitoloGroup');
+            const fondoSelect = document.getElementById('modalFondo');
+            const capNum = document.getElementById('modalCapitoloNumeroMateriale');
+            const capDesc = document.getElementById('modalCapitoloDescrizioneMateriale');
+            const budgetInfo = document.getElementById('modalFondoBudgetInfo');
+            const nomeFondo = fondoSelect && fondoSelect.value ? fondoSelect.value.trim() : '';
+            if (!nomeFondo) {
+                if (gruppo) gruppo.style.display = 'none';
+                if (budgetInfo) budgetInfo.style.display = 'none';
+                if (capNum) capNum.removeAttribute('required');
+                if (capDesc) capDesc.removeAttribute('required');
+                return;
+            }
+            const fondi = loadFondi();
+            const fondo = fondi.find(f => f.nome === nomeFondo);
+            if (!fondo) {
+                if (gruppo) gruppo.style.display = 'none';
+                if (budgetInfo) budgetInfo.style.display = 'none';
+                if (capNum) capNum.removeAttribute('required');
+                if (capDesc) capDesc.removeAttribute('required');
+                return;
+            }
+            if (gruppo) {
+                gruppo.style.display = 'block';
+                gruppo.classList.add('just-appeared');
+                setTimeout(() => gruppo.classList.remove('just-appeared'), 600);
+            }
+            const parsed = parseCapitolo(fondo.capitolo || '');
+            if (capNum) { capNum.value = parsed.numero || ''; capNum.setAttribute('required', 'required'); }
+            if (capDesc) { capDesc.value = parsed.descrizione || ''; capDesc.setAttribute('required', 'required'); }
+            if (budgetInfo) {
+                budgetInfo.style.display = 'block';
+                const residuo = parseFloat(fondo.budgetResiduo) || 0;
+                const iniziale = parseFloat(fondo.budgetIniziale) || 0;
+                budgetInfo.textContent = 'Disponibile in questo fondo: €' + residuo.toLocaleString('it-IT', { minimumFractionDigits: 2 }) + ' (su €' + iniziale.toLocaleString('it-IT', { minimumFractionDigits: 2 }) + ' budget iniziale)';
+            }
+        }
+
+        window.openAddMaterialModal = function() {
+            editingMaterialId = null;
+            lastScannedBarcode = null;
+            document.getElementById('modalMaterialTitle').textContent = 'Aggiungi Nuovo Materiale';
+            document.getElementById('modalMaterialSubmit').textContent = 'Aggiungi Materiale';
+            document.getElementById('materialForm').reset();
+            document.getElementById('modalGaranzia').value = 1;
+            document.getElementById('modalBarcode').value = '';
+            setBarcodeStatus('');
+            document.getElementById('modalStatoGroup').style.display = 'none';
+            if (document.getElementById('modalUtenteGroup')) document.getElementById('modalUtenteGroup').style.display = 'none';
+            document.getElementById('modalUtente').value = '';
+            fillPersonaleDatalist();
+            document.getElementById('modalCapitoloGroup').style.display = 'none';
+            const memWrap = document.getElementById('modalMemorizzaBarcodeWrap');
+            if (memWrap) { memWrap.style.display = 'none'; memWrap.querySelector('input').checked = false; }
+            const capNum = document.getElementById('modalCapitoloNumeroMateriale');
+            const capDesc = document.getElementById('modalCapitoloDescrizioneMateriale');
+            if (capNum) capNum.removeAttribute('required');
+            if (capDesc) capDesc.removeAttribute('required');
+            populateFondiSelect();
+            document.getElementById('addMaterialModal').classList.add('active');
+            document.getElementById('modalBarcode').focus();
+        };
+
+        function closeAddMaterialModal() {
+            document.getElementById('addMaterialModal').classList.remove('active');
+            editingMaterialId = null;
+            document.getElementById('materialForm').reset();
+        }
+
+        window.confirmAddMaterial = function() {
+            const form = document.getElementById('materialForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            const statoValue = document.getElementById('modalStatoGroup').style.display === 'none' 
+                ? 'Magazzino' 
+                : document.getElementById('modalStato').value;
+
+            const garanziaAnni = parseInt(document.getElementById('modalGaranzia').value, 10) || 1;
+            const capNumEl = document.getElementById('modalCapitoloNumeroMateriale');
+            const capDescEl = document.getElementById('modalCapitoloDescrizioneMateriale');
+            const nuovoMateriale = {
+                id: editingMaterialId || generateId(),
+                tipo: sanitizeInput(document.getElementById('modalTipo').value, 100),
+                nome: sanitizeInput(document.getElementById('modalNome').value, 200),
+                seriale: sanitizeInput(document.getElementById('modalSeriale').value, 100),
+                fondo: (document.getElementById('modalFondo').value || '').trim().slice(0, 200),
+                capitolo: buildCapitolo(capNumEl && capNumEl.value, sanitizeInput(capDescEl && capDescEl.value, 200)),
+                stato: statoValue,
+                utente: statoValue === 'In Uso' ? sanitizeInput(document.getElementById('modalUtente').value, 200) : '',
+                dataAcquisto: document.getElementById('modalDataAcquisto').value || '',
+                costo: document.getElementById('modalCosto').value || '0',
+                garanzia: Math.max(1, garanziaAnni),
+                note: sanitizeInput(document.getElementById('modalNote').value, 500),
+                dataInserimento: editingMaterialId ? loadData().find(m => m.id === editingMaterialId)?.dataInserimento : new Date().toISOString()
+            };
+
+            const materiale = loadData();
+            const isEditing = !!editingMaterialId;
+            
+            if (isEditing) {
+                // Modifica materiale esistente
+                const vecchioMateriale = materiale.find(m => m.id === editingMaterialId);
+                const index = materiale.findIndex(m => m.id === editingMaterialId);
+                
+                if (index !== -1) {
+                    // Se cambia il fondo o il costo, aggiorna i budget
+                    const vecchioCosto = parseFloat(vecchioMateriale.costo) || 0;
+                    const nuovoCosto = parseFloat(nuovoMateriale.costo) || 0;
+                    const vecchioFondo = vecchioMateriale.fondo;
+                    const nuovoFondo = nuovoMateriale.fondo;
+                    
+                    // Ripristina il budget del vecchio fondo se cambia
+                    if (vecchioFondo !== nuovoFondo && vecchioCosto > 0) {
+                        const fondi = loadFondi();
+                        const vecchioFondoObj = fondi.find(f => f.nome === vecchioFondo);
+                        if (vecchioFondoObj) {
+                            const budgetResiduo = parseFloat(vecchioFondoObj.budgetResiduo) || 0;
+                            vecchioFondoObj.budgetResiduo = (budgetResiduo + vecchioCosto).toFixed(2);
+                            saveFondi(fondi);
+                        }
+                    }
+                    
+                    // Sottrai il costo dal nuovo fondo
+                    if (nuovoCosto > 0) {
+                        const fondi = loadFondi();
+                        const nuovoFondoObj = fondi.find(f => f.nome === nuovoFondo);
+                        if (nuovoFondoObj) {
+                            const budgetResiduo = parseFloat(nuovoFondoObj.budgetResiduo) || 0;
+                            const differenzaCosto = nuovoCosto - (vecchioFondo === nuovoFondo ? vecchioCosto : 0);
+                            nuovoFondoObj.budgetResiduo = Math.max(0, (budgetResiduo - differenzaCosto)).toFixed(2);
+                            saveFondi(fondi);
+                        }
+                    }
+                    
+                    materiale[index] = nuovoMateriale;
+                }
+                editingMaterialId = null;
+            } else {
+                // Aggiungi nuovo materiale - sottrai il costo dal fondo
+                const costo = parseFloat(nuovoMateriale.costo) || 0;
+                if (costo > 0 && nuovoMateriale.fondo) {
+                    const fondi = loadFondi();
+                    const fondo = fondi.find(f => f.nome === nuovoMateriale.fondo);
+                    if (fondo) {
+                        const budgetResiduo = parseFloat(fondo.budgetResiduo) || 0;
+                        fondo.budgetResiduo = Math.max(0, (budgetResiduo - costo)).toFixed(2);
+                        saveFondi(fondi);
+                    }
+                }
+                materiale.push(nuovoMateriale);
+                if (lastScannedBarcode && document.getElementById('modalMemorizzaBarcode').checked) {
+                    const catalog = loadBarcodeCatalog();
+                    const key = normalizeBarcode(lastScannedBarcode);
+                    if (key) {
+                        catalog[key] = {
+                            tipo: nuovoMateriale.tipo,
+                            nome: nuovoMateriale.nome,
+                            fondo: nuovoMateriale.fondo || '',
+                            capitolo: (nuovoMateriale.capitolo || '').trim()
+                        };
+                        saveBarcodeCatalog(catalog);
+                    }
+                }
+            }
+            
+            saveData(materiale);
+
+            closeAddMaterialModal();
+
+            // Aggiorna visualizzazione
+            renderTable();
+            renderStats();
+
+            alert(isEditing ? 'Materiale modificato con successo!' : 'Materiale aggiunto con successo!');
+        };
+
+        // Genera ID univoco
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Ottieni classe badge per fondo
+        function getFondoBadgeClass(fondo) {
+            const classMap = {
+                'Fondi Europei': 'badge-fondi-europei',
+                'Arma dei Carabinieri': 'badge-carabinieri',
+                'Europol': 'badge-europol',
+                'Altro': 'badge-altro'
+            };
+            return classMap[fondo] || 'badge-altro';
+        }
+
+        // Renderizza statistiche
+        function renderStats() {
+            const materiale = loadData();
+            const totale = materiale.length;
+            const inMagazzino = materiale.filter(m => m.stato === 'Magazzino').length;
+            const inUso = materiale.filter(m => m.stato === 'In Uso').length;
+            const totaleCosto = materiale.reduce((sum, m) => sum + (parseFloat(m.costo) || 0), 0);
+
+            const statsHTML = `
+                <div class="stat-card">
+                    <h3>${totale}</h3>
+                    <p>Totale Materiale</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${inMagazzino}</h3>
+                    <p>In Magazzino</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${inUso}</h3>
+                    <p>In Uso</p>
+                </div>
+                <div class="stat-card">
+                    <h3>€${totaleCosto.toLocaleString('it-IT', {minimumFractionDigits: 2})}</h3>
+                    <p>Valore Totale</p>
+                </div>
+            `;
+
+            document.getElementById('stats').innerHTML = statsHTML;
+        }
+
+        // Ordina materiale
+        function sortMateriale(data, column, direction) {
+            const sorted = [...data].sort((a, b) => {
+                let aVal, bVal;
+                
+                // Gestione tipo con compatibilità
+                if (column === 'tipo') {
+                    aVal = a.tipo || a.nome || '';
+                    bVal = b.tipo || b.nome || '';
+                } else if (column === 'nome') {
+                    aVal = a.nome || a.modello || '';
+                    bVal = b.nome || b.modello || '';
+                } else {
+                    aVal = a[column] || '';
+                    bVal = b[column] || '';
+                }
+                
+                // Gestione valori numerici
+                if (column === 'costo') {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                if (column === 'garanzia') {
+                    aVal = parseInt(a[column], 10) || 1;
+                    bVal = parseInt(b[column], 10) || 1;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                
+                // Gestione date
+                if (column === 'dataAcquisto') {
+                    aVal = aVal ? new Date(aVal).getTime() : 0;
+                    bVal = bVal ? new Date(bVal).getTime() : 0;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                
+                // Gestione stringhe
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+                
+                if (direction === 'asc') {
+                    return aVal.localeCompare(bVal);
+                } else {
+                    return bVal.localeCompare(aVal);
+                }
+            });
+            
+            return sorted;
+        }
+
+        // Gestisce il click su una colonna ordinabile
+        function handleSortClick(column) {
+            if (currentSortColumn === column) {
+                // Inverti direzione se stessa colonna
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // Nuova colonna, inizia con asc
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+            
+            // Aggiorna icone
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.getAttribute('data-sort') === column) {
+                    th.classList.add(`sort-${currentSortDirection}`);
+                }
+            });
+            
+            // Applica ordinamento e renderizza
+            const materiale = loadData();
+            const sorted = sortMateriale(materiale, column, currentSortDirection);
+            renderTable(sorted);
+        }
+
+        // Renderizza tabella
+        function renderTable(filteredData = null) {
+            let materiale = filteredData || loadData();
+            const tbody = document.getElementById('materialTableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            // Applica ordinamento se presente
+            if (currentSortColumn && !filteredData) {
+                materiale = sortMateriale(materiale, currentSortColumn, currentSortDirection);
+            }
+
+            if (materiale.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tbody.innerHTML = materiale.map(item => {
+                const costo = parseFloat(item.costo) || 0;
+                // Compatibilità: se non c'è tipo, usa nome vecchio; se non c'è nome, usa modello vecchio
+                const tipo = item.tipo || item.nome || '-';
+                const nome = item.nome || item.modello || '-';
+                return `
+                    <tr>
+                        <td>${escapeHtml(tipo)}</td>
+                        <td>${escapeHtml(nome)}</td>
+                        <td>${escapeHtml(item.seriale || '-')}</td>
+                        <td><span class="badge ${getFondoBadgeClass(item.fondo)}">${escapeHtml(item.fondo)}</span></td>
+                        <td>${escapeHtml(item.capitolo || '-')}</td>
+                        <td><span class="badge ${item.stato === 'Magazzino' ? 'badge-magazzino' : 'badge-in-uso'}">${escapeHtml(item.stato)}</span></td>
+                        <td>${escapeHtml(item.utente || '-')}</td>
+                        <td>${escapeHtml(item.dataAcquisto || '-')}</td>
+                        <td>${costo > 0 ? '€' + costo.toLocaleString('it-IT', {minimumFractionDigits: 2}) : '-'}</td>
+                        <td>${(item.garanzia || 1) === 1 ? '1 anno' : (item.garanzia || 1) + ' anni'}</td>
+                        <td>${escapeHtml(item.note || '-')}</td>
+                        <td class="actions">
+                            <button class="btn btn-secondary edit-material-btn" data-material-id="${escapeAttr(item.id)}" style="font-size: 0.85em; padding: 8px 15px;">Modifica</button>
+                            <button class="btn btn-danger delete-material-btn" data-material-id="${escapeAttr(item.id)}" style="font-size: 0.85em; padding: 8px 15px;">Elimina</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Elimina materiale - funzione globale
+        window.deleteMaterial = function(id) {
+            if (confirm('Sei sicuro di voler eliminare questo materiale?')) {
+                const materiale = loadData();
+                const item = materiale.find(m => m.id === id);
+                
+                // Se il materiale ha un costo, ripristina il budget al fondo
+                if (item && item.fondo) {
+                    const costo = parseFloat(item.costo) || 0;
+                    if (costo > 0) {
+                        const fondi = loadFondi();
+                        const fondo = fondi.find(f => f.nome === item.fondo);
+                        if (fondo) {
+                            const budgetResiduo = parseFloat(fondo.budgetResiduo) || 0;
+                            fondo.budgetResiduo = (budgetResiduo + costo).toFixed(2);
+                            saveFondi(fondi);
+                        }
+                    }
+                }
+                
+                const filtered = materiale.filter(m => m.id !== id);
+                saveData(filtered);
+                renderTable();
+                renderStats();
+            }
+        };
+
+        // Modifica materiale
+        function editMaterial(id) {
+            const materiale = loadData();
+            const item = materiale.find(m => m.id === id);
+            if (!item) return;
+
+            editingMaterialId = id;
+
+            // Compatibilità: se non c'è tipo, usa nome vecchio; se non c'è nome, usa modello vecchio
+            document.getElementById('modalTipo').value = item.tipo || item.nome || '';
+            document.getElementById('modalNome').value = item.nome || item.modello || '';
+            document.getElementById('modalSeriale').value = item.seriale || '';
+            populateFondiSelect();
+            document.getElementById('modalFondo').value = item.fondo;
+            updateCapitoloGroupMateriale();
+            const parsed = parseCapitolo(item.capitolo || '');
+            const capNum = document.getElementById('modalCapitoloNumeroMateriale');
+            const capDesc = document.getElementById('modalCapitoloDescrizioneMateriale');
+            if (capNum) capNum.value = parsed.numero || '';
+            if (capDesc) capDesc.value = parsed.descrizione || '';
+            document.getElementById('modalStato').value = item.stato || 'Magazzino';
+            var utenteGroup = document.getElementById('modalUtenteGroup');
+            if (utenteGroup) utenteGroup.style.display = (item.stato === 'In Uso') ? 'block' : 'none';
+            document.getElementById('modalUtente').value = item.utente || '';
+            document.getElementById('modalDataAcquisto').value = item.dataAcquisto || '';
+            document.getElementById('modalCosto').value = item.costo || '';
+            document.getElementById('modalGaranzia').value = item.garanzia || 1;
+            document.getElementById('modalNote').value = item.note || '';
+
+            document.getElementById('modalStatoGroup').style.display = 'block';
+            fillPersonaleDatalist();
+            lastScannedBarcode = null;
+            const memWrapEdit = document.getElementById('modalMemorizzaBarcodeWrap');
+            if (memWrapEdit) memWrapEdit.style.display = 'none';
+            document.getElementById('modalMaterialTitle').textContent = 'Modifica Materiale';
+            document.getElementById('modalMaterialSubmit').textContent = 'Salva Modifiche';
+            
+            document.getElementById('addMaterialModal').classList.add('active');
+            document.getElementById('modalNome').focus();
+        };
+
+        // Filtra materiale
+        function filterMaterial() {
+            let materiale = loadData();
+            materiale = applyUrlFilter(materiale);
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = materiale;
+
+            if (searchTerm) {
+                filtered = filtered.filter(m => {
+                    const tipo = (m.tipo || m.nome || '').toLowerCase();
+                    const nome = (m.nome || m.modello || '').toLowerCase();
+                    const seriale = (m.seriale || '').toLowerCase();
+                    return tipo.includes(searchTerm) || nome.includes(searchTerm) || seriale.includes(searchTerm);
+                });
+            }
+
+            // Applica ordinamento se presente
+            if (currentSortColumn) {
+                filtered = sortMateriale(filtered, currentSortColumn, currentSortDirection);
+            }
+
+            renderTable(filtered);
+        }
+
+        // Gestione chiusura modale con click esterno o ESC
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('addMaterialModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeAddMaterialModal();
+                    }
+                });
+            }
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+                    closeAddMaterialModal();
+                }
+            });
+        });
+
+        // Aggiungi event listener ai pulsanti dopo il rendering
+        function attachEventListeners() {
+            document.querySelectorAll('.edit-material-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const materialId = this.getAttribute('data-material-id');
+                    editMaterial(materialId);
+                });
+            });
+
+            document.querySelectorAll('.delete-material-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const materialId = this.getAttribute('data-material-id');
+                    deleteMaterial(materialId);
+                });
+            });
+        }
+
+        // Event listeners per filtri
+        document.getElementById('searchInput').addEventListener('input', filterMaterial);
+        document.getElementById('modalFondo').addEventListener('change', updateCapitoloGroupMateriale);
+        var statoSelect = document.getElementById('modalStato');
+        var utenteGroup = document.getElementById('modalUtenteGroup');
+        if (statoSelect && utenteGroup) statoSelect.addEventListener('change', function() {
+            utenteGroup.style.display = this.value === 'In Uso' ? 'block' : 'none';
+        });
+        // Auto-compila descrizione capitolo se il numero è già censito
+        (function() {
+            const numInput = document.getElementById('modalCapitoloNumeroMateriale');
+            const descInput = document.getElementById('modalCapitoloDescrizioneMateriale');
+            if (numInput && descInput) numInput.addEventListener('blur', function() {
+                const n = (this.value || '').toString().trim();
+                if (!n) return;
+                const catalog = getCapitoliCensiti();
+                if (catalog[n]) descInput.value = catalog[n];
+            });
+        })();
+
+        // Barcode: applica sia su Enter sia dopo inserimento rapido (lettori che non inviano Invio)
+        (function initBarcodeField() {
+            const barcodeInput = document.getElementById('modalBarcode');
+            if (!barcodeInput) return;
+            let barcodeApplyTimer = null;
+            barcodeInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyBarcodeScanned(this.value);
+                }
+            });
+            barcodeInput.addEventListener('input', function() {
+                clearTimeout(barcodeApplyTimer);
+                if (this.value.length < 3) return;
+                const inputEl = this;
+                barcodeApplyTimer = setTimeout(function() {
+                    applyBarcodeScanned(inputEl.value);
+                }, 250);
+            });
+            const applyBtn = document.getElementById('modalBarcodeApply');
+            if (applyBtn) applyBtn.addEventListener('click', function() {
+                const val = barcodeInput.value;
+                if (val.trim()) applyBarcodeScanned(val);
+            });
+        })();
+
+        // Frecce ▲▼ per campi numerici
+        function initNumberSpinners() {
+            document.querySelectorAll('.number-spinner-wrap').forEach(wrap => {
+                const input = wrap.querySelector('input[type="number"]');
+                if (!input) return;
+                const step = parseFloat(input.getAttribute('step')) || 1;
+                const min = input.hasAttribute('min') ? parseFloat(input.getAttribute('min')) : null;
+                const max = input.hasAttribute('max') ? parseFloat(input.getAttribute('max')) : null;
+                const buttons = wrap.querySelectorAll('.number-spinner button');
+                if (buttons[0]) buttons[0].addEventListener('click', () => {
+                    let v = parseFloat(input.value) || 0;
+                    v = step >= 1 && step === Math.floor(step) ? v + step : parseFloat((v + step).toFixed(2));
+                    if (max != null && v > max) v = max;
+                    input.value = String(v);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                if (buttons[1]) buttons[1].addEventListener('click', () => {
+                    let v = parseFloat(input.value) || 0;
+                    v = step >= 1 && step === Math.floor(step) ? v - step : parseFloat((v - step).toFixed(2));
+                    if (min != null && v < min) v = min;
+                    input.value = String(v);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+        }
+        initNumberSpinners();
+
+        // Inizializzazione
+        populateFondiSelect();
+        if (urlFilterFondo || urlFilterCapitolo) {
+            const banner = document.getElementById('urlFilterBanner');
+            const bannerText = document.getElementById('urlFilterBannerText');
+            const bannerClear = document.getElementById('urlFilterBannerClear');
+            if (banner && bannerText) {
+                const parts = [];
+                if (urlFilterFondo) parts.push('Fondo: ' + urlFilterFondo);
+                if (urlFilterCapitolo) parts.push('Capitolo: ' + (urlFilterCapitolo === 'Non specificato' ? 'Non specificato' : urlFilterCapitolo));
+                bannerText.textContent = 'Filtro attivo: ' + parts.join(' · ') + '.';
+                banner.style.display = 'block';
+            }
+            if (bannerClear) bannerClear.href = 'materiale.html' + (ANNO ? '?anno=' + encodeURIComponent(ANNO) : '');
+            renderTable(applyUrlFilter(loadData()));
+        } else {
+            renderTable();
+        }
+        renderStats();
+        
+        // Attacca event listener per ordinamento
+        function attachSortListeners() {
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.removeEventListener('click', handleSortClickHandler);
+                const column = th.getAttribute('data-sort');
+                th.addEventListener('click', function() {
+                    handleSortClick(column);
+                });
+            });
+        }
+        
+        // Attacca gli event listener dopo un breve delay
+        setTimeout(() => {
+            attachEventListeners();
+            attachSortListeners();
+        }, 100);
+        
+        // Attacca anche dopo ogni renderTable
+        const originalRenderTable = renderTable;
+        renderTable = function(filteredData = null) {
+            originalRenderTable(filteredData);
+            setTimeout(() => {
+                attachEventListeners();
+                attachSortListeners();
+            }, 50);
+        };
+
+        // Gestione Tema
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const html = document.documentElement;
+
+        function initTheme() {
+            const savedTheme = sessionStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                html.setAttribute('data-theme', savedTheme);
+            } else if (prefersDark) {
+                html.setAttribute('data-theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            sessionStorage.setItem('theme', newTheme);
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const currentTheme = html.getAttribute('data-theme');
+            themeIcon.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        initTheme();
+    </script>
+</body>
+</html>
+

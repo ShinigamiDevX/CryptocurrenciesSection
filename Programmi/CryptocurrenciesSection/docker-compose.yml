@@ -1,0 +1,67 @@
+services:
+  web:
+    build: .
+    container_name: cryptovault-web
+    ports:
+      - "0.0.0.0:5200:443"
+      - "0.0.0.0:5201:80"
+    restart: unless-stopped
+    depends_on:
+      - cluster
+      - auth
+      - analisi
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+
+  cluster:
+    build:
+      context: ./cluster
+      dockerfile: Dockerfile
+    container_name: cryptovault-cluster
+    restart: unless-stopped
+    env_file:
+      - cluster.env
+    volumes:
+      - ./cluster/dashboard/uploads:/app/dashboard/uploads
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    container_name: cryptovault-auth
+    restart: unless-stopped
+    extra_hosts:
+      - "host-gateway:host-gateway"
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PORTAL_URL=${PORTAL_URL:-https://192.168.4.80:5200}
+      - CHAINHOLDER_URL=${CHAINHOLDER_URL:-http://192.168.1.73:3000}
+      - CRYPTOMONITOR_URL=${CRYPTOMONITOR_URL:-https://192.168.4.80:5173}
+      - CORSI_DIR=/app/corsi
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - ELEVATE_PHRASE_HASH=${ELEVATE_PHRASE_HASH:-}
+    volumes:
+      - ./auth/data:/app/data
+      - ./corsi:/app/corsi
+      - ./auth/server.js:/app/server.js:ro
+      - ./auth/db.js:/app/db.js:ro
+      - ./auth/corsi-content.js:/app/corsi-content.js:ro
+
+  analisi:
+    build:
+      context: ./analisi
+      dockerfile: Dockerfile
+    container_name: cryptovault-analisi
+    restart: unless-stopped
+    environment:
+      - AUTH_VERIFY_URL=http://auth:4000/api/auth/verify
+      - IPQS_API_KEY=${IPQS_API_KEY:-}
+      - SPUR_API_TOKEN=${SPUR_API_TOKEN:-}
+      - IPGEOLOCATION_API_KEY=${IPGEOLOCATION_API_KEY:-}
+    depends_on:
+      - auth

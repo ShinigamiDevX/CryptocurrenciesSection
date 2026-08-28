@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.example
+**/node_modules
+**/__pycache__
+**/*.pyc
+analisi/.venv
+auth/data
+cluster/dashboard/uploads
+cluster/dashboard/cert
+*.md
+corsi-offline

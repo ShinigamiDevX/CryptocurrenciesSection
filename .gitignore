@@ -1,23 +1,51 @@
-# Node
-cluster/dashboard/node_modules/
-auth/node_modules/
+# Desktop tools — non in questa repo
+/Tools Europol/
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-cluster/**/__pycache__/
-analisi/.venv/
+# Helper locale Docker Desktop
+.docker-helpers/
 
-# Upload temporanei (i file generati, non la cartella)
-cluster/dashboard/uploads/*.csv
-cluster/dashboard/uploads/*.txt
+# Nested git leftovers (repo unificata)
+**/.git.bak/
+
+# Secrets
+**/.env
+!**/.env.example
+**/secret.key
+**/auth/data/
+
+# Dependencies
+**/node_modules/
+**/venv/
+**/venv-linux/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+
+# Build / runtime
+**/dist/
+**/backups/
+**/.vite/
 
 # Certificati locali
-cluster/dashboard/cert/
+**/certs/
+**/ssl/
+**/dashboard/cert/
 
-# Auth — dati sensibili (non committare nel repo)
-auth/data/
+# Upload generati
+**/dashboard/uploads/*.csv
+**/dashboard/uploads/*.txt
 
-# Environment
-.env
+# SQLite / dump
+**/*.db
+**/*.sqlite
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# junk
+**/nohup.out
+**/lint-results.json
+

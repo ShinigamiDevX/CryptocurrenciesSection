@@ -1,0 +1,41 @@
+.otp-boxes {
+    display: flex;
+    gap: 0.45rem;
+    justify-content: space-between;
+    margin: 0.15rem 0 0.35rem;
+}
+.otp-digit {
+    width: 2.7rem !important;
+    min-width: 2.4rem;
+    height: 3rem;
+    flex: 1 1 0;
+    max-width: 3.2rem;
+    padding: 0 !important;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+    background: rgba(0,200,255,0.06);
+    border: 1px solid rgba(0,200,255,0.22);
+    border-radius: 8px;
+    color: #C8F0E8;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    box-sizing: border-box;
+}
+.otp-digit:focus {
+    border-color: rgba(0,200,255,0.7);
+    background: rgba(0,200,255,0.12);
+}
+.otp-digit::placeholder { color: transparent; }
+
+@media (max-width: 420px) {
+    .otp-boxes { gap: 0.3rem; }
+    .otp-digit {
+        height: 2.7rem;
+        font-size: 1.1rem;
+        max-width: none;
+    }
+}

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>CryptocurrenciesSection — Portale Operativo Interno</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=4">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
+    <style>
+        /* Campanella: regole critiche (evita layout rotto se CSS in cache) */
+        .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
+        .nav-bell-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; padding: 0; margin: 0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 9px; color: #7ACCE0; cursor: pointer;
+        }
+        .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
+        .nav-bell-btn svg, .nav-bell-btn img { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-badge {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
+            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+        }
+        .nav-bell-badge.visible { display: block; }
+        #navBellPanel {
+            display: none !important; position: fixed; top: 64px; right: 1rem;
+            width: min(360px, calc(100vw - 2rem)); background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
+        }
+        #navBellPanel.open { display: block !important; }
+        #navBellPanel.open.nav-bell-fullscreen { display: flex !important; }
+        #navBellPanel .nav-bell-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
+        #navBellPanel .nav-bell-head-actions { display: flex; align-items: center; gap: 0.75rem; }
+        #navBellPanel .nav-bell-head-btn, #navBellPanel .nav-bell-panel-head a {
+            color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
+            background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+            border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+        }
+        #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
+        #navBellPanel .nav-bell-item {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem;
+            padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
+        }
+        #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
+        #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item-body { display: block; width: 100%; color: inherit; text-decoration: none; background: none !important; padding: 0 !important; text-transform: none; }
+        #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+        #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
+        #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        #navBellPanel .nav-bell-mark-one {
+            padding: 0.3rem 0.7rem; font-size: 0.72rem; font-weight: 600; font-family: inherit;
+            color: #00C8FF; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 6px; cursor: pointer;
+        }
+        #navBellPanel.nav-bell-fullscreen {
+            display: flex !important; flex-direction: column; z-index: 5000;
+            border-radius: 0 !important; border: none;
+        }
+        #navBellPanel.nav-bell-fullscreen .nav-bell-list {
+            flex: 1; max-height: none; max-width: 720px; width: 100%; margin: 0 auto; padding: 0.5rem 1rem 2rem;
+        }
+        header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
+        header nav ul { flex-wrap: nowrap !important; align-items: center; }
+        header nav ul li { white-space: nowrap; }
+        li.nav-logout a {
+            background: linear-gradient(135deg, #00d4ff, #7b5ea7) !important;
+            color: #fff !important; padding: 0.45rem 1.2rem !important;
+            border-radius: 8px !important; text-transform: none !important;
+        }
+
+        .card.is-soon {
+            position: relative;
+            border-color: rgba(255,184,77,0.28);
+            opacity: 0.92;
+        }
+        .card.is-soon:hover {
+            border-color: rgba(255,184,77,0.5);
+            transform: none;
+        }
+        .card-soon-badge {
+            position: absolute;
+            top: 0.85rem;
+            right: 0.85rem;
+            padding: 0.22rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #1a1205;
+            background: linear-gradient(135deg, #FFB84D, #E09420);
+            box-shadow: 0 0 0 1px rgba(255,184,77,0.25);
+        }
+        .card.is-soon .btn-outline {
+            border-color: rgba(255,184,77,0.4);
+            color: #FFB84D;
+            pointer-events: none;
+            cursor: default;
+            opacity: 0.85;
+        }
+        html.light-theme .card.is-soon { border-color: rgba(200,130,20,0.35); }
+        html.light-theme .card.is-soon .btn-outline { color: #B86A00; border-color: rgba(200,130,20,0.4); }
+
+        /* ── Auth overlay ─────────────────────────────────────── */
+        #authOverlay {
+            position: fixed; inset: 0; background: #030E1C; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #authOverlay span { color: #00C8FF; font-size: 1rem; font-family: Inter, sans-serif; }
+
+        /* Modale di conferma custom */
+        .confirm-bg {
+            position: fixed; inset: 0; background: rgba(3,14,28,0.85); z-index: 9500;
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .confirm-box {
+            background: #030E1C; border: 1px solid rgba(0,200,255,0.28); border-radius: 14px;
+            padding: 1.8rem 2rem; width: 100%; max-width: 380px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.08), 0 24px 60px rgba(0,0,0,0.75);
+        }
+        .confirm-box p { color: #C8F0E8; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.4rem; }
+        .confirm-btns { display: flex; gap: 0.7rem; justify-content: flex-end; }
+        .confirm-btns .btn-ok {
+            padding: 0.6rem 1.4rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700;
+            font-size: 0.88rem; cursor: pointer;
+        }
+        .confirm-btns .btn-cancel {
+            padding: 0.6rem 1.2rem; background: transparent;
+            border: 1px solid rgba(0,200,255,0.3); border-radius: 7px;
+            color: #5ABBC8; font-size: 0.88rem; cursor: pointer;
+        }
+        .confirm-btns .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+
+        #easterEggOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            align-items: center;
+            justify-content: center;
+            background: rgba(3, 14, 28, 0.92);
+            cursor: pointer;
+        }
+        #easterEggOverlay p {
+            margin: 0;
+            color: #FF4757;
+            font-size: clamp(2.2rem, 8vw, 5.5rem);
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-align: center;
+            text-transform: uppercase;
+            font-family: Inter, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth overlay — nascosto dopo verifica -->
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1><img id="headerLogo" src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">Cryptocurrencies<span>Section</span> <small>Portale Interno</small></h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Pannello notifiche fuori dall'header (non rompe il layout) -->
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <section style="padding: 2.5rem 1rem; text-align: left;">
+            <h2 id="welcomeTitle" style="font-size: 1.6rem; text-align: left;">Benvenuto nel portale operativo</h2>
+            <p id="welcomeSub" style="text-align: left; margin: 0; max-width: none; white-space: nowrap; font-size: 0.95rem;">Accesso riservato al personale autorizzato. Seleziona un'area di lavoro.</p>
+        </section>
+        <div class="cards" id="dashboardCards">
+            <div class="card is-soon" data-card="blockchain" data-ready="0">
+                <span class="card-soon-badge">In arrivo</span>
+                <div class="icon"><img src="/icons/line/link.svg" alt=""></div>
+                <h3>Tracciamento Blockchain</h3>
+                <p>Analisi del flusso di transazioni su blockchain. Visualizzazione grafica dei percorsi wallet.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;" aria-disabled="true">Non disponibile</a>
+            </div>
+            <div class="card is-soon" data-card="osint" data-ready="0">
+                <span class="card-soon-badge">In arrivo</span>
+                <div class="icon"><img src="/icons/line/search-alt.svg" alt=""></div>
+                <h3>OSINT & Intelligence</h3>
+                <p>Ricerca e correlazione di identità, exchange, indirizzi IP e metadati associati a wallet e transazioni sospette.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;" aria-disabled="true">Non disponibile</a>
+            </div>
+            <div class="card" data-card="chainholder">
+                <div class="icon"><img src="/icons/line/folder-lock.svg" alt=""></div>
+                <h3>Chainholder</h3>
+                <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
+                <a href="http://192.168.1.73:3000/login?callbackUrl=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests" data-sso-tool="chainholder" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="corsi">
+                <div class="icon"><img src="/icons/line/graduation-cap.svg" alt=""></div>
+                <h3>Corsi</h3>
+                <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
+                <a href="/corsi" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="cluster">
+                <div class="icon"><img src="/icons/line/layer-group.svg" alt=""></div>
+                <h3>Cluster</h3>
+                <p>Clusterizzazione dei report forniti dagli Exchange.</p>
+                <a href="https://192.168.4.80:3444" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card is-soon" data-card="ai" data-ready="0">
+                <span class="card-soon-badge">In arrivo</span>
+                <div class="icon"><img src="/icons/line/robot.svg" alt=""></div>
+                <h3>AI</h3>
+                <p>Assistenza intelligente per analisi, ricerche e supporto operativo sulle attività del portale.</p>
+                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;" aria-disabled="true">Non disponibile</a>
+            </div>
+            <div class="card" data-card="analisi-report">
+                <div class="icon"><img src="/icons/line/analytics.svg" alt=""></div>
+                <h3>Analisi Report</h3>
+                <p>Carica CSV, Excel o PDF: profilo, transazioni wallet, IP di accesso e riassunto con grafici.</p>
+                <a href="/analisi-report" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="cryptomonitor">
+                <div class="icon"><img src="/icons/line/desktop.svg" alt=""></div>
+                <h3>CryptoMonitor</h3>
+                <p>Monitoraggio operativo delle attività crypto su servizio dedicato esterno al portale.</p>
+                <a href="https://192.168.4.80:5173" data-sso-tool="cryptomonitor" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="materiali">
+                <div class="icon"><img src="/icons/line/books.svg" alt=""></div>
+                <h3>Materiali</h3>
+                <p>Accesso all’archivio materiali e risorse operative sul servizio dedicato esterno.</p>
+                <a href="https://192.168.4.80:5174" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+            <div class="card" data-card="gestione-utenti" style="display:none;">
+                <div class="icon"><img src="/icons/line/users-alt.svg" alt=""></div>
+                <h3>Gestione Utenti</h3>
+                <p>Inviti, ruoli, profili e richieste di modifica. Area riservata ad amministratori e super admin.</p>
+                <a href="/gestione-utenti" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p>
+    </footer>
+
+    <!-- Modale di conferma custom -->
+    <div class="confirm-bg" id="confirmModal" style="display:none;">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="auth-token.js?v=2"></script>
+    <script src="portal-sso.js?v=2"></script>
+    <script src="nav-notifications.js?v=5"></script>
+    <script>
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    let _currentUser = null;
+
+    (async function() {
+        const token = getAuthToken();
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            _currentUser = await res.json();
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('navUserEmail').textContent = _currentUser.displayName || _currentUser.email || '';
+            applyDashboardCards(_currentUser);
+            if (typeof bindPortalSsoLinks === 'function') bindPortalSsoLinks();
+            const welcomeTitle = document.getElementById('welcomeTitle');
+            const welcomeSub = document.getElementById('welcomeSub');
+            if (_currentUser.role === 'superadmin') {
+                welcomeTitle.textContent = 'Benvenuto Super Admin';
+                welcomeTitle.style.color = '#FF6B7A';
+                welcomeSub.style.display = 'none';
+            } else {
+                try {
+                    const pref = await fetch('/api/auth/my-profile', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (pref.ok) {
+                        const p = await pref.json();
+                        const nomeUtente = (p.nome || '').trim()
+                            || (_currentUser.email || '').split('@')[0];
+                        if (nomeUtente) {
+                            welcomeTitle.textContent =
+                                'Benvenuto nel portale operativo, ' + nomeUtente;
+                        }
+                    }
+                } catch { /* titolo di default */ }
+            }
+            initNavBell();
+        } catch {
+            clearAuth();
+            window.location.replace('/login');
+        }
+    })();
+
+    function logout() {
+        showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
+            clearAuth();
+            window.location.replace('/login');
+        });
+    }
+
+    /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin.
+     *  Super Admin: tutte le schede. */
+    function applyDashboardCards(user) {
+        const isSuper = user.role === 'superadmin';
+        const isAdmin = isSuper || user.role === 'admin';
+        const isStrumento = user.accountType === 'strumento';
+        const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
+        document.querySelectorAll('#dashboardCards .card[data-card]').forEach(card => {
+            const id = card.getAttribute('data-card');
+            let show;
+            if (id === 'gestione-utenti') show = isAdmin && !isStrumento;
+            else if (isStrumento) show = allowed.has(id);
+            else show = isSuper || allowed.has(id);
+            card.style.display = show ? '' : 'none';
+        });
+    }
+
+    document.querySelectorAll('#dashboardCards .card.is-soon a.btn').forEach((a) => {
+        a.addEventListener('click', (e) => e.preventDefault());
+    });
+
+    // ── Easter egg: logo hover + frase → scritta, nessun privilegio ──
+    // La frase NON è nel client: si digita a memoria; il server verifica lo SHA-256.
+    (function setupElevateEasterEgg() {
+        const logo = document.getElementById('headerLogo');
+        if (!logo) return;
+        let hovering = false;
+        let buffer = '';
+        let elevating = false;
+        let timer = null;
+
+        function showEasterEggMessage() {
+            let overlay = document.getElementById('easterEggOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'easterEggOverlay';
+                overlay.setAttribute('role', 'dialog');
+                overlay.innerHTML = '<p>ZITTO COGLIONE</p>';
+                overlay.addEventListener('click', () => { overlay.style.display = 'none'; });
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+        }
+
+        logo.addEventListener('mouseenter', () => { hovering = true; });
+        logo.addEventListener('mouseleave', () => {
+            hovering = false;
+            buffer = '';
+            if (timer) { clearTimeout(timer); timer = null; }
+        });
+        async function tryElevate(attempt) {
+            if (!hovering || elevating) return;
+            elevating = true;
+            try {
+                const res = await fetch('/api/auth/elevate-session', {
+                    method: 'POST',
+                    headers: authHeader(),
+                    body: JSON.stringify({ phrase: attempt })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) return;
+                showEasterEggMessage();
+            } catch { /* silenzioso */ }
+            finally { elevating = false; }
+        }
+        window.addEventListener('keydown', (e) => {
+            if (!hovering || elevating) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (e.key.length !== 1) return;
+            buffer = (buffer + e.key.toLowerCase()).slice(-64);
+            if (buffer.length < 6) return;
+            if (timer) clearTimeout(timer);
+            const attempt = buffer;
+            timer = setTimeout(() => tryElevate(attempt), 140);
+        });
+    })();
+
+    // ── Modale di conferma custom (sostituisce window.confirm) ───────────────────
+    function showConfirm(message, onOk, onCancel) {
+        const modal     = document.getElementById('confirmModal');
+        const msgEl     = document.getElementById('confirmMsg');
+        const okBtn     = document.getElementById('confirmOk');
+        const cancelBtn = document.getElementById('confirmCancel');
+        msgEl.textContent    = message;
+        modal.style.display  = 'flex';
+        function close() { modal.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; }
+        okBtn.onclick     = () => { close(); if (onOk)     onOk(); };
+        cancelBtn.onclick = () => { close(); if (onCancel) onCancel(); };
+    }
+    </script>
+</body>
+</html>

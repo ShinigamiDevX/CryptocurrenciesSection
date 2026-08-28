@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://world.openfoodfacts.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+    <title>Gestione Personale</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
+                <span id="themeIcon">🌙</span>
+            </button>
+            <h2 class="sidebar-title">Menu</h2>
+        </div>
+        <div class="sidebar-anno" style="padding: 12px 24px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+            <span class="sidebar-text">Anno <strong id="sidebarAnno">—</strong></span>
+            <a href="home.html" class="sidebar-link" style="padding: 8px 0; margin-top: 4px;">Cambia anno</a>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="sidebar-link">
+                <span class="sidebar-icon">📊</span>
+                <span class="sidebar-text">Dashboard</span>
+            </a>
+            <a href="fondi.html" class="sidebar-link">
+                <span class="sidebar-icon">💰</span>
+                <span class="sidebar-text">Fondi</span>
+            </a>
+            <a href="materiale.html" class="sidebar-link">
+                <span class="sidebar-icon">💻</span>
+                <span class="sidebar-text">Materiale</span>
+            </a>
+            <a href="licenze.html" class="sidebar-link">
+                <span class="sidebar-icon">📜</span>
+                <span class="sidebar-text">Licenze</span>
+            </a>
+            <a href="personale.html" class="sidebar-link">
+                <span class="sidebar-icon">👤</span>
+                <span class="sidebar-text">Personale</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <h1 style="margin: 0;">PERSONALE IN SERVIZIO</h1>
+                <button class="btn btn-primary" id="btnAddPersona" style="font-size: 1em; padding: 12px 25px;">➕ Aggiungi Persona</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="stats" id="personaleStats"></div>
+
+            <div class="table-section">
+                <table id="personaleTable" style="width: 100%; text-align: center;">
+                    <thead>
+                        <tr>
+                            <th>Grado</th>
+                            <th>Nome</th>
+                            <th>Cognome</th>
+                            <th>Materiali in uso</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="personaleTableBody"></tbody>
+                </table>
+                <div id="emptyStatePersonale" class="empty-state" style="display: none;">
+                    <h3>Nessuna persona in elenco</h3>
+                    <p>Aggiungi il personale con il pulsante sopra.</p>
+                </div>
+            </div>
+
+            <div class="form-section" id="personaleDettaglio" style="display: none; margin-top: 24px;">
+                <h2 id="personaleDettaglioTitle" style="margin-bottom: 12px;">Materiali in uso</h2>
+                <table style="width: 100%; text-align: center;">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Nome</th>
+                            <th>Seriale</th>
+                            <th>Fondo</th>
+                            <th>Stato</th>
+                        </tr>
+                    </thead>
+                    <tbody id="personaleDettaglioBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="addPersonaModal" class="modal-overlay">
+        <div class="modal" style="max-width: 500px;">
+            <button class="modal-close" id="btnClosePersonaModal">×</button>
+            <div class="modal-header">
+                <h2 id="modalPersonaTitle">Aggiungi Persona</h2>
+            </div>
+            <div class="modal-body">
+                <form id="personaForm">
+                    <div>
+                        <label for="modalPersonaGrado">Grado</label>
+                        <select id="modalPersonaGrado">
+                            <option value="">- Seleziona grado -</option>
+                            <optgroup label="Ruolo Ufficiali">
+                                <option>Generale di Corpo d'Armata</option>
+                                <option>Generale di Divisione</option>
+                                <option>Generale di Brigata</option>
+                                <option>Colonnello</option>
+                                <option>Tenente Colonnello</option>
+                                <option>Maggiore</option>
+                                <option>Capitano</option>
+                                <option>Tenente</option>
+                                <option>Sottotenente</option>
+                            </optgroup>
+                            <optgroup label="Ruolo Ispettori">
+                                <option>Luogotenente C.S.</option>
+                                <option>Luogotenente</option>
+                                <option>Maresciallo Maggiore</option>
+                                <option>Maresciallo Capo</option>
+                                <option>Maresciallo Ordinario</option>
+                                <option>Maresciallo</option>
+                            </optgroup>
+                            <optgroup label="Ruolo Sovrintendenti">
+                                <option>Brigadiere Capo Q.S.</option>
+                                <option>Brigadiere Capo</option>
+                                <option>Brigadiere</option>
+                                <option>Vice Brigadiere</option>
+                            </optgroup>
+                            <optgroup label="Ruolo Appuntati e Carabinieri">
+                                <option>Appuntato Scelto Q.S.</option>
+                                <option>Appuntato Scelto</option>
+                                <option>Appuntato</option>
+                                <option>Carabiniere Scelto</option>
+                                <option>Carabiniere</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="modalPersonaNome">Nome *</label>
+                        <input type="text" id="modalPersonaNome" required placeholder="Es. Mario" maxlength="100" style="font-style: italic;">
+                    </div>
+                    <div>
+                        <label for="modalPersonaCognome">Cognome *</label>
+                        <input type="text" id="modalPersonaCognome" required placeholder="Es. Rossi" maxlength="100" style="font-style: italic;">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnAnnullaPersona">Annulla</button>
+                <button type="button" class="btn btn-primary" id="btnSalvaPersona">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db-storage.js"></script>
+    <script src="js/escape-utils.js"></script>
+    <script>
+        function getMaterialiAnno() {
+            const fromSession = sessionStorage.getItem('materiali_anno');
+            if (fromSession && /^\d{4}$/.test(fromSession)) return fromSession;
+            const fromUrl = new URLSearchParams(window.location.search).get('anno');
+            if (fromUrl && /^\d{4}$/.test(fromUrl)) return fromUrl;
+            return String(new Date().getFullYear());
+        }
+        const ANNO = getMaterialiAnno();
+        if (document.getElementById('sidebarAnno')) document.getElementById('sidebarAnno').textContent = ANNO;
+
+        const PERSONALE_STORAGE_KEY = 'personale_database_' + ANNO;
+        const MATERIALE_STORAGE_KEY = 'materiale_informatico_' + ANNO;
+
+        var ORDINE_GRADI = [
+            'Generale di Corpo d\'Armata', 'Generale di Divisione', 'Generale di Brigata',
+            'Colonnello', 'Tenente Colonnello', 'Maggiore', 'Capitano', 'Tenente', 'Sottotenente',
+            'Luogotenente C.S.', 'Luogotenente', 'Maresciallo Maggiore', 'Maresciallo Capo', 'Maresciallo Ordinario', 'Maresciallo',
+            'Brigadiere Capo Q.S.', 'Brigadiere Capo', 'Brigadiere', 'Vice Brigadiere',
+            'Appuntato Scelto Q.S.', 'Appuntato Scelto', 'Appuntato', 'Carabiniere Scelto', 'Carabinieri'
+        ];
+
+        function loadPersonale() {
+            if (!window.DBStorage) return [];
+            return DBStorage.getArray(PERSONALE_STORAGE_KEY);
+        }
+        function savePersonale(arr) {
+            if (window.DBStorage) DBStorage.set(PERSONALE_STORAGE_KEY, arr);
+        }
+        function loadMateriale() {
+            if (!window.DBStorage) return [];
+            return DBStorage.getArray(MATERIALE_STORAGE_KEY);
+        }
+
+        function generateId() {
+            return 'pers_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+
+        function formatNamePart(value, maxLen) {
+            var t = sanitizeInput(value, maxLen || 100);
+            if (!t) return '';
+            var parts = t.toLowerCase().split(/\s+/);
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i].length) {
+                    parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].slice(1);
+                }
+            }
+            return parts.join(' ');
+        }
+
+        function getDisplayName(p) {
+            return [p.nome, p.cognome].filter(Boolean).join(' ').trim() || (p.nome || '') || '';
+        }
+        function getMaterialiPerPersona(displayName) {
+            const materiale = loadMateriale();
+            const target = (displayName || '').trim().toLowerCase();
+            return materiale.filter(function(m) {
+                return (m.utente || '').trim().toLowerCase() === target;
+            });
+        }
+
+        function renderStats() {
+            const persone = loadPersonale();
+            const materiale = loadMateriale();
+            const inUso = materiale.filter(function(m) { return (m.utente || '').trim() !== ''; }).length;
+            var html = '<div class="stat-card"><h3>' + persone.length + '</h3><p>Personale in elenco</p></div>';
+            html += '<div class="stat-card"><h3>' + inUso + '</h3><p>Materiali assegnati</p></div>';
+            document.getElementById('personaleStats').innerHTML = html;
+        }
+
+        function renderPersonale() {
+            var persone = loadPersonale();
+            var tbody = document.getElementById('personaleTableBody');
+            var emptyEl = document.getElementById('emptyStatePersonale');
+
+            if (persone.length === 0) {
+                tbody.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+            emptyEl.style.display = 'none';
+
+            persone = persone.slice().sort(function(a, b) {
+                var idxA = ORDINE_GRADI.indexOf(a.grado || '');
+                var idxB = ORDINE_GRADI.indexOf(b.grado || '');
+                if (idxA === -1) idxA = 9999;
+                if (idxB === -1) idxB = 9999;
+                if (idxA !== idxB) return idxA - idxB;
+                var cog = ((a.cognome || '').trim().toLowerCase()).localeCompare((b.cognome || '').trim().toLowerCase());
+                if (cog !== 0) return cog;
+                return ((a.nome || '').trim().toLowerCase()).localeCompare((b.nome || '').trim().toLowerCase());
+            });
+
+            var materiale = loadMateriale();
+            tbody.innerHTML = persone.map(function(p) {
+                var displayName = getDisplayName(p);
+                var count = materiale.filter(function(m) {
+                    return (m.utente || '').trim().toLowerCase() === displayName.trim().toLowerCase();
+                }).length;
+                return '<tr class="personale-row" data-person-id="' + escapeAttr(p.id) + '" data-person-nome="' + escapeAttr(displayName) + '">' +
+                    '<td>' + escapeHtml(p.grado || '-') + '</td>' +
+                    '<td><em>' + escapeHtml(p.nome || '') + '</em></td>' +
+                    '<td><em>' + escapeHtml(p.cognome || '') + '</em></td>' +
+                    '<td>' + count + '</td>' +
+                    '<td>' +
+                        '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
+                            '<button type="button" class="btn btn-secondary btn-vedi-materiali" style="font-size: 0.8em;">Vedi materiali</button>' +
+                            '<button type="button" class="btn btn-secondary btn-edit-persona" title="Modifica" style="font-size: 0.85em; padding: 4px 8px; margin-left: 4px;">✏️</button>' +
+                            '<button type="button" class="btn btn-danger btn-delete-persona" title="Elimina" style="font-size: 0.85em; padding: 4px 8px; margin-left: 2px;">🗑️</button>' +
+                        '</div>' +
+                    '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        function showDettaglioMateriali(nome) {
+            var materiali = getMaterialiPerPersona(nome);
+            var det = document.getElementById('personaleDettaglio');
+            var detTitle = document.getElementById('personaleDettaglioTitle');
+            var detBody = document.getElementById('personaleDettaglioBody');
+
+            detTitle.textContent = 'Materiali in uso da ' + (nome || '');
+            detBody.innerHTML = materiali.length === 0
+                ? '<tr><td colspan="5" style="text-align: center; padding: 16px;">Nessun materiale assegnato.</td></tr>'
+                : materiali.map(function(m) {
+                    return '<tr><td>' + escapeHtml(m.tipo || m.nome || '-') + '</td><td>' + escapeHtml(m.nome || m.modello || '-') + '</td><td>' + escapeHtml(m.seriale || '-') + '</td><td>' + escapeHtml(m.fondo || '-') + '</td><td>' + escapeHtml(m.stato || '-') + '</td></tr>';
+                }).join('');
+            det.style.display = 'block';
+        }
+
+        var editingPersonaId = null;
+
+        function openAddPersonaModal() {
+            editingPersonaId = null;
+            document.getElementById('modalPersonaTitle').textContent = 'Aggiungi Persona';
+            document.getElementById('personaForm').reset();
+            document.getElementById('addPersonaModal').classList.add('active');
+        }
+        function closePersonaModal() {
+            document.getElementById('addPersonaModal').classList.remove('active');
+            editingPersonaId = null;
+        }
+        function openEditPersona(id) {
+            var persone = loadPersonale();
+            var p = persone.find(function(x) { return x.id === id; });
+            if (!p) return;
+            editingPersonaId = id;
+            document.getElementById('modalPersonaTitle').textContent = 'Modifica Persona';
+            document.getElementById('modalPersonaGrado').value = p.grado || '';
+            document.getElementById('modalPersonaNome').value = p.nome || '';
+            document.getElementById('modalPersonaCognome').value = p.cognome || '';
+            document.getElementById('addPersonaModal').classList.add('active');
+        }
+
+        function deletePersona(id) {
+            var persone = loadPersonale();
+            var p = persone.find(function(x) { return x.id === id; });
+            var displayName = p ? getDisplayName(p) : '';
+            if (!confirm('Eliminare ' + (displayName || 'questa persona') + ' dal personale?')) return;
+            persone = persone.filter(function(x) { return x.id !== id; });
+            savePersonale(persone);
+            renderPersonale();
+            renderStats();
+        }
+
+        function confirmSavePersona() {
+            var grado = sanitizeInput(document.getElementById('modalPersonaGrado').value, 50);
+            var nome = formatNamePart(document.getElementById('modalPersonaNome').value, 100);
+            var cognome = formatNamePart(document.getElementById('modalPersonaCognome').value, 100);
+            if (!nome || !cognome) {
+                alert('Inserisci nome e cognome.');
+                return;
+            }
+
+            var persone = loadPersonale();
+            if (editingPersonaId) {
+                var idx = persone.findIndex(function(p) { return p.id === editingPersonaId; });
+                if (idx !== -1) {
+                    persone[idx].grado = grado;
+                    persone[idx].nome = nome;
+                    persone[idx].cognome = cognome;
+                }
+            } else {
+                persone.push({ id: generateId(), grado: grado, nome: nome, cognome: cognome });
+            }
+            savePersonale(persone);
+            closePersonaModal();
+            renderPersonale();
+            renderStats();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            renderStats();
+            renderPersonale();
+
+            document.getElementById('btnAddPersona').addEventListener('click', openAddPersonaModal);
+            document.getElementById('btnClosePersonaModal').addEventListener('click', closePersonaModal);
+            document.getElementById('btnAnnullaPersona').addEventListener('click', closePersonaModal);
+            document.getElementById('btnSalvaPersona').addEventListener('click', confirmSavePersona);
+
+            document.getElementById('addPersonaModal').addEventListener('click', function(e) {
+                if (e.target.id === 'addPersonaModal') closePersonaModal();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && document.getElementById('addPersonaModal').classList.contains('active')) closePersonaModal();
+            });
+
+            document.getElementById('personaleTableBody').addEventListener('click', function(e) {
+                var row = e.target.closest('.personale-row');
+                if (!row) return;
+
+                var btnVedi = e.target.closest('.btn-vedi-materiali');
+                var btnEdit = e.target.closest('.btn-edit-persona');
+                var btnDelete = e.target.closest('.btn-delete-persona');
+
+                if (btnVedi) {
+                    var nome = row.getAttribute('data-person-nome') || '';
+                    showDettaglioMateriali(nome);
+                    return;
+                }
+                if (btnEdit) {
+                    var id = row.getAttribute('data-person-id');
+                    if (id) openEditPersona(id);
+                    return;
+                }
+                if (btnDelete) {
+                    var idDel = row.getAttribute('data-person-id');
+                    if (idDel) deletePersona(idDel);
+                    return;
+                }
+            });
+
+            var themeToggle = document.getElementById('themeToggle');
+            var themeIcon = document.getElementById('themeIcon');
+            var html = document.documentElement;
+            function updateThemeIcon() {
+                var t = html.getAttribute('data-theme');
+                themeIcon.textContent = t === 'dark' ? '☀️' : '🌙';
+            }
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                    html.setAttribute('data-theme', next);
+                    sessionStorage.setItem('theme', next);
+                    updateThemeIcon();
+                });
+            }
+            var saved = sessionStorage.getItem('theme');
+            if (saved) html.setAttribute('data-theme', saved);
+            else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) html.setAttribute('data-theme', 'dark');
+            else html.setAttribute('data-theme', 'light');
+            updateThemeIcon();
+        });
+    </script>
+</body>
+</html>

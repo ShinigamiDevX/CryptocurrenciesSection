@@ -1,0 +1,17 @@
+# Imposta i line endings per tutti i file di testo
+* text=auto
+
+# Forza LF per i file specifici
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+
+# File binari
+*.jpg binary
+*.png binary
+*.avif binary
+
+
+
+

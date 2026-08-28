@@ -1,0 +1,14 @@
+{
+  "name": "materiali",
+  "version": "1.0.0",
+  "description": "Gestione materiale e fondi",
+  "scripts": {
+    "start": "serve . -l tcp://0.0.0.0:5175",
+    "create-cert": "node scripts/create-cert.js",
+    "start:https": "node scripts/start-https.js",
+    "pm2": "pm2 start ecosystem.config.cjs"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

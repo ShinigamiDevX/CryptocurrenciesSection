@@ -1,0 +1,7 @@
+# Certificati SSL locali (autofirmati)
+ssl/
+
+node_modules/
+
+# Log server
+server.log

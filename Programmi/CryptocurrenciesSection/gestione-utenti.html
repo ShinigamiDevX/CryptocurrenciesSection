@@ -1,0 +1,2777 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Gestione Utenti — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=3">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="custom-select.css?v=8">
+    <link rel="stylesheet" href="custom-date.css?v=8">
+    <link rel="stylesheet" href="luogo-nascita.css?v=5">
+    <style>
+        /* Campanella: regole critiche */
+        .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
+        .nav-bell-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; padding: 0; margin: 0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 9px; color: #7ACCE0; cursor: pointer;
+        }
+        .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
+        .nav-bell-btn svg, .nav-bell-btn img { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-badge {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
+            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+        }
+        .nav-bell-badge.visible { display: block; }
+        #navBellPanel {
+            display: none !important; position: fixed; top: 64px; right: 1rem;
+            width: min(360px, calc(100vw - 2rem)); background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
+        }
+        #navBellPanel.open { display: block !important; }
+        #navBellPanel.open.nav-bell-fullscreen { display: flex !important; }
+        #navBellPanel .nav-bell-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
+        #navBellPanel .nav-bell-head-actions { display: flex; align-items: center; gap: 0.75rem; }
+        #navBellPanel .nav-bell-head-btn, #navBellPanel .nav-bell-panel-head a {
+            color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
+            background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+            border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+        }
+        #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
+        #navBellPanel .nav-bell-item {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem;
+            padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
+        }
+        #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
+        #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item-body { display: block; width: 100%; color: inherit; text-decoration: none; background: none !important; padding: 0 !important; text-transform: none; }
+        #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+        #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
+        #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        #navBellPanel .nav-bell-mark-one {
+            padding: 0.3rem 0.7rem; font-size: 0.72rem; font-weight: 600; font-family: inherit;
+            color: #00C8FF; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 6px; cursor: pointer;
+        }
+        #navBellPanel.nav-bell-fullscreen {
+            display: flex !important; flex-direction: column; z-index: 5000;
+            border-radius: 0 !important; border: none;
+        }
+        #navBellPanel.nav-bell-fullscreen .nav-bell-list {
+            flex: 1; max-height: none; max-width: 720px; width: 100%; margin: 0 auto; padding: 0.5rem 1rem 2rem;
+        }
+        header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
+        header nav ul { flex-wrap: nowrap !important; align-items: center; }
+        header nav ul li { white-space: nowrap; }
+        li.nav-logout a {
+            background: linear-gradient(135deg, #00d4ff, #7b5ea7) !important;
+            color: #fff !important; padding: 0.45rem 1.2rem !important;
+            border-radius: 8px !important; text-transform: none !important;
+        }
+
+        /* ── Auth overlay ── */
+        #authOverlay { position:fixed;inset:0;background:#030E1C;z-index:9999;display:flex;align-items:center;justify-content:center; }
+        #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
+
+        /* ── Layout pagina: piena larghezza, contenuto centrato ── */
+        main {
+            max-width: 100%;
+            width: 100%;
+            padding: 1.5rem clamp(1rem, 2.5vw, 2.5rem) 2rem;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .page-title img { width: 1.35em; height: 1.35em; display: block; }
+        .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 2rem; text-align: center; }
+        .tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(0,200,255,0.15); margin-bottom: 1.8rem; justify-content: center; }
+        .tab-btn {
+            padding: 0.75rem 1.6rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            color: #5ABBC8; border: none; background: none; border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab-btn.active { color: #00C8FF; border-bottom-color: #00C8FF; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Tabella utenti ── */
+        .users-table { width:100%; border-collapse:collapse; font-size:0.88rem; table-layout:fixed; }
+        .users-table th { text-align:left; color:#7ACCE0; font-weight:600; padding:0.65rem 0.85rem; border-bottom:1px solid rgba(0,200,255,0.15); white-space:nowrap; }
+        .users-table th.sortable {
+            cursor: pointer; user-select: none;
+            transition: color 0.15s;
+        }
+        .users-table th.sortable:hover { color: #00C8FF; }
+        .users-table th.sortable .sort-ind {
+            display: inline-block; margin-left: 0.35rem;
+            font-size: 0.7rem; opacity: 0.35; vertical-align: middle;
+        }
+        .users-table th.sortable.sorted-asc .sort-ind,
+        .users-table th.sortable.sorted-desc .sort-ind { opacity: 1; color: #00C8FF; }
+        .users-table th.sortable.sorted-asc .sort-ind::after { content: '▲'; }
+        .users-table th.sortable.sorted-desc .sort-ind::after { content: '▼'; }
+        .users-table th.sortable:not(.sorted-asc):not(.sorted-desc) .sort-ind::after { content: '⇅'; }
+        .users-table td {
+            padding: 0.65rem 0.85rem; color: #C8F0E8;
+            border-bottom: 1px solid rgba(0,200,255,0.06);
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .users-table tr:last-child td { border-bottom: none; }
+        /* Larghezze: tutto su una riga, più spazio alla pagina */
+        .users-table th:nth-child(1), .users-table td:nth-child(1) { width: 16%; } /* Grado */
+        .users-table th:nth-child(2), .users-table td:nth-child(2) { width: 14%; } /* Nome */
+        .users-table th:nth-child(3), .users-table td:nth-child(3) { width: 20%; } /* Email */
+        .users-table th:nth-child(4), .users-table td:nth-child(4) {
+            width: 16%;
+            overflow: visible;
+            text-overflow: clip;
+        } /* Ruolo */
+        .users-table th:nth-child(5), .users-table td:nth-child(5) {
+            width: 10%;
+            overflow: visible;
+            text-overflow: clip;
+        } /* Registrato */
+        .users-table th:nth-child(6), .users-table td:nth-child(6),
+        .users-table td.actions-cell {
+            width: 24%;
+            overflow: visible;
+            text-overflow: clip;
+        } /* Azioni */
+        #tab-hidden .users-table th:nth-child(5),
+        #tab-hidden .users-table td:nth-child(5),
+        #tab-hidden .users-table th:nth-child(6),
+        #tab-hidden .users-table td:nth-child(6) {
+            width: 10%;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        #tab-hidden .users-table th:nth-child(7),
+        #tab-hidden .users-table td:nth-child(7) {
+            width: 20%;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        .actions-cell {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.4rem;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .role-cell {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.35rem;
+            align-items: center;
+        }
+        .grado-badge { font-size:0.75rem; color:#5ABBC8; font-style:italic; }
+        .btn-edit { background:rgba(0,200,255,0.1); border:1px solid rgba(0,200,255,0.3); color:#00C8FF; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
+        .btn-edit:hover { background:rgba(0,200,255,0.22); }
+        .btn-reset { background:rgba(255,184,77,0.12); border:1px solid rgba(255,184,77,0.35); color:#FFB84D; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
+        .btn-reset:hover { background:rgba(255,184,77,0.25); }
+        .btn-unlock { background:rgba(0,230,118,0.12); border:1px solid rgba(0,230,118,0.35); color:#00E676; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
+        .btn-unlock:hover { background:rgba(0,230,118,0.25); }
+        .btn-ok-sm  { padding:0.45rem 1rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:6px; color:#030E1C; font-weight:700; font-size:0.85rem; cursor:pointer; }
+        .btn-rej { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; }
+        .btn-rej:hover { background:rgba(255,71,87,0.28); }
+        .grado-img { width:32px; height:32px; object-fit:contain; vertical-align:middle; margin-right:0.4rem; }
+        /* modale modifica profilo */
+        .edit-modal-bg { position:fixed;inset:0;background:rgba(3,14,28,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem; }
+        .edit-modal-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
+        .edit-modal-box .csel-panel,
+        .edit-modal-box .cdate-panel {
+            background: #030E1C !important;
+            background-color: #030E1C !important;
+            opacity: 1 !important;
+        }
+        .edit-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; }
+        .edit-field { margin-bottom:0.9rem; position:relative; z-index:1; }
+        .edit-field:has(.csel) { z-index:2; }
+        .edit-field:has(.cdate) { z-index:3; }
+        .edit-field label { display:block;font-size:0.78rem;font-weight:600;color:#7ACCE0;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem; }
+        .edit-field input, .edit-field select { width:100%;padding:0.65rem 0.9rem;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.22);border-radius:8px;color:#C8F0E8;font-size:0.9rem;font-family:inherit;outline:none; }
+        .edit-field input:focus, .edit-field select:focus { border-color:rgba(0,200,255,0.6); }
+        .edit-field input:disabled { opacity:0.55; cursor:not-allowed; }
+        .edit-field select option  { background:#0d1f35; color:#C8F0E8; }
+        .edit-field select optgroup { background:#0a1628; color:#7ACCE0; font-weight:700; }
+        /* i select nativi nell'edit modal sono rimpiazzati da CustomSelect */
+        .edit-row { display:flex;gap:0.6rem; }
+        .edit-row .edit-field { flex:1; }
+        .check-field { margin-bottom:0.5rem; }
+        .check-label {
+            display:flex; align-items:center; gap:0.55rem;
+            font-size:0.88rem; font-weight:500; text-transform:none;
+            letter-spacing:0; color:#C8F0E8; cursor:pointer; margin-bottom:0;
+        }
+        .check-label input[type="checkbox"] { width:auto; padding:0; accent-color:#00C8FF; cursor:pointer; }
+        .edit-actions { display:flex;gap:0.7rem;justify-content:flex-end;margin-top:1.2rem; }
+        .edit-actions .btn-cancel {
+            padding:0.6rem 1.2rem; background:transparent;
+            border:1px solid rgba(0,200,255,0.3); border-radius:7px;
+            color:#5ABBC8; font-size:0.88rem; cursor:pointer; font-family:inherit;
+        }
+        .edit-actions .btn-cancel:hover { background:rgba(0,200,255,0.07); }
+        /* vista profilo */
+        .view-modal-bg { position:fixed;inset:0;background:rgba(3,14,28,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem; }
+        .view-modal-box {
+            background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;
+            padding:1.8rem 2rem;width:100%;max-width:560px;max-height:92vh;overflow:auto;
+            box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75);
+        }
+        .view-modal-box h3 { color:#00C8FF;font-size:1.05rem;margin:0 0 1.2rem; display:flex; align-items:center; gap:0.45rem; }
+        .view-modal-box h3 img { width:1.2em; height:1.2em; display:block; }
+        .view-dl { display:grid; grid-template-columns:120px 1fr; gap:0.75rem 1rem; align-items:center; }
+        .view-dl dt { font-size:0.75rem; font-weight:600; color:#7ACCE0; text-transform:uppercase; letter-spacing:0.05em; }
+        .view-dl dd { margin:0; color:#C8F0E8; font-size:0.95rem; }
+        .view-grado { display:flex; align-items:center; gap:0.55rem; }
+        .view-grado img { width:40px; height:40px; object-fit:contain; }
+        .view-actions { display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1.4rem; }
+        .view-actions .btn-cancel,
+        .view-modal-box .btn-chiudi,
+        button.btn-chiudi {
+            appearance: none; -webkit-appearance: none;
+            padding: 0.55rem 1.2rem !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            border: 1px solid rgba(0,200,255,0.35) !important;
+            border-radius: 7px !important;
+            color: #5ABBC8 !important;
+            font-size: 0.88rem !important;
+            font-weight: 500 !important;
+            font-family: inherit !important;
+            cursor: pointer !important;
+            box-shadow: none !important;
+        }
+        .view-actions .btn-cancel:hover,
+        .view-modal-box .btn-chiudi:hover,
+        button.btn-chiudi:hover {
+            background: rgba(0,200,255,0.1) !important;
+            border-color: rgba(0,200,255,0.55) !important;
+            color: #00C8FF !important;
+        }
+        .users-table tbody tr.row-clickable { cursor: pointer; }
+        .users-table tbody tr.row-clickable:hover td { background: rgba(0,200,255,0.06); }
+        .users-table tbody tr.row-clickable td.actions-cell { cursor: default; }
+        .users-table tbody tr.row-clickable td.actions-cell:hover { background: transparent; }
+
+        /* richieste profilo */
+        .pcr-item { background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.12);border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.5rem; }
+        .pcr-info  { color:#C8F0E8;font-size:0.88rem;margin-bottom:0.5rem; }
+        .pcr-info small { display:block;color:#5ABBC8;font-size:0.78rem;margin-top:0.2rem; }
+        .badge { display:inline-block; padding:0.2rem 0.55rem; border-radius:5px; font-size:0.76rem; font-weight:600; white-space:nowrap; }
+        .badge-admin { background:rgba(0,200,255,0.15); color:#00C8FF; }
+        .badge-user  { background:rgba(0,230,118,0.12); color:#00E676; }
+        .badge-docente { background:rgba(255,184,77,0.14); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
+        .badge-locked { background:rgba(255,71,87,0.16); color:#FF6B7A; border:1px solid rgba(255,71,87,0.35); }
+        .badge-hidden { background:rgba(255,184,77,0.16); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
+        .tab-section-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #7ACCE0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 1.75rem 0 0.75rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid rgba(0,200,255,0.14);
+        }
+        .tab-section-hint { font-size: 0.88rem; color: #5ABBC8; margin: 0 0 1rem; }
+        .btn-del { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
+        .btn-del:hover { background:rgba(255,71,87,0.28); }
+        .role-select { display:none; } /* rimpiazzato da CustomSelect */
+        .empty-state { color:#5ABBC8; font-size:0.88rem; padding:1rem 0; }
+
+        /* ── Form invito ── */
+        .invite-row { display:flex; gap:0.75rem; align-items:flex-end; margin-bottom:1.2rem; flex-wrap:wrap; }
+        .invite-row .field-group { display:flex; flex-direction:column; gap:0.35rem; flex:1; min-width:220px; }
+        .invite-row label { font-size:0.78rem; font-weight:600; color:#7ACCE0; text-transform:uppercase; letter-spacing:0.05em; }
+        .invite-row input, .invite-row select {
+            padding:0.65rem 0.9rem; background:rgba(0,200,255,0.06);
+            border:1px solid rgba(0,200,255,0.22); border-radius:8px;
+            color:#C8F0E8; font-size:0.9rem; font-family:inherit; outline:none;
+        }
+        .invite-row input:focus, .invite-row select:focus { border-color:rgba(0,200,255,0.6); }
+        .invite-row select { cursor:pointer; }
+        .cards-pick {
+            margin: 0 0 1.2rem;
+            padding: 1.05rem 1.15rem 1.15rem;
+            background: linear-gradient(165deg, rgba(0,200,255,0.06), rgba(0,40,70,0.18));
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 14px;
+        }
+        .cards-pick > label.cards-pick-title {
+            display: block;
+            font-size: 0.78rem; font-weight: 600; color: #7ACCE0;
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;
+        }
+        .cards-pick-hint { font-size: 0.8rem; color: #5ABBC8; margin: 0 0 0.95rem; line-height: 1.4; }
+        .cards-pick-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+            gap: 0.65rem;
+        }
+        .cards-pick-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            color: #C8F0E8; font-size: 0.88rem; cursor: pointer;
+            user-select: none;
+        }
+        .cards-pick-item input { width: auto; accent-color: #00C8FF; cursor: pointer; }
+        .cards-pick-tile {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.7rem;
+            margin: 0;
+            padding: 0.85rem 0.9rem 0.95rem;
+            min-height: 92px;
+            color: #9AD4E0;
+            background: rgba(3, 18, 36, 0.72);
+            border: 1px solid rgba(0,200,255,0.14);
+            border-radius: 12px;
+            cursor: pointer;
+            user-select: none;
+            transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+        }
+        .cards-pick-tile:hover {
+            border-color: rgba(0,200,255,0.42);
+            background: rgba(0,40,70,0.55);
+            transform: translateY(-1px);
+            color: #D6F6F0;
+        }
+        .cards-pick-tile input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 0; height: 0;
+        }
+        .cards-pick-tile-icon {
+            width: 34px; height: 34px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 9px;
+            background: rgba(0,200,255,0.08);
+            border: 1px solid rgba(0,200,255,0.16);
+            flex-shrink: 0;
+        }
+        .cards-pick-tile-icon img {
+            width: 18px; height: 18px;
+            filter: invert(78%) sepia(28%) saturate(650%) hue-rotate(146deg) brightness(95%);
+            opacity: 0.9;
+            transition: filter 0.18s ease, opacity 0.18s ease;
+        }
+        .cards-pick-tile-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            line-height: 1.25;
+            letter-spacing: 0.01em;
+        }
+        .cards-pick-tile-check {
+            position: absolute;
+            top: 0.55rem; right: 0.55rem;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(0,200,255,0.28);
+            background: transparent;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .cards-pick-tile-check::after {
+            content: '';
+            width: 5px; height: 9px;
+            border: solid transparent;
+            border-width: 0 1.8px 1.8px 0;
+            transform: rotate(45deg) translate(-0.5px, -0.5px);
+            opacity: 0;
+            transition: opacity 0.15s ease, border-color 0.15s ease;
+        }
+        .cards-pick-tile:has(input:checked) {
+            color: #E8FFFB;
+            background: linear-gradient(155deg, rgba(0,200,255,0.18), rgba(0,90,120,0.28));
+            border-color: rgba(0,200,255,0.55);
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.12), 0 8px 20px rgba(0,120,180,0.12);
+        }
+        .cards-pick-tile:has(input:checked) .cards-pick-tile-icon {
+            background: rgba(0,200,255,0.18);
+            border-color: rgba(0,200,255,0.4);
+        }
+        .cards-pick-tile:has(input:checked) .cards-pick-tile-icon img {
+            filter: invert(78%) sepia(55%) saturate(1200%) hue-rotate(156deg) brightness(105%);
+            opacity: 1;
+        }
+        .cards-pick-tile:has(input:checked) .cards-pick-tile-check {
+            background: #00C8FF;
+            border-color: #00C8FF;
+            box-shadow: 0 0 10px rgba(0,200,255,0.45);
+        }
+        .cards-pick-tile:has(input:checked) .cards-pick-tile-check::after {
+            opacity: 1;
+            border-color: #031220;
+        }
+        .cards-pick-tile:has(input:disabled) {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+        html.light-theme .cards-pick {
+            background: linear-gradient(165deg, rgba(0,140,180,0.06), rgba(230,245,250,0.9));
+            border-color: rgba(0,140,180,0.22);
+        }
+        html.light-theme .cards-pick-tile {
+            background: #fff;
+            border-color: rgba(0,140,180,0.18);
+            color: #1a4a5c;
+            box-shadow: 0 1px 2px rgba(0,40,60,0.04);
+        }
+        html.light-theme .cards-pick-tile:hover {
+            background: #f3fbfd;
+            border-color: rgba(0,160,200,0.4);
+            color: #0d3a4a;
+        }
+        html.light-theme .cards-pick-tile-icon {
+            background: rgba(0,160,200,0.08);
+            border-color: rgba(0,160,200,0.18);
+        }
+        html.light-theme .cards-pick-tile-icon img {
+            filter: invert(35%) sepia(40%) saturate(700%) hue-rotate(156deg) brightness(90%);
+        }
+        html.light-theme .cards-pick-tile:has(input:checked) {
+            background: linear-gradient(155deg, rgba(0,180,220,0.14), rgba(200,240,250,0.85));
+            border-color: rgba(0,160,200,0.55);
+            color: #063848;
+            box-shadow: 0 0 0 1px rgba(0,160,200,0.1), 0 6px 16px rgba(0,120,160,0.08);
+        }
+        html.light-theme .cards-pick-tile:has(input:checked) .cards-pick-tile-check {
+            background: #0098c0;
+            border-color: #0098c0;
+            box-shadow: none;
+        }
+        html.light-theme .cards-pick-tile:has(input:checked) .cards-pick-tile-check::after {
+            border-color: #fff;
+        }
+        .cards-pick-docente {
+            /* legacy: docente ora vive in «Profili utente» */
+            display: contents;
+        }
+        .cards-pick-docente-meta { display: none; }
+        .cards-pick-tile.is-role {
+            min-height: 100px;
+        }
+        .cards-pick-tile.is-role .cards-pick-tile-sub {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #5ABBC8;
+            line-height: 1.25;
+            margin-top: -0.2rem;
+        }
+        .cards-pick-tile.is-role:has(input:checked) .cards-pick-tile-sub {
+            color: #9AD4E0;
+        }
+        .cards-pick-tile.is-docente {
+            flex: 0 0 auto;
+            width: 180px;
+            min-height: 92px;
+            color: #E8D4B0;
+            background: rgba(40, 28, 8, 0.55);
+            border-color: rgba(201, 148, 50, 0.28);
+        }
+        .cards-pick-tile.is-docente:hover {
+            border-color: rgba(201, 148, 50, 0.55);
+            background: rgba(60, 40, 10, 0.55);
+            color: #FFE7C2;
+        }
+        .cards-pick-tile.is-docente .cards-pick-tile-icon {
+            background: rgba(201, 148, 50, 0.12);
+            border-color: rgba(201, 148, 50, 0.28);
+        }
+        .cards-pick-tile.is-docente .cards-pick-tile-glyph {
+            width: 18px;
+            height: 18px;
+            display: block;
+            background-color: #C99432;
+            -webkit-mask: url('/icons/line/book-reader.svg') center / contain no-repeat;
+            mask: url('/icons/line/book-reader.svg') center / contain no-repeat;
+        }
+        .cards-pick-tile.is-docente .cards-pick-tile-check {
+            border-color: rgba(201, 148, 50, 0.4);
+        }
+        .cards-pick-tile.is-docente .cards-pick-tile-sub {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #BFA87A;
+            line-height: 1.25;
+            margin-top: -0.25rem;
+        }
+        .cards-pick-tile.is-docente:has(input:checked) {
+            color: #FFF3DF;
+            background: linear-gradient(155deg, rgba(201,148,50,0.22), rgba(90,60,15,0.4));
+            border-color: rgba(201, 148, 50, 0.65);
+            box-shadow: 0 0 0 1px rgba(201,148,50,0.12), 0 8px 20px rgba(140,90,20,0.12);
+        }
+        .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-icon {
+            background: rgba(201, 148, 50, 0.22);
+            border-color: rgba(201, 148, 50, 0.5);
+        }
+        .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-glyph {
+            background-color: #E0B24A;
+        }
+        .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-check {
+            background: #C99432;
+            border-color: #C99432;
+            box-shadow: 0 0 10px rgba(201,148,50,0.35);
+        }
+        .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-check::after {
+            border-color: #2a1a05;
+        }
+        .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-sub {
+            color: #E8D090;
+        }
+        html.light-theme .cards-pick-docente {
+            border-top-color: rgba(170,120,30,0.3);
+        }
+        html.light-theme .cards-pick-docente-meta span { color: #5A6A72; }
+        html.light-theme .cards-pick-tile.is-docente {
+            background: #fffaf3;
+            border-color: rgba(170,120,30,0.3);
+            color: #6A4A12;
+        }
+        html.light-theme .cards-pick-tile.is-docente:hover {
+            background: #fff4e5;
+            border-color: rgba(170,120,30,0.48);
+        }
+        html.light-theme .cards-pick-tile.is-docente .cards-pick-tile-glyph {
+            background-color: #A67C1A;
+        }
+        html.light-theme .cards-pick-tile.is-docente:has(input:checked) {
+            background: linear-gradient(155deg, rgba(201,148,50,0.2), #fff6e8);
+            border-color: rgba(170,120,30,0.55);
+            color: #5A3E0A;
+            box-shadow: 0 0 0 1px rgba(170,120,30,0.1), 0 6px 16px rgba(140,90,20,0.08);
+        }
+        html.light-theme .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-glyph {
+            background-color: #B8860B;
+        }
+        html.light-theme .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-check {
+            background: #B8860B;
+            border-color: #B8860B;
+            box-shadow: none;
+        }
+        html.light-theme .cards-pick-tile.is-docente:has(input:checked) .cards-pick-tile-check::after {
+            border-color: #fff;
+        }
+        .bulk-users-toolbar {
+            display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap;
+            justify-content: center;
+            margin: 0 auto 0.55rem;
+        }
+        .bulk-users-toolbar input[type="search"] {
+            flex: 0 1 18rem; min-width: 12rem;
+            padding: 0.5rem 0.75rem; background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.22); border-radius: 8px;
+            color: #C8F0E8; font-size: 0.85rem; font-family: inherit; outline: none;
+        }
+        .bulk-users-toolbar input[type="search"]:focus { border-color: rgba(0,200,255,0.55); }
+        .bulk-filter-sel { width: 12.8rem; flex: 0 0 12.8rem; }
+        .bulk-sort-dir {
+            width: 2.25rem; height: 2.25rem; flex: 0 0 2.25rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            border: 1px solid rgba(0,200,255,0.22);
+            background: rgba(0,200,255,0.06);
+            color: #00C8FF; cursor: pointer;
+            font-size: 0.78rem; font-weight: 700; font-family: inherit;
+        }
+        .bulk-sort-dir:hover { border-color: rgba(0,200,255,0.5); background: rgba(0,200,255,0.12); }
+        .bulk-card-filters {
+            display: flex; flex-wrap: wrap; gap: 0.4rem;
+            justify-content: center; align-items: center;
+            width: 100%;
+        }
+        .bulk-chip-filter {
+            appearance: none; -webkit-appearance: none;
+            padding: 0.32rem 0.7rem; border-radius: 999px;
+            border: 1px solid rgba(0,200,255,0.22);
+            background: rgba(3,14,28,0.45);
+            color: #C8F0E8; font: inherit; font-size: 0.78rem;
+            cursor: pointer; user-select: none;
+        }
+        .bulk-chip-filter:hover { border-color: rgba(0,200,255,0.45); background: rgba(0,200,255,0.08); }
+        .bulk-chip-filter.is-on {
+            background: linear-gradient(135deg, rgba(0,200,255,0.28), rgba(0,230,118,0.16));
+            border-color: rgba(0,200,255,0.55);
+            color: #fff;
+        }
+        .bulk-chip-filter.is-docente {
+            border-color: rgba(255,184,77,0.35);
+            color: #FFB84D;
+        }
+        .bulk-chip-filter.is-docente:hover {
+            border-color: rgba(255,184,77,0.55);
+            background: rgba(255,184,77,0.1);
+        }
+        .bulk-chip-filter.is-docente.is-on {
+            background: rgba(255,184,77,0.22);
+            border-color: rgba(255,184,77,0.6);
+            color: #FFD79A;
+        }
+        .bulk-chip-filter.is-hidden-users {
+            border-color: rgba(255,107,122,0.4);
+            color: #FF8A96;
+        }
+        .bulk-chip-filter.is-hidden-users:hover {
+            border-color: rgba(255,107,122,0.6);
+            background: rgba(255,71,87,0.1);
+        }
+        .bulk-chip-filter.is-hidden-users.is-on {
+            background: rgba(255,71,87,0.22);
+            border-color: rgba(255,107,122,0.6);
+            color: #FFC0C6;
+        }
+        .bulk-clear-filters {
+            background: transparent; border: none; color: #00C8FF; cursor: pointer;
+            font: inherit; font-size: 0.78rem; font-weight: 600; padding: 0.2rem 0.15rem;
+            visibility: hidden;
+            min-width: 6.5rem;
+        }
+        .bulk-clear-filters.is-shown { visibility: visible; }
+        .bulk-clear-filters:hover { text-decoration: underline; }
+        .bulk-chip-toolbar {
+            position: relative;
+            margin: 0 auto 0.55rem;
+        }
+        .bulk-filter-hint {
+            position: absolute;
+            right: 0;
+            top: 0;
+            margin: 0;
+            font-size: 0.8rem;
+            color: #5ABBC8;
+            line-height: 2rem;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .bulk-matrix-wrap {
+            overflow: auto;
+            width: max-content;
+            max-width: 100%;
+            margin: 0 auto;
+            max-height: min(38rem, calc(100vh - 22rem));
+            border: 1px solid rgba(0,200,255,0.22);
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(0,200,255,0.05), rgba(3,14,28,0.35));
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.06), 0 12px 32px rgba(0,0,0,0.28);
+        }
+        .bulk-matrix-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+        .bulk-matrix-wrap::-webkit-scrollbar-thumb {
+            background: rgba(0,200,255,0.28); border-radius: 6px;
+        }
+        .bulk-matrix {
+            width: max-content;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.82rem;
+        }
+        .bulk-matrix th, .bulk-matrix td {
+            border-bottom: 1px solid rgba(0,200,255,0.07);
+            vertical-align: middle;
+        }
+        .bulk-matrix tbody tr:last-child td { border-bottom: none; }
+        .bulk-matrix thead th {
+            position: sticky; top: 0; z-index: 2;
+            background: linear-gradient(180deg, #16445c 0%, #0d3044 100%);
+            color: #9FE4F0;
+            font-weight: 700;
+            padding: 0.8rem 0.4rem 0.85rem;
+            text-align: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 18px rgba(0,0,0,0.28);
+        }
+        .bulk-matrix .bulk-user-col {
+            position: sticky; left: 0; z-index: 3;
+            width: 1%;
+            white-space: nowrap;
+            text-align: left;
+            padding: 0.6rem 1rem;
+        }
+        .bulk-matrix thead .bulk-user-col {
+            z-index: 4;
+            background: linear-gradient(180deg, #1a5068 0%, #114056 100%);
+            color: #E8FBFF;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            box-shadow: 8px 0 18px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .bulk-matrix tbody .bulk-user-col {
+            background: linear-gradient(90deg, #10283a 0%, #0c1e2e 100%);
+            box-shadow: 10px 0 18px rgba(0,0,0,0.22);
+        }
+        .bulk-matrix tbody tr:nth-child(even) .bulk-user-col {
+            background: linear-gradient(90deg, #143044 0%, #0e2436 100%);
+        }
+        .bulk-matrix tbody tr:hover td { background: rgba(0,200,255,0.05); }
+        .bulk-matrix tbody tr:hover .bulk-user-col {
+            background: linear-gradient(90deg, #1a3d54 0%, #143246 100%);
+        }
+        .bulk-matrix tbody tr.is-hidden { opacity: 0.72; }
+        .bulk-matrix tbody tr.is-locked .bulk-cell-hit { cursor: not-allowed; }
+        .bulk-matrix tbody tr.is-locked .bulk-flag {
+            filter: grayscale(0.35);
+            box-shadow: none;
+        }
+        .bulk-matrix input[type="checkbox"]:disabled + .bulk-flag {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+        .bulk-user-cell { display: flex; align-items: center; gap: 0.7rem; width: max-content; }
+        .bulk-avatar {
+            flex: 0 0 2.05rem; width: 2.05rem; height: 2.05rem; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at 35% 30%, rgba(0,200,255,0.35), rgba(0,200,255,0.1));
+            color: #7DE8FF;
+            font-size: 0.68rem; font-weight: 700;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.32), 0 0 12px rgba(0,200,255,0.12);
+        }
+        .bulk-user-text { display: flex; flex-direction: column; gap: 0.14rem; width: max-content; }
+        .bulk-user-text strong {
+            font-weight: 600; font-size: 0.86rem; color: #F2FFFC;
+            white-space: nowrap;
+        }
+        .bulk-user-text small {
+            color: #6BC4D4; font-size: 0.72rem;
+            white-space: nowrap;
+        }
+        .bulk-user-text .badge { font-size: 0.65rem; margin-left: 0.4rem; vertical-align: middle; }
+        .bulk-card-head {
+            width: 6.4rem; min-width: 6.4rem;
+        }
+        .bulk-card-head.is-docente label { color: #FFC56A; }
+        .bulk-card-head label {
+            display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+            cursor: pointer; color: #9FE4F0; font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .bulk-cell {
+            text-align: center;
+            width: 6.4rem;
+            padding: 0.35rem 0.3rem;
+            background: rgba(3,14,28,0.25);
+            transition: background 0.16s ease;
+        }
+        .bulk-cell.is-on { background: rgba(0,230,118,0.12); }
+        .bulk-cell.is-docente.is-on { background: rgba(255,184,77,0.14); }
+        .bulk-cell.is-dirty { box-shadow: none; }
+        .bulk-cell.is-on.is-dirty { box-shadow: none; }
+        .bulk-cell.is-na { opacity: 0.4; background: transparent; }
+        .bulk-cell.is-na .bulk-flag { cursor: not-allowed; }
+        .bulk-cell-hit {
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 2.45rem; cursor: pointer; margin: 0;
+        }
+        .bulk-card-head label { position: relative; }
+        .bulk-matrix input[type="checkbox"] {
+            position: absolute; opacity: 0; width: 1px; height: 1px;
+            margin: 0; pointer-events: none;
+        }
+        .bulk-flag {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.32rem; height: 1.32rem; flex: 0 0 1.32rem;
+            border-radius: 7px;
+            border: 1.5px solid rgba(0,200,255,0.32);
+            background: rgba(3,14,28,0.55);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+            transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+        }
+        .bulk-flag::after {
+            content: '';
+            width: 0.28rem; height: 0.52rem;
+            border: solid transparent;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg) scale(0.4);
+            opacity: 0;
+            margin-bottom: 0.12rem;
+            transition: opacity 0.12s ease, transform 0.16s ease;
+        }
+        .bulk-cell-hit:hover .bulk-flag,
+        .bulk-card-head label:hover .bulk-flag {
+            border-color: rgba(0,200,255,0.7);
+            transform: scale(1.08);
+        }
+        .bulk-matrix input[type="checkbox"]:checked + .bulk-flag {
+            background: linear-gradient(135deg, #00C8FF, #00E676);
+            border-color: transparent;
+            box-shadow: 0 0 0 1px rgba(0,230,118,0.25), 0 0 14px rgba(0,200,255,0.38);
+        }
+        .bulk-matrix input[type="checkbox"]:checked + .bulk-flag::after {
+            border-color: #030E1C;
+            opacity: 1;
+            transform: rotate(45deg) scale(1);
+        }
+        .bulk-matrix input[type="checkbox"]:indeterminate + .bulk-flag {
+            background: rgba(0,200,255,0.28);
+            border-color: rgba(0,200,255,0.55);
+            box-shadow: 0 0 10px rgba(0,200,255,0.2);
+        }
+        .bulk-matrix input[type="checkbox"]:indeterminate + .bulk-flag::after {
+            width: 0.55rem; height: 2px;
+            border: none; border-radius: 1px;
+            background: #E8FBFF;
+            opacity: 1; transform: none; margin: 0;
+        }
+        .bulk-cell.is-docente input:checked + .bulk-flag,
+        .bulk-card-head.is-docente input:checked + .bulk-flag {
+            background: linear-gradient(135deg, #FFC56A, #FF8A3D);
+            box-shadow: 0 0 0 1px rgba(255,184,77,0.3), 0 0 14px rgba(255,184,77,0.35);
+        }
+        .bulk-card-head.is-docente label:hover .bulk-flag,
+        .bulk-cell.is-docente .bulk-cell-hit:hover .bulk-flag {
+            border-color: rgba(255,184,77,0.7);
+        }
+        .bulk-footer {
+            display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+            margin-top: 1.1rem; padding: 0.85rem 1.05rem;
+            background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 12px;
+        }
+        .bulk-summary { font-size: 0.88rem; color: #7ACCE0; }
+        .bulk-summary strong { color: #E8FBFF; font-weight: 700; }
+        .bulk-footer-actions { display: flex; gap: 0.65rem; align-items: center; }
+        .bulk-footer .btn-invite { margin: 0; }
+        .bulk-footer .btn-invite:disabled { opacity: 0.4; cursor: not-allowed; }
+        .bulk-footer .btn-cancel {
+            padding: 0.6rem 1.2rem; background: transparent;
+            border: 1px solid rgba(0,200,255,0.3); border-radius: 8px;
+            color: #5ABBC8; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+        }
+        .bulk-footer .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+        .btn-invite { padding:0.68rem 1.4rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:8px; color:#030E1C; font-weight:700; font-size:0.88rem; cursor:pointer; white-space:nowrap; align-self:flex-end; }
+        .invite-result { background:rgba(0,200,255,0.08); border:1px solid rgba(0,200,255,0.25); border-radius:8px; padding:0.85rem 1rem; font-size:0.85rem; color:#00C8FF; word-break:break-all; display:none; margin-top:0.5rem; }
+        .copy-btn { margin-top:0.5rem; display:inline-block; padding:0.35rem 0.85rem; font-size:0.78rem; background:rgba(0,200,255,0.14); border:1px solid rgba(0,200,255,0.35); border-radius:5px; color:#00C8FF; cursor:pointer; }
+
+        /* ── Inviti in sospeso ── */
+        .inv-list { display:flex; flex-direction:column; gap:0.55rem; }
+        .inv-item { background:rgba(0,200,255,0.05); border:1px solid rgba(0,200,255,0.12); border-radius:8px; padding:0.75rem 1rem; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center; gap:0.6rem; flex-wrap:wrap; }
+        .inv-email { color:#C8F0E8; font-weight:500; }
+        .inv-exp   { color:#5ABBC8; font-size:0.75rem; white-space:nowrap; }
+        .inv-role  { font-size:0.75rem; padding:0.15rem 0.45rem; border-radius:4px; font-weight:600; }
+
+        /* ── Messaggi feedback ── */
+        .feedback { border-radius:8px; font-size:0.85rem; padding:0.7rem 1rem; margin-bottom:1rem; display:none; }
+        .feedback.error   { background:rgba(255,71,87,0.12); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; }
+        .feedback.success { background:rgba(0,230,118,0.12); border:1px solid rgba(0,230,118,0.35); color:#00E676; }
+
+        /* ── Modale di conferma ── */
+        .confirm-bg { position:fixed;inset:0;background:rgba(3,14,28,0.85);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem; }
+        .confirm-box { background:#030E1C;border:1px solid rgba(0,200,255,0.28);border-radius:14px;padding:1.8rem 2rem;width:100%;max-width:380px;box-shadow:0 0 0 1px rgba(0,200,255,0.08),0 24px 60px rgba(0,0,0,0.75); }
+        .confirm-box p { color:#C8F0E8;font-size:0.95rem;line-height:1.5;margin:0 0 1.4rem; }
+        .confirm-btns { display:flex;gap:0.7rem;justify-content:flex-end; }
+        .confirm-btns .btn-ok { padding:0.6rem 1.4rem;background:linear-gradient(135deg,#00C8FF,#00E676);border:none;border-radius:7px;color:#030E1C;font-weight:700;font-size:0.88rem;cursor:pointer; }
+        .confirm-btns .btn-cancel { padding:0.6rem 1.2rem;background:transparent;border:1px solid rgba(0,200,255,0.3);border-radius:7px;color:#5ABBC8;font-size:0.88rem;cursor:pointer; }
+        .confirm-btns .btn-cancel:hover { background:rgba(0,200,255,0.07); }
+    </style>
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Gestione Utenti</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title"><img src="/icons/line/users-alt.svg" alt=""> Gestione Utenti</div>
+        <p class="page-sub">Amministrazione degli accessi al portale operativo.</p>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Utenti</button>
+            <button class="tab-btn" data-tab="strumenti" onclick="switchTab('strumenti')" id="tabBtnStrumenti" style="display:none;">Profili strumento</button>
+            <button class="tab-btn" data-tab="invite" onclick="switchTab('invite')">Invita</button>
+            <button class="tab-btn" data-tab="bulk" onclick="switchTab('bulk')" id="tabBtnBulk" style="display:none;">Autorizzazioni</button>
+            <button class="tab-btn" data-tab="approvals" onclick="switchTab('approvals')">Approvazioni <span id="reqBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
+            <button class="tab-btn" data-tab="hidden" onclick="switchTab('hidden')">Eliminati</button>
+        </div>
+
+        <!-- Tab: Utenti -->
+        <div class="tab-panel active" id="tab-users">
+            <div class="feedback" id="usersMsg"></div>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="grado" onclick="sortUsers('grado')">Grado <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="nome" onclick="sortUsers('nome')">Nome <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="email" onclick="sortUsers('email')">Email <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="ruolo" onclick="sortUsers('ruolo')">Ruolo <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="registrato" onclick="sortUsers('registrato')">Registrato <span class="sort-ind"></span></th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Tab: Autorizzazioni di massa (solo Super Admin) -->
+        <div class="tab-panel" id="tab-bulk">
+            <div class="feedback" id="bulkMsg"></div>
+            <div class="bulk-users-toolbar">
+                <input type="search" id="bulkUserFilter" placeholder="Cerca nome o email" oninput="filterBulkUsers()" autocomplete="off">
+                <div class="bulk-filter-sel" id="bulkSortSelect"></div>
+                <button type="button" class="bulk-sort-dir" id="bulkSortDirBtn" onclick="toggleBulkSortDir()" title="Inverti ordine" aria-label="Inverti ordinamento">▲</button>
+                <button type="button" class="bulk-clear-filters" id="bulkClearFilters" onclick="clearBulkViewFilters()">Azzera filtri</button>
+            </div>
+            <div class="bulk-users-toolbar bulk-chip-toolbar">
+                <div class="bulk-card-filters" id="bulkFilterCards"></div>
+                <p class="bulk-filter-hint" id="bulkFilterHint" aria-live="polite"></p>
+            </div>
+            <div class="bulk-matrix-wrap">
+                <table class="bulk-matrix" id="bulkMatrix"></table>
+            </div>
+            <div class="bulk-footer">
+                <span class="bulk-summary" id="bulkSummary">Nessuna modifica</span>
+                <div class="bulk-footer-actions">
+                    <button type="button" class="btn-cancel" onclick="resetBulkMatrix()">Annulla</button>
+                    <button type="button" class="btn-invite" id="bulkSaveBtn" onclick="submitBulkCards()" disabled>Salva</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Profili strumento (solo Super Admin) -->
+        <div class="tab-panel" id="tab-strumenti">
+            <div class="feedback" id="strumentiMsg"></div>
+            <p class="tab-section-hint">Account per monitor e kiosk: solo username e password, ruolo Reader, accesso limitato agli strumenti selezionati. Non compaiono nella lista utenti.</p>
+            <div class="invite-row" style="flex-wrap:wrap;align-items:flex-end;">
+                <div class="field-group">
+                    <label>Nome utente</label>
+                    <input type="text" id="strumentoUsername" placeholder="es. monitor-sala" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="field-group">
+                    <label>Password</label>
+                    <input type="password" id="strumentoPassword" placeholder="Minimo 8 caratteri" autocomplete="new-password">
+                </div>
+                <button class="btn-invite" type="button" onclick="createStrumento()">Crea profilo</button>
+            </div>
+            <div class="cards-pick" id="strumentoCardsPick" style="margin-top:1rem;">
+                <label class="cards-pick-title">Strumenti consentiti</label>
+                <p class="cards-pick-hint">Il profilo potrà accedere solo a queste aree. Tutto il resto resta chiuso.</p>
+                <div class="cards-pick-grid" id="strumentoCardsGrid"></div>
+            </div>
+            <h2 class="tab-section-title" style="margin-top:1.8rem;">Profili esistenti</h2>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Nome utente</th>
+                        <th>Strumenti</th>
+                        <th>Creato</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="strumentiTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- Tab: Invita -->
+        <div class="tab-panel" id="tab-invite">
+            <div class="feedback" id="inviteMsg"></div>
+            <p style="font-size:0.88rem;color:#5ABBC8;margin-bottom:1.4rem;">Genera un link di registrazione valido per <strong>15 minuti</strong>. Il destinatario dovrà verificare l'email con un codice OTP.</p>
+            <div class="invite-row">
+                <div class="field-group">
+                    <label>Email da invitare</label>
+                    <input type="email" id="inviteEmail" placeholder="email@dominio.com">
+                </div>
+                <button class="btn-invite" onclick="sendInvite()">Genera link</button>
+            </div>
+            <div class="cards-pick" id="inviteRolePick">
+                <label class="cards-pick-title">Ruolo da assegnare</label>
+                <p class="cards-pick-hint">Scegli un solo ruolo. I livelli disponibili dipendono dal tuo account.</p>
+                <div class="cards-pick-grid" id="inviteRoleGrid"></div>
+            </div>
+            <div class="cards-pick" id="inviteProfiliPick" style="display:none;">
+                <label class="cards-pick-title">Profili utente</label>
+                <p class="cards-pick-hint">Opzioni aggiuntive sul profilo. Docente è legato alla scheda Corsi.</p>
+                <div class="cards-pick-grid" id="inviteDocentePick">
+                    <label class="cards-pick-tile is-docente" title="Docente — gestisce i contenuti di Corsi">
+                        <input type="checkbox" id="inviteDocente">
+                        <span class="cards-pick-tile-check" aria-hidden="true"></span>
+                        <span class="cards-pick-tile-icon"><span class="cards-pick-tile-glyph" aria-hidden="true"></span></span>
+                        <span class="cards-pick-tile-label">Docente</span>
+                        <span class="cards-pick-tile-sub">Richiede accesso a Corsi</span>
+                    </label>
+                </div>
+            </div>
+            <div class="cards-pick" id="inviteCardsPick">
+                <label class="cards-pick-title">Schede del portale</label>
+                <p class="cards-pick-hint">Seleziona le aree visibili all’utente. «Gestione Utenti» resta automatica per Admin e Super Admin.</p>
+                <div class="cards-pick-grid" id="inviteCardsGrid"></div>
+            </div>
+            <div class="invite-result" id="inviteResult">
+                <div style="font-size:0.78rem;color:#7ACCE0;margin-bottom:0.3rem;">Link di registrazione:</div>
+                <div id="inviteLink"></div>
+                <button class="copy-btn" onclick="copyInviteLink()">Copia link</button>
+            </div>
+            <h2 class="tab-section-title">Inviti in sospeso</h2>
+            <div class="feedback" id="invitationsMsg"></div>
+            <div class="inv-list" id="invList"></div>
+        </div>
+
+        <!-- Tab: Approvazioni (modifiche profilo + azioni admin) -->
+        <div class="tab-panel" id="tab-approvals">
+            <div class="feedback" id="requestsMsg"></div>
+            <p class="tab-section-hint">Richieste in attesa. Ruolo e profilo: Super Admin oppure altri due admin. Visibilità: solo Super Admin.</p>
+            <div id="approvalsList"></div>
+        </div>
+
+        <!-- Tab: Eliminati -->
+        <div class="tab-panel" id="tab-hidden">
+            <div class="feedback" id="hiddenMsg"></div>
+            <p class="tab-section-hint">Account eliminati: non visibili e con credenziali revocate. Il ripristino rende di nuovo visibile l'utente e invia una nuova password temporanea.</p>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="grado" onclick="sortUsers('grado')">Grado <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="nome" onclick="sortUsers('nome')">Nome <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="email" onclick="sortUsers('email')">Email <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="ruolo" onclick="sortUsers('ruolo')">Ruolo <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="registrato" onclick="sortUsers('registrato')">Registrato <span class="sort-ind"></span></th>
+                        <th class="sortable" data-sort="eliminato" onclick="sortUsers('eliminato')">Eliminato <span class="sort-ind"></span></th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="hiddenUsersTableBody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Modale visualizza profilo utente -->
+    <div class="view-modal-bg" id="viewModal" style="display:none;" onclick="if(event.target===this)closeViewModal()">
+        <div class="view-modal-box">
+            <h3><img src="/icons/line/user-circle.svg" alt=""> Profilo utente</h3>
+            <dl class="view-dl">
+                <dt>Email</dt>
+                <dd id="viewEmail">—</dd>
+                <dt>Nome</dt>
+                <dd id="viewNome">—</dd>
+                <dt>Cognome</dt>
+                <dd id="viewCognome">—</dd>
+                <dt>Grado</dt>
+                <dd id="viewGrado" class="view-grado">—</dd>
+                <dt>Data di nascita</dt>
+                <dd id="viewDataNascita">—</dd>
+                <dt>Luogo di nascita</dt>
+                <dd id="viewLuogoNascita">—</dd>
+                <dt>Residenza</dt>
+                <dd id="viewResidenza">—</dd>
+                <dt>Domicilio</dt>
+                <dd id="viewDomicilio">—</dd>
+                <dt>Telefono</dt>
+                <dd id="viewTelefono">—</dd>
+                <dt>Ruolo</dt>
+                <dd id="viewRuolo">—</dd>
+                <dt>Categoria</dt>
+                <dd id="viewDocente">—</dd>
+                <dt>Registrato</dt>
+                <dd id="viewRegistrato">—</dd>
+                <dt>Eliminato</dt>
+                <dd id="viewEliminato">—</dd>
+                <dt>Accesso</dt>
+                <dd id="viewLoginLock">—</dd>
+            </dl>
+            <div class="view-actions">
+                <button type="button" class="btn-cancel btn-chiudi" onclick="closeViewModal()">Chiudi</button>
+                <button type="button" class="btn-unlock" id="viewUnlockBtn" style="display:none;" onclick="unlockFromView()">Sblocca accesso</button>
+                <button type="button" class="btn-ok-sm" id="viewEditBtn" style="display:none;" onclick="editFromView()">Modifica</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale modifica profilo utente -->
+    <div class="edit-modal-bg" id="editModal" style="display:none;" onclick="if(event.target===this)closeEditModal()">
+        <div class="edit-modal-box">
+            <h3 id="editModalTitle">Modifica profilo</h3>
+            <input type="hidden" id="editUserId">
+            <div id="editFullProfileWrap">
+            <div class="edit-row">
+                <div class="edit-field"><label>Nome *</label><input type="text" id="editNome" placeholder="Nome"></div>
+                <div class="edit-field"><label>Cognome *</label><input type="text" id="editCognome" placeholder="Cognome"></div>
+            </div>
+            <div class="edit-field">
+                <label>Grado *</label>
+                <div id="editGradoSel" class="csel"></div>
+            </div>
+            <div class="edit-field" id="editRoleWrap" style="display:none;">
+                <label>Ruolo</label>
+                <div id="editRoleSel" class="csel"></div>
+                <p class="cards-pick-hint" style="margin-top:0.4rem;">Il cambio ruolo è immediato.</p>
+            </div>
+            <div class="edit-row">
+                <div class="edit-field"><label>Data di nascita</label><div id="editDataNascita" class="cdate"></div></div>
+            </div>
+            <div class="edit-field">
+                <label>Luogo di nascita</label>
+                <div id="editLuogoNascita" class="lnasc"></div>
+            </div>
+            <div class="edit-field">
+                <label>Residenza</label>
+                <div id="editResidenza" class="lnasc"></div>
+            </div>
+            <div class="check-field">
+                <label class="check-label">
+                    <input type="checkbox" id="editDomicilioComeResidenza">
+                    <span>Il domicilio corrisponde alla residenza</span>
+                </label>
+            </div>
+            <div class="edit-field" id="editDomicilioWrap">
+                <label>Domicilio</label>
+                <div id="editDomicilio" class="lnasc"></div>
+            </div>
+            <div class="edit-field"><label for="editTelefono">Numero di telefono</label><div id="editTelefono" class="tel-field"></div></div>
+            </div>
+            <div class="cards-pick" id="editProfiliPick" style="display:none;margin-top:0.4rem;">
+                <label class="cards-pick-title">Profili utente</label>
+                <p class="cards-pick-hint">Opzioni aggiuntive sul profilo. Docente è legato alla scheda Corsi.</p>
+                <div class="cards-pick-grid" id="editDocentePick">
+                    <label class="cards-pick-tile is-docente" title="Docente — gestisce i contenuti di Corsi">
+                        <input type="checkbox" id="editDocente">
+                        <span class="cards-pick-tile-check" aria-hidden="true"></span>
+                        <span class="cards-pick-tile-icon"><span class="cards-pick-tile-glyph" aria-hidden="true"></span></span>
+                        <span class="cards-pick-tile-label">Docente</span>
+                        <span class="cards-pick-tile-sub">Richiede accesso a Corsi</span>
+                    </label>
+                </div>
+            </div>
+            <div class="cards-pick" id="editCardsPick" style="margin-top:0.4rem;">
+                <label class="cards-pick-title">Schede del portale</label>
+                <p class="cards-pick-hint">«Gestione Utenti» resta automatica per Admin e Super Admin.</p>
+                <div class="cards-pick-grid" id="editCardsGrid"></div>
+            </div>
+            <div class="feedback" id="editMsg" style="margin-top:0.8rem;"></div>
+            <div class="edit-actions">
+                <button class="btn-cancel" onclick="closeEditModal()">Annulla</button>
+                <button class="btn-ok-sm" onclick="saveProfile()">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale di conferma -->
+    <div class="confirm-bg" id="confirmModal" style="display:none;">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="auth-token.js?v=2"></script>
+    <script src="custom-select.js?v=12"></script>
+    <script src="custom-date.js?v=6"></script>
+    <script src="luogo-nascita.js?v=9"></script>
+    <script src="telefono-field.js?v=7"></script>
+    <script src="profile-fields.js?v=5"></script>
+    <script src="nav-notifications.js?v=5"></script>
+    <script>
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    let _currentUser = null;
+    const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
+    const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+    const ASSIGNABLE_CARDS = [
+        { id: 'blockchain', label: 'Tracciamento Blockchain', short: 'Blockchain', icon: '/icons/line/link.svg' },
+        { id: 'osint', label: 'OSINT & Intelligence', short: 'OSINT', icon: '/icons/line/search-alt.svg' },
+        { id: 'chainholder', label: 'Chainholder', short: 'Chainholder', icon: '/icons/line/folder-lock.svg' },
+        { id: 'corsi', label: 'Corsi', short: 'Corsi', icon: '/icons/line/graduation-cap.svg' },
+        { id: 'cluster', label: 'Cluster', short: 'Cluster', icon: '/icons/line/layer-group.svg' },
+        { id: 'ai', label: 'AI', short: 'AI', icon: '/icons/line/robot.svg' },
+        { id: 'analisi-report', label: 'Analisi Report', short: 'Analisi', icon: '/icons/line/analytics.svg' },
+        { id: 'cryptomonitor', label: 'CryptoMonitor', short: 'CryptoMonitor', icon: '/icons/line/desktop.svg' },
+        { id: 'materiali', label: 'Materiali', short: 'Materiali', icon: '/icons/line/books.svg' },
+    ];
+    const CARD_LABEL = Object.fromEntries(ASSIGNABLE_CARDS.map(c => [c.id, c.label]));
+    function defaultCardsForRole(role) {
+        if (role === 'reader') return ['corsi'];
+        return ASSIGNABLE_CARDS.map(c => c.id);
+    }
+    function renderCardsGrid(containerId, selected, namePrefix) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const selectedSet = new Set(selected || []);
+        el.innerHTML = ASSIGNABLE_CARDS.map(c => `
+            <label class="cards-pick-tile" title="${c.label}">
+                <input type="checkbox" name="${namePrefix}" value="${c.id}" ${selectedSet.has(c.id) ? 'checked' : ''}>
+                <span class="cards-pick-tile-check" aria-hidden="true"></span>
+                <span class="cards-pick-tile-icon"><img src="${c.icon}" alt=""></span>
+                <span class="cards-pick-tile-label">${c.short}</span>
+            </label>
+        `).join('');
+        wireDocenteCorsiLink(namePrefix);
+    }
+    function getSelectedCards(namePrefix) {
+        return Array.from(document.querySelectorAll(`input[name="${namePrefix}"]:checked`)).map(i => i.value);
+    }
+    function setCardsForRole(namePrefix, role) {
+        const defaults = new Set(defaultCardsForRole(role));
+        document.querySelectorAll(`input[name="${namePrefix}"]`).forEach(cb => {
+            cb.checked = defaults.has(cb.value);
+        });
+        syncDocenteWithCorsi(namePrefix);
+    }
+    function docenteCheckboxForCards(namePrefix) {
+        if (namePrefix === 'inviteCard') return document.getElementById('inviteDocente');
+        if (namePrefix === 'editCard') return document.getElementById('editDocente');
+        return null;
+    }
+    function corsiCheckboxForCards(namePrefix) {
+        return document.querySelector(`input[name="${namePrefix}"][value="corsi"]`);
+    }
+    function syncDocenteWithCorsi(namePrefix) {
+        const doc = docenteCheckboxForCards(namePrefix);
+        const corsi = corsiCheckboxForCards(namePrefix);
+        if (!doc || !corsi) return;
+        if (doc.checked && !corsi.checked) corsi.checked = true;
+        if (!corsi.checked) doc.checked = false;
+    }
+    function wireDocenteCorsiLink(namePrefix) {
+        const doc = docenteCheckboxForCards(namePrefix);
+        if (!doc) return;
+        if (!doc.dataset.corsiWired) {
+            doc.dataset.corsiWired = '1';
+            doc.addEventListener('change', () => {
+                const corsi = corsiCheckboxForCards(namePrefix);
+                if (doc.checked && corsi) corsi.checked = true;
+            });
+        }
+        const corsi = corsiCheckboxForCards(namePrefix);
+        if (corsi && !corsi.dataset.docenteWired) {
+            corsi.dataset.docenteWired = '1';
+            corsi.addEventListener('change', () => {
+                if (!corsi.checked) {
+                    const d = docenteCheckboxForCards(namePrefix);
+                    if (d) d.checked = false;
+                }
+            });
+        }
+        syncDocenteWithCorsi(namePrefix);
+    }
+    function roleCanBeDocente(role) {
+        return role === 'user' || role === 'admin';
+    }
+    function getInviteRole() {
+        const el = document.querySelector('input[name="inviteRole"]:checked');
+        return (el && el.value) || 'user';
+    }
+    const INVITE_ROLE_META = {
+        reader:     { short: 'Reader',     sub: 'Solo lettura',       icon: 'eye' },
+        user:       { short: 'Utente',     sub: 'Accesso operativo',  icon: 'user' },
+        admin:      { short: 'Admin',      sub: 'Gestione utenti',    icon: 'shield' },
+        superadmin: { short: 'Super Admin', sub: 'Controllo totale',  icon: 'shield-check' },
+    };
+    function renderInviteRoleGrid(selected) {
+        const el = document.getElementById('inviteRoleGrid');
+        if (!el) return;
+        const myLevel = ROLE_LEVEL[_currentUser?.role] || 0;
+        const selectedRole = selected || getInviteRole() || 'user';
+        const roles = RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value] || 0) <= myLevel);
+        const pick = roles.some(r => r.value === selectedRole) ? selectedRole : (roles[0]?.value || 'user');
+        el.innerHTML = roles.map((r) => {
+            const meta = INVITE_ROLE_META[r.value] || { short: r.label, sub: '', icon: 'user' };
+            const checked = r.value === pick ? 'checked' : '';
+            return `<label class="cards-pick-tile is-role" title="${r.label}">
+                <input type="radio" name="inviteRole" value="${r.value}" ${checked}>
+                <span class="cards-pick-tile-check" aria-hidden="true"></span>
+                <span class="cards-pick-tile-icon"><img src="/icons/line/${meta.icon}.svg" alt=""></span>
+                <span class="cards-pick-tile-label">${meta.short}</span>
+                <span class="cards-pick-tile-sub">${meta.sub}</span>
+            </label>`;
+        }).join('');
+        el.querySelectorAll('input[name="inviteRole"]').forEach((radio) => {
+            radio.addEventListener('change', () => {
+                if (!radio.checked) return;
+                const role = radio.value;
+                setCardsForRole('inviteCard', role);
+                syncInviteDocenteVisibility(role);
+            });
+        });
+        setCardsForRole('inviteCard', pick);
+        syncInviteDocenteVisibility(pick);
+    }
+    function syncInviteDocenteVisibility(role) {
+        const wrap = document.getElementById('inviteProfiliPick');
+        const cb = document.getElementById('inviteDocente');
+        const ok = roleCanBeDocente(role);
+        if (wrap) wrap.style.display = ok ? '' : 'none';
+        if (cb && !ok) cb.checked = false;
+        if (ok) syncDocenteWithCorsi('inviteCard');
+    }
+    const EDIT_IDS = {
+        nome: 'editNome',
+        cognome: 'editCognome',
+        dataNascita: 'editDataNascita',
+        luogoNascita: 'editLuogoNascita',
+        residenza: 'editResidenza',
+        domicilio: 'editDomicilio',
+        domicilioComeResidenza: 'editDomicilioComeResidenza',
+        domicilioWrap: 'editDomicilioWrap',
+        telefono: 'editTelefono',
+    };
+
+    // ── Inizializzazione CustomSelect (dopo DOMContentLoaded) ─────────────────
+    let editGradoCs  = null;
+    let editRoleCs   = null;
+    let bulkSortCs   = null;
+    let _editOriginalRole = '';
+    let editDataNascitaCd = null;
+    let editLuogoNascitaLn = null;
+    let editResidenzaLn = null;
+    let editDomicilioLn = null;
+    let editTelefonoTf = null;
+    let _editDomicilioWired = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        renderBulkCardFilterChips();
+        const bulkSortEl = document.getElementById('bulkSortSelect');
+        if (bulkSortEl) {
+            bulkSortCs = new CustomSelect(
+                bulkSortEl,
+                [
+                    { value: 'grado', label: 'Grado' },
+                    { value: 'nome', label: 'Nome' },
+                    { value: 'cognome', label: 'Cognome' },
+                    { value: 'ruolo', label: 'Tipo utente' },
+                ],
+                (val) => {
+                    _bulkSort.key = val || 'grado';
+                    renderBulkUsersList();
+                },
+                { placeholder: 'Ordina per', value: 'grado', searchable: false, small: true }
+            );
+        }
+        renderCardsGrid('inviteCardsGrid', defaultCardsForRole('user'), 'inviteCard');
+        renderCardsGrid('editCardsGrid', defaultCardsForRole('user'), 'editCard');
+        renderInviteRoleGrid('user');
+        // Select grado nella modale di modifica
+        editGradoCs = new CustomSelect(
+            document.getElementById('editGradoSel'),
+            GRADI_OPTIONS, () => {},
+            { placeholder: 'Cerca grado…' }
+        );
+        editRoleCs = new CustomSelect(
+            document.getElementById('editRoleSel'),
+            RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value] || 0) <= (ROLE_LEVEL[_currentUser?.role] || 0)),
+            (val) => {
+                const role = val || 'user';
+                setCardsForRole('editCard', role);
+                const canDoc = roleCanBeDocente(role);
+                document.getElementById('editProfiliPick').style.display = canDoc ? '' : 'none';
+                if (!canDoc) document.getElementById('editDocente').checked = false;
+            },
+            { placeholder: 'Seleziona ruolo', value: 'user' }
+        );
+        editDataNascitaCd = new CustomDate(document.getElementById('editDataNascita'), {
+            placeholder: 'gg / mm / aaaa',
+            max: new Date().toISOString().slice(0, 10),
+        });
+        editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
+        editResidenzaLn = await LuogoGeo.create(document.getElementById('editResidenza'), {
+            prefix: 'residenza', ariaLabel: 'Tipo residenza', withAddress: true,
+        });
+        editDomicilioLn = await LuogoGeo.create(document.getElementById('editDomicilio'), {
+            prefix: 'domicilio', ariaLabel: 'Tipo domicilio', withAddress: true,
+        });
+        editTelefonoTf = await TelefonoField.create(document.getElementById('editTelefono'));
+        wireDomicilioSync(EDIT_IDS);
+        _editDomicilioWired = true;
+    });
+    const GRADO_IMG = {
+        "Generale di Corpo d'Armata": "generale di corpo d'armata.webp",
+        "Generale di Divisione":       "generale di divisione.webp",
+        "Generale di Brigata":         "generale di brigata.webp",
+        "Colonnello":                  "colonnello.webp",
+        "Tenente Colonnello":          "tenente colonnello.webp",
+        "Maggiore":                    "maggiore.webp",
+        "Capitano":                    "capitano.webp",
+        "Tenente":                     "tenente.webp",
+        "Sottotenente":                "sotto tenente.webp",
+        'Luogotenente "Carica Speciale"': "luogotenente carica speciale.png",
+        "Luogotenente":                "Luogotenente.png",
+        "Maresciallo Maggiore":        "maresciallo maggiore.webp",
+        "Maresciallo Capo":            "maresciallo capo.webp",
+        "Maresciallo Ordinario":       "maresciallo ordinario.webp",
+        "Maresciallo":                 "maresciallo.webp",
+        'Brigadiere Capo "Qualifica Speciale"': "brigadiere capo qualifica speciale.webp",
+        "Brigadiere Capo":             "brigadiere capo.webp",
+        "Brigadiere":                  "brigadiere.webp",
+        "Vicebrigadiere":              "vice brigadiere.webp",
+        'Appuntato Scelto "Qualifica Speciale"': "appuntato scelto qualifica speciale.png",
+        "Appuntato Scelto":            "appuntato scelto.webp",
+        "Appuntato":                   "appuntato.webp",
+        "Carabiniere Scelto":          "carabiniere scelto.webp",
+        "Carabiniere":                 "carabiniere.webp",
+    };
+    function gradoImgTag(grado) {
+        const f = GRADO_IMG[grado];
+        return f ? `<img src="/immagini/gradi/${encodeURIComponent(f)}" class="grado-img" title="${grado}">` : '';
+    }
+
+    (async function() {
+        const token = getAuthToken();
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            _currentUser = await res.json();
+            if (_currentUser.role !== 'superadmin' && _currentUser.role !== 'admin') {
+                window.location.replace('/portal'); return;
+            }
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('navUserEmail').textContent = _currentUser.displayName || _currentUser.email || '';
+            initNavBell();
+            // Aggiorna ruoli disponibili per l'invito
+            const myLevel = ROLE_LEVEL[_currentUser.role] || 0;
+            renderInviteRoleGrid(
+                RUOLI_OPTIONS.some(r => r.value === 'user' && (ROLE_LEVEL[r.value] || 0) <= myLevel)
+                    ? 'user'
+                    : (RUOLI_OPTIONS.find(r => (ROLE_LEVEL[r.value] || 0) <= myLevel)?.value || 'user')
+            );
+            if (_currentUser.role === 'superadmin') {
+                const bulkBtn = document.getElementById('tabBtnBulk');
+                if (bulkBtn) bulkBtn.style.display = '';
+                const strBtn = document.getElementById('tabBtnStrumenti');
+                if (strBtn) strBtn.style.display = '';
+                renderCardsGrid('strumentoCardsGrid', [], 'strumentoCard');
+            }
+            refreshRequestsBadge();
+            loadUsers();
+            if (location.hash === '#profiles' || location.hash === '#approvals') switchTab('approvals');
+            if (location.hash === '#invite') switchTab('invite');
+            if (location.hash === '#hidden') switchTab('hidden');
+            if (location.hash === '#bulk' && _currentUser.role === 'superadmin') switchTab('bulk');
+        } catch {
+            clearAuth();
+            window.location.replace('/login');
+        }
+    })();
+
+    function logout() {
+        showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
+            clearAuth();
+            window.location.replace('/login');
+        });
+    }
+
+    // Campanella: nav-notifications.js — aggiorna anche badge tab Modifiche Profilo
+    async function refreshRequestsBadge() {
+        try {
+            const [pcrRes, aarRes] = await Promise.all([
+                fetch('/api/auth/profile-change-requests', { headers: authHeader() }),
+                fetch('/api/auth/admin-requests', { headers: authHeader() }),
+            ]);
+            const pcr = pcrRes.ok ? await pcrRes.json() : [];
+            const aar = aarRes.ok ? await aarRes.json() : [];
+            const n = (Array.isArray(pcr) ? pcr.length : 0) + (Array.isArray(aar) ? aar.length : 0);
+            const badge = document.getElementById('reqBadge');
+            if (!badge) return;
+            if (n) { badge.textContent = n; badge.style.display = ''; }
+            else badge.style.display = 'none';
+        } catch {}
+    }
+
+    function refreshPcrTabBadge() { refreshRequestsBadge(); }
+    function refreshAarTabBadge() { refreshRequestsBadge(); }
+
+    // ── Tab ───────────────────────────────────────────────────────────────────
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+        });
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+            panel.classList.toggle('active', panel.id === 'tab-' + tab);
+        });
+        if (tab === 'users')     { renderUsersTable(); }
+        if (tab === 'strumenti') { renderStrumentiTable(); }
+        if (tab === 'invite')    loadInvitations();
+        if (tab === 'bulk')      renderBulkUsersList();
+        if (tab === 'approvals') loadApprovals();
+        if (tab === 'hidden')    { renderHiddenUsersTable(); }
+    }
+
+    // ── Feedback ──────────────────────────────────────────────────────────────
+    function showMsg(id, text, type) {
+        const el = document.getElementById(id);
+        el.className = 'feedback ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4500);
+    }
+
+    // ── Modale conferma ───────────────────────────────────────────────────────
+    function showConfirm(message, onOk, onCancel) {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmMsg').textContent = message;
+        modal.style.display = 'flex';
+        const ok = document.getElementById('confirmOk'), cancel = document.getElementById('confirmCancel');
+        function close() { modal.style.display='none'; ok.onclick=null; cancel.onclick=null; }
+        ok.onclick     = () => { close(); if (onOk)     onOk(); };
+        cancel.onclick = () => { close(); if (onCancel) onCancel(); };
+    }
+
+    // ── Utenti ────────────────────────────────────────────────────────────────
+    let _usersCache = [];
+    let _userSort = { key: 'grado', dir: 'asc' }; // grado: asc = dal più alto al più basso
+    let _bulkSort = { key: 'grado', dir: 'asc' };
+
+    // Indice gerarchico gradi (0 = più alto). Allineato a GRADI_OPTIONS.
+    const GRADO_RANK = Object.fromEntries(
+        (typeof GRADI_OPTIONS !== 'undefined' ? GRADI_OPTIONS : []).map((o, i) => [o.value, i])
+    );
+    function gradoRank(grado) {
+        if (!grado) return 9999;
+        return GRADO_RANK[grado] !== undefined ? GRADO_RANK[grado] : 9000;
+    }
+
+    function sortUsers(key) {
+        if (_userSort.key === key) {
+            _userSort.dir = _userSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            _userSort.key = key;
+            // Default: grado dal più alto; ruolo dal più alto; data dalla più recente; resto A→Z
+            _userSort.dir = (key === 'registrato' || key === 'eliminato') ? 'desc' : 'asc';
+        }
+        updateSortHeaders();
+        renderUsersTable();
+        renderHiddenUsersTable();
+    }
+
+    function updateSortHeaders() {
+        document.querySelectorAll('.users-table th.sortable').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            if (th.dataset.sort === _userSort.key) {
+                th.classList.add(_userSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        });
+    }
+
+    function getSortedUsers() {
+        const dir = _userSort.dir === 'asc' ? 1 : -1;
+        const key = _userSort.key;
+        return [..._usersCache].sort((a, b) => {
+            let cmp = 0;
+            if (key === 'grado') {
+                cmp = gradoRank(a.grado) - gradoRank(b.grado);
+            } else if (key === 'nome') {
+                const na = ((a.cognome || '') + ' ' + (a.nome || '')).trim().toLocaleLowerCase('it');
+                const nb = ((b.cognome || '') + ' ' + (b.nome || '')).trim().toLocaleLowerCase('it');
+                cmp = na.localeCompare(nb, 'it', { sensitivity: 'base' });
+            } else if (key === 'email') {
+                cmp = (a.email || '').localeCompare(b.email || '', 'it', { sensitivity: 'base' });
+            } else if (key === 'ruolo') {
+                // asc = ruolo più alto prima (superadmin > admin > user > reader)
+                cmp = (ROLE_LEVEL[b.role] ?? 0) - (ROLE_LEVEL[a.role] ?? 0);
+            } else if (key === 'registrato') {
+                cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            } else if (key === 'eliminato') {
+                cmp = new Date(a.hiddenAt || 0).getTime() - new Date(b.hiddenAt || 0).getTime();
+            }
+            if (cmp === 0) {
+                // tie-breaker stabile su email
+                cmp = (a.email || '').localeCompare(b.email || '', 'it');
+            }
+            return cmp * dir;
+        });
+    }
+
+    function isListedVisible(u) {
+        return u.visible !== false;
+    }
+
+    function renderUserRow(u, list) {
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        const isSelf         = u.id === _currentUser.id;
+        const isSuperadmin   = u.role === 'superadmin';
+        const isFounder      = u.email === 'portalecrypto@proton.me';
+        const targetLevel    = ROLE_LEVEL[u.role] ?? 0;
+        const canToggleVis   = !isSelf && !isSuperadmin && targetLevel < myLevel;
+        const canEditProfile = _currentUser.role === 'superadmin'
+            ? !isFounder
+            : (!isSelf && !isFounder && !isSuperadmin && targetLevel < myLevel && u.visible !== false);
+        const canResetPw     = _currentUser.role === 'superadmin' && !isSelf && !isFounder;
+        const canUnlock      = _currentUser.role === 'superadmin' && !isSuperadmin && !!u.loginLocked;
+        const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
+        const displayNome = isFounder
+            ? 'Super Admin'
+            : (u.cognome ? u.cognome.toUpperCase() + ' ' + u.nome : '—');
+        const displayGrado = isFounder
+            ? '<span class="grado-badge">—</span>'
+            : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado || '—'}</span>`;
+        const emailJs = String(u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const visBtn = canToggleVis
+            ? (list === 'hidden'
+                ? `<button class="btn-unlock" onclick="toggleUserVisibility('${u.id}','${emailJs}',true)">Ripristina</button>`
+                : `<button class="btn-del" onclick="toggleUserVisibility('${u.id}','${emailJs}',false)">Elimina</button>`)
+            : '';
+        const hiddenAtCell = list === 'hidden'
+            ? `<td style="color:#5ABBC8;font-size:0.8rem">${u.hiddenAt ? new Date(u.hiddenAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>`
+            : '';
+        return `<tr class="row-clickable" data-uid="${u.id}" onclick="onUserRowClick(event,'${u.id}')">
+            <td>${displayGrado}</td>
+            <td>${displayNome}</td>
+            <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
+            <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}${u.loginLocked ? '<span class="badge badge-locked">Bloccato</span>' : ''}</div></td>
+            <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
+            ${hiddenAtCell}
+            <td class="actions-cell" onclick="event.stopPropagation()">
+                ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
+                ${canUnlock ? `<button class="btn-unlock" onclick="unlockUserLogin('${u.id}')">Sblocca</button>` : ''}
+                ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${emailJs}')">Reset password</button>` : ''}
+                ${visBtn}
+            </td>
+        </tr>`;
+    }
+
+    function isHumanUser(u) {
+        return u && u.accountType !== 'strumento';
+    }
+
+    function isStrumentoUser(u) {
+        return u && u.accountType === 'strumento';
+    }
+
+    function renderUsersTable() {
+        const tbody = document.getElementById('usersTableBody');
+        if (!tbody) return;
+        const users = getSortedUsers().filter(isListedVisible).filter(isHumanUser);
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nessun utente.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map((u) => renderUserRow(u, 'visible')).join('');
+        updateSortHeaders();
+    }
+
+    function renderHiddenUsersTable() {
+        const tbody = document.getElementById('hiddenUsersTableBody');
+        if (!tbody) return;
+        const users = getSortedUsers().filter((u) => !isListedVisible(u)).filter(isHumanUser);
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Nessun utente eliminato.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map((u) => renderUserRow(u, 'hidden')).join('');
+        updateSortHeaders();
+    }
+
+    function renderStrumentiTable() {
+        const tbody = document.getElementById('strumentiTableBody');
+        if (!tbody) return;
+        const list = (_usersCache || []).filter(isStrumentoUser).filter(isListedVisible)
+            .sort((a, b) => String(a.username || '').localeCompare(String(b.username || ''), 'it'));
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nessun profilo strumento.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map((u) => {
+            const cards = (u.cards || []).map((c) => CARD_LABEL[c] || c).join(', ') || '—';
+            const uname = String(u.username || u.displayName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<tr>
+                <td><strong>${escapeHtml(u.username || '—')}</strong></td>
+                <td style="font-size:0.85rem;color:#7ACCE0">${escapeHtml(cards)}</td>
+                <td style="color:#5ABBC8;font-size:0.8rem">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('it-IT') : '—'}</td>
+                <td class="actions-cell">
+                    <button class="btn-edit" onclick="openEditModal('${u.id}')">Strumenti</button>
+                    <button class="btn-reset" onclick="resetUserPassword('${u.id}','${uname}')">Reset password</button>
+                    <button class="btn-del" onclick="toggleUserVisibility('${u.id}','${uname}',false)">Elimina</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function createStrumento() {
+        const username = (document.getElementById('strumentoUsername').value || '').trim();
+        const password = document.getElementById('strumentoPassword').value || '';
+        const cards = getSelectedCards('strumentoCard');
+        if (!username || password.length < 8) {
+            showMsg('strumentiMsg', 'Inserisci nome utente e password (min. 8 caratteri).', 'error');
+            return;
+        }
+        if (!cards.length) {
+            showMsg('strumentiMsg', 'Seleziona almeno uno strumento.', 'error');
+            return;
+        }
+        const res = await fetch('/api/auth/strumenti', {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify({ username, password, cards }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showMsg('strumentiMsg', d.error || 'Creazione fallita.', 'error');
+            return;
+        }
+        document.getElementById('strumentoUsername').value = '';
+        document.getElementById('strumentoPassword').value = '';
+        setCardsForRole('strumentoCard', 'reader');
+        document.querySelectorAll('input[name="strumentoCard"]').forEach((cb) => { cb.checked = false; });
+        showMsg('strumentiMsg', 'Profilo strumento «' + d.username + '» creato.', 'success');
+        loadUsers();
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    }
+
+    function bulkAssignableUsers() {
+        const dir = _bulkSort.dir === 'asc' ? 1 : -1;
+        const key = _bulkSort.key;
+        return _usersCache.filter((u) =>
+            u.role !== 'superadmin'
+            && u.accountType !== 'strumento'
+            && u.email !== 'portalecrypto@proton.me'
+            && u.id !== _currentUser.id
+        ).sort((a, b) => {
+            let cmp = 0;
+            if (key === 'grado') {
+                cmp = gradoRank(a.grado) - gradoRank(b.grado);
+            } else if (key === 'nome') {
+                cmp = String(a.nome || '').localeCompare(String(b.nome || ''), 'it', { sensitivity: 'base' });
+            } else if (key === 'cognome') {
+                cmp = String(a.cognome || '').localeCompare(String(b.cognome || ''), 'it', { sensitivity: 'base' });
+            } else if (key === 'ruolo') {
+                cmp = (ROLE_LEVEL[b.role] ?? 0) - (ROLE_LEVEL[a.role] ?? 0);
+            }
+            if (cmp === 0) {
+                cmp = String(a.cognome || '').localeCompare(String(b.cognome || ''), 'it', { sensitivity: 'base' });
+                if (cmp === 0) cmp = String(a.nome || '').localeCompare(String(b.nome || ''), 'it', { sensitivity: 'base' });
+                if (cmp === 0) cmp = String(a.email || '').localeCompare(String(b.email || ''), 'it');
+            }
+            return cmp * dir;
+        });
+    }
+
+    function bulkInitials(u) {
+        const n = (u.nome || '').trim();
+        const c = (u.cognome || '').trim();
+        if (c && n) return (c[0] + n[0]).toUpperCase();
+        const src = c || n || u.email || '?';
+        return src.slice(0, 2).toUpperCase();
+    }
+
+    function bulkCardsKey(cards) {
+        return (cards || []).slice().sort().join('|');
+    }
+
+    function bulkOriginalCards(userId) {
+        const u = (_usersCache || []).find((x) => x.id === userId);
+        return Array.isArray(u && u.cards) ? u.cards.slice() : [];
+    }
+
+    function bulkRowCards(row) {
+        return Array.from(row.querySelectorAll('input[data-card]'))
+            .filter((cb) => cb.checked)
+            .map((cb) => cb.dataset.card);
+    }
+
+    function bulkOriginalDocente(userId) {
+        const u = (_usersCache || []).find((x) => x.id === userId);
+        return !!(u && u.docente);
+    }
+
+    function bulkRowDocente(row) {
+        const cb = row.querySelector('input[data-docente]');
+        return !!(cb && cb.checked);
+    }
+
+    function snapshotBulkEdits() {
+        const map = {};
+        document.querySelectorAll('#bulkMatrix tbody tr[data-uid]').forEach((row) => {
+            map[row.dataset.uid] = {
+                cards: bulkRowCards(row),
+                docente: bulkRowDocente(row),
+            };
+        });
+        return map;
+    }
+
+    function updateBulkSortDirBtn() {
+        const btn = document.getElementById('bulkSortDirBtn');
+        if (!btn) return;
+        btn.textContent = _bulkSort.dir === 'asc' ? '▲' : '▼';
+        const labels = { grado: 'grado', nome: 'nome', cognome: 'cognome', ruolo: 'tipo utente' };
+        btn.title = _bulkSort.dir === 'asc'
+            ? 'Ordine crescente (clicca per invertire)'
+            : 'Ordine decrescente (clicca per invertire)';
+        btn.setAttribute('aria-label', 'Inverti ordinamento per ' + (labels[_bulkSort.key] || _bulkSort.key));
+    }
+
+    function toggleBulkSortDir() {
+        _bulkSort.dir = _bulkSort.dir === 'asc' ? 'desc' : 'asc';
+        updateBulkSortDirBtn();
+        renderBulkUsersList();
+    }
+
+    function paintBulkCell(cb) {
+        const cell = cb.closest('.bulk-cell');
+        if (!cell) return;
+        if (cb.hasAttribute('data-docente')) {
+            const was = bulkOriginalDocente(cb.dataset.uid);
+            cell.classList.toggle('is-on', cb.checked);
+            cell.classList.toggle('is-dirty', !cb.disabled && cb.checked !== was);
+            return;
+        }
+        const orig = new Set(bulkOriginalCards(cb.dataset.uid));
+        const was = orig.has(cb.dataset.card);
+        cell.classList.toggle('is-on', cb.checked);
+        cell.classList.toggle('is-dirty', cb.checked !== was);
+    }
+
+    function visibleBulkRows() {
+        return Array.from(document.querySelectorAll('#bulkMatrix tbody tr[data-uid]'))
+            .filter((row) => row.style.display !== 'none');
+    }
+
+    function editableBulkRows() {
+        return visibleBulkRows().filter((row) => !row.classList.contains('is-locked'));
+    }
+
+    function syncBulkColHeaders() {
+        const rows = editableBulkRows();
+        ASSIGNABLE_CARDS.forEach((c) => {
+            const master = document.querySelector(`#bulkMatrix thead input[data-col-toggle="${c.id}"]`);
+            if (!master) return;
+            const boxes = rows.map((row) => row.querySelector(`input[data-card="${c.id}"]:not(:disabled)`)).filter(Boolean);
+            master.checked = boxes.length > 0 && boxes.every((b) => b.checked);
+            master.indeterminate = boxes.some((b) => b.checked) && !master.checked;
+            master.disabled = !boxes.length;
+        });
+        const docMaster = document.querySelector('#bulkMatrix thead input[data-col-toggle="docente"]');
+        if (docMaster) {
+            const boxes = rows.map((row) => row.querySelector('input[data-docente]:not(:disabled)')).filter(Boolean);
+            docMaster.checked = boxes.length > 0 && boxes.every((b) => b.checked);
+            docMaster.indeterminate = boxes.some((b) => b.checked) && !docMaster.checked;
+            docMaster.disabled = !boxes.length;
+        }
+    }
+
+    function collectBulkUpdates() {
+        const updates = [];
+        document.querySelectorAll('#bulkMatrix tbody tr[data-uid]').forEach((row) => {
+            if (row.classList.contains('is-locked')) return;
+            const userId = row.dataset.uid;
+            const cards = bulkRowCards(row);
+            const docente = bulkRowDocente(row);
+            const cardsChanged = bulkCardsKey(cards) !== bulkCardsKey(bulkOriginalCards(userId));
+            const docenteChanged = docente !== bulkOriginalDocente(userId);
+            if (cardsChanged || docenteChanged) {
+                updates.push({ userId, cards, docente, row });
+            }
+        });
+        return updates;
+    }
+
+    function updateBulkSummary() {
+        document.querySelectorAll('#bulkMatrix input[data-card], #bulkMatrix input[data-docente]').forEach(paintBulkCell);
+        syncBulkColHeaders();
+        const updates = collectBulkUpdates();
+        const el = document.getElementById('bulkSummary');
+        const btn = document.getElementById('bulkSaveBtn');
+        if (btn) btn.disabled = !updates.length;
+        if (!el) return;
+        if (!updates.length) {
+            el.innerHTML = 'Nessuna modifica';
+            return;
+        }
+        const n = updates.length;
+        el.innerHTML = `<strong>${n}</strong> utent${n === 1 ? 'e' : 'i'} con modifiche da salvare`;
+    }
+
+    function renderBulkUsersList() {
+        const table = document.getElementById('bulkMatrix');
+        if (!table || !_currentUser || _currentUser.role !== 'superadmin') return;
+        const users = bulkAssignableUsers();
+        const edits = snapshotBulkEdits();
+        if (!users.length) {
+            table.innerHTML = '<tbody><tr><td class="empty-state" style="padding:1.2rem">Nessun utente assegnabile.</td></tr></tbody>';
+            updateBulkSummary();
+            return;
+        }
+        const docenteHead = `
+            <th class="bulk-card-head is-docente" title="Categoria Docente: gestione contenuti della sezione Corsi. Solo Utente e Admin.">
+                <label>
+                    <input type="checkbox" data-col-toggle="docente" aria-label="Tutti: Docente">
+                    <span class="bulk-flag" aria-hidden="true"></span>
+                    <span>Docente</span>
+                </label>
+            </th>
+        `;
+        const heads = ASSIGNABLE_CARDS.map((c) => `
+            <th class="bulk-card-head" title="${escapeHtml(c.label)}">
+                <label>
+                    <input type="checkbox" data-col-toggle="${escapeHtml(c.id)}" aria-label="Tutti: ${escapeHtml(c.short)}">
+                    <span class="bulk-flag" aria-hidden="true"></span>
+                    <span>${escapeHtml(c.short)}</span>
+                </label>
+            </th>
+        `).join('');
+        const body = users.map((u) => {
+            const name = u.cognome ? (u.cognome.toUpperCase() + ' ' + (u.nome || '')) : (u.nome || u.email);
+            const hay = (name + ' ' + u.email).toLowerCase();
+            const prev = edits[u.id];
+            const have = new Set(prev && Array.isArray(prev.cards) ? prev.cards : (Array.isArray(u.cards) ? u.cards : []));
+            const badgeCls = u.role === 'admin' ? 'badge-admin' : 'badge-user';
+            const locked = u.visible === false;
+            const hiddenCls = locked ? ' is-hidden is-locked' : '';
+            const lockAttr = locked ? ' disabled' : '';
+            const lockTitle = locked ? ' title="Utente non visibile: autorizzazioni bloccate"' : '';
+            const canDoc = roleCanBeDocente(u.role);
+            const docOn = prev ? !!prev.docente : (canDoc && !!u.docente);
+            const docenteCell = `<td class="bulk-cell is-docente${docOn ? ' is-on' : ''}${canDoc && !locked ? '' : ' is-na'}">
+                <label class="bulk-cell-hit">
+                    <input type="checkbox" data-uid="${escapeHtml(u.id)}" data-docente="1"${docOn ? ' checked' : ''}${canDoc && !locked ? '' : ' disabled'} title="${locked ? 'Utente non visibile: autorizzazioni bloccate' : (canDoc ? 'Categoria Docente' : 'Disponibile solo per Utente e Admin')}" aria-label="Docente per ${escapeHtml(name)}">
+                    <span class="bulk-flag" aria-hidden="true"></span>
+                </label>
+            </td>`;
+            const cells = ASSIGNABLE_CARDS.map((c) => {
+                const on = have.has(c.id);
+                return `<td class="bulk-cell${on ? ' is-on' : ''}"${lockTitle}>
+                    <label class="bulk-cell-hit">
+                        <input type="checkbox" data-uid="${escapeHtml(u.id)}" data-card="${escapeHtml(c.id)}"${on ? ' checked' : ''}${lockAttr} aria-label="${escapeHtml(c.short)} per ${escapeHtml(name)}">
+                        <span class="bulk-flag" aria-hidden="true"></span>
+                    </label>
+                </td>`;
+            }).join('');
+            return `<tr data-uid="${escapeHtml(u.id)}" data-filter="${escapeHtml(hay)}" data-role="${escapeHtml(u.role || '')}" data-docente="${canDoc && u.docente ? '1' : '0'}" data-visible="${locked ? '0' : '1'}" data-cards="${escapeHtml(Array.isArray(u.cards) ? u.cards.join(' ') : '')}" class="${hiddenCls.trim()}">
+                <td class="bulk-user-col">
+                    <div class="bulk-user-cell">
+                        <span class="bulk-avatar">${escapeHtml(bulkInitials(u))}</span>
+                        <span class="bulk-user-text">
+                            <strong>${escapeHtml(name)} <span class="badge ${badgeCls}">${escapeHtml(ROLE_LABEL[u.role] || u.role)}</span></strong>
+                            <small>${escapeHtml(u.email)}${u.visible === false ? ' · eliminato' : ''}</small>
+                        </span>
+                    </div>
+                </td>
+                ${docenteCell}
+                ${cells}
+            </tr>`;
+        }).join('');
+        table.innerHTML = `<thead><tr>
+            <th class="bulk-user-col">Utente</th>
+            ${docenteHead}
+            ${heads}
+        </tr></thead><tbody>${body}</tbody>`;
+        if (!table.dataset.wired) {
+            table.dataset.wired = '1';
+            table.addEventListener('change', onBulkMatrixChange);
+        }
+        filterBulkUsers();
+        updateBulkSummary();
+        updateBulkSortDirBtn();
+    }
+
+    function onBulkMatrixChange(e) {
+        const t = e.target;
+        if (!t) return;
+        if (t.dataset.colToggle === 'docente') {
+            editableBulkRows().forEach((row) => {
+                const cb = row.querySelector('input[data-docente]:not(:disabled)');
+                if (cb) cb.checked = t.checked;
+            });
+        } else if (t.dataset.colToggle) {
+            const cardId = t.dataset.colToggle;
+            editableBulkRows().forEach((row) => {
+                const cb = row.querySelector(`input[data-card="${cardId}"]:not(:disabled)`);
+                if (cb) cb.checked = t.checked;
+            });
+        }
+        updateBulkSummary();
+    }
+
+    function renderBulkCardFilterChips() {
+        const el = document.getElementById('bulkFilterCards');
+        if (!el) return;
+        el.innerHTML = ['reader', 'user', 'admin'].map((role) => `
+            <button type="button" class="bulk-chip-filter is-role-${role}" data-filter-role="${role}" aria-pressed="false" title="Mostra solo: ${escapeHtml(ROLE_LABEL[role])}">${escapeHtml(ROLE_LABEL[role])}</button>
+        `).join('')
+            + `<button type="button" class="bulk-chip-filter is-docente" data-filter-docente="1" aria-pressed="false" title="Categoria Docente">Docente</button>`
+            + ASSIGNABLE_CARDS.map((c) => `
+            <button type="button" class="bulk-chip-filter" data-filter-card="${escapeHtml(c.id)}" aria-pressed="false" title="${escapeHtml(c.label)}">${escapeHtml(c.short)}</button>
+        `).join('')
+            + `<button type="button" class="bulk-chip-filter is-hidden-users" data-filter-hidden="1" aria-pressed="false" title="Mostra anche gli utenti eliminati">Eliminati</button>`;
+        if (!el.dataset.wired) {
+            el.dataset.wired = '1';
+            el.addEventListener('click', (e) => {
+                const btn = e.target.closest('.bulk-chip-filter');
+                if (!btn || !el.contains(btn)) return;
+                btn.classList.toggle('is-on');
+                btn.setAttribute('aria-pressed', btn.classList.contains('is-on') ? 'true' : 'false');
+                filterBulkUsers();
+            });
+        }
+    }
+
+    function selectedBulkRoleFilters() {
+        return Array.from(document.querySelectorAll('#bulkFilterCards [data-filter-role].is-on'))
+            .map((btn) => btn.getAttribute('data-filter-role'))
+            .filter(Boolean);
+    }
+
+    function selectedBulkCardFilters() {
+        return Array.from(document.querySelectorAll('#bulkFilterCards .bulk-chip-filter.is-on'))
+            .map((btn) => btn.getAttribute('data-filter-card'))
+            .filter(Boolean);
+    }
+
+    function filterBulkUsers() {
+        const q = (document.getElementById('bulkUserFilter')?.value || '').trim().toLowerCase();
+        const needRoles = selectedBulkRoleFilters();
+        const needDocente = !!document.querySelector('#bulkFilterCards .bulk-chip-filter.is-docente.is-on');
+        const showHidden = !!document.querySelector('#bulkFilterCards [data-filter-hidden].is-on');
+        const needCards = selectedBulkCardFilters();
+        const rows = Array.from(document.querySelectorAll('#bulkMatrix tbody tr[data-uid]'));
+        let shown = 0;
+        rows.forEach((row) => {
+            const hay = row.getAttribute('data-filter') || '';
+            const isDoc = row.getAttribute('data-docente') === '1';
+            const cards = (row.getAttribute('data-cards') || '').split(/\s+/).filter(Boolean);
+            const isHiddenUser = row.classList.contains('is-locked') || row.getAttribute('data-visible') === '0';
+            let ok = !q || hay.includes(q);
+            if (ok && !showHidden && isHiddenUser) ok = false;
+            if (ok && needRoles.length) ok = needRoles.includes(row.getAttribute('data-role') || '');
+            if (ok && needDocente) ok = isDoc;
+            if (ok && needCards.length) ok = needCards.every((id) => cards.includes(id));
+            row.style.display = ok ? '' : 'none';
+            if (ok) shown++;
+        });
+        const filtered = !!(q || needRoles.length || needDocente || needCards.length || showHidden);
+        const clearBtn = document.getElementById('bulkClearFilters');
+        if (clearBtn) {
+            clearBtn.classList.toggle('is-shown', filtered);
+            clearBtn.setAttribute('aria-hidden', filtered ? 'false' : 'true');
+        }
+        const hint = document.getElementById('bulkFilterHint');
+        if (hint) {
+            if (!rows.length) hint.textContent = '';
+            else if (!shown) hint.textContent = 'Nessun utente corrisponde ai filtri.';
+            else if (filtered) hint.textContent = shown + ' utent' + (shown === 1 ? 'e' : 'i') + ' visibil' + (shown === 1 ? 'e' : 'i');
+            else hint.textContent = '';
+        }
+        syncBulkColHeaders();
+    }
+
+    function clearBulkViewFilters() {
+        const search = document.getElementById('bulkUserFilter');
+        if (search) search.value = '';
+        document.querySelectorAll('#bulkFilterCards .bulk-chip-filter.is-on').forEach((btn) => {
+            btn.classList.remove('is-on');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+        filterBulkUsers();
+    }
+
+    function resetBulkMatrix() {
+        renderBulkUsersList();
+        const msg = document.getElementById('bulkMsg');
+        if (msg) msg.style.display = 'none';
+    }
+
+    function submitBulkCards() {
+        const updates = collectBulkUpdates();
+        if (!updates.length) { showMsg('bulkMsg', 'Nessuna modifica da salvare.', 'error'); return; }
+        const empty = updates.find((u) => !u.cards.length);
+        if (empty) {
+            showMsg('bulkMsg', 'Ogni utente deve avere almeno una scheda.', 'error');
+            return;
+        }
+        const n = updates.length;
+        showConfirm(
+            `Salvare le autorizzazioni per ${n} utent${n === 1 ? 'e' : 'i'}?`,
+            async () => {
+                const res = await fetch('/api/auth/users/bulk-cards', {
+                    method: 'POST',
+                    headers: authHeader(),
+                    body: JSON.stringify({
+                        updates: updates.map((u) => ({ userId: u.userId, cards: u.cards, docente: u.docente })),
+                    }),
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) { showMsg('bulkMsg', d.error || 'Errore.', 'error'); return; }
+                const extra = d.unchanged ? ` ${d.unchanged} già allineati.` : '';
+                showMsg('bulkMsg', `Autorizzazioni aggiornate per ${d.updated} utent${d.updated === 1 ? 'e' : 'i'}.${extra}`, 'success');
+                loadUsers();
+            }
+        );
+    }
+
+    async function loadUsers() {
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#5ABBC8;padding:0.6rem">Caricamento...</td></tr>';
+        try {
+            const res = await fetch('/api/auth/users', { headers: authHeader() });
+            _usersCache = await res.json();
+            if (!Array.isArray(_usersCache)) _usersCache = [];
+            renderUsersTable();
+            renderHiddenUsersTable();
+            renderStrumentiTable();
+            if (_currentUser && _currentUser.role === 'superadmin') renderBulkUsersList();
+        } catch {
+            tbody.innerHTML = '<tr><td colspan="6" style="color:#FF6B7A">Errore caricamento.</td></tr>';
+        }
+    }
+
+    function toggleUserVisibility(id, email, visible) {
+        const ask = _currentUser.role === 'superadmin'
+            ? (visible
+                ? `Ripristinare ${email}? L'utente tornerà visibile e riceverà una nuova password temporanea.`
+                : `Eliminare ${email}? L'utente non sarà visibile e le credenziali verranno revocate.`)
+            : (visible
+                ? `Richiedere il ripristino di ${email}? Servirà l'approvazione del Super Admin.`
+                : `Richiedere l'eliminazione di ${email}? L'utente non sarà visibile e le credenziali verranno revocate dopo l'approvazione del Super Admin.`);
+        showConfirm(ask, async () => {
+            const res = await fetch('/api/auth/users/' + id + '/visibility', {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ visible: !!visible }),
+            });
+            const d = await res.json().catch(() => ({}));
+            const msgId = visible ? 'hiddenMsg' : 'usersMsg';
+            if (!res.ok) { showMsg(msgId, d.error || 'Errore.', 'error'); return; }
+            if (d.pending) {
+                showMsg(msgId, d.message || 'Richiesta inviata, in attesa del Super Admin.', 'success');
+                refreshRequestsBadge();
+            } else if (visible) {
+                let text = d.emailSent
+                    ? 'Utente ripristinato. È stata inviata una password temporanea.'
+                    : 'Utente ripristinato.';
+                if (d.temporaryPassword) text += ' Password temporanea: ' + d.temporaryPassword;
+                showMsg(msgId, text, 'success');
+            } else {
+                showMsg(msgId, 'Utente eliminato: non visibile e credenziali revocate.', 'success');
+            }
+            loadUsers();
+        });
+    }
+
+    function unlockFromView() {
+        const id = _viewUserId;
+        if (!id) return;
+        unlockUserLogin(id, () => closeViewModal());
+    }
+
+    function unlockUserLogin(id, afterOk) {
+        const u = _usersCache.find(x => x.id === id);
+        const label = u ? (u.email || 'utente') : 'utente';
+        showConfirm(`Sbloccare l'accesso di ${label} prima delle 2 ore?`, async () => {
+            try {
+                const res = await fetch('/api/auth/users/' + id + '/unlock-login', {
+                    method: 'POST',
+                    headers: authHeader(),
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showMsg('usersMsg', d.error || 'Impossibile sbloccare l\'account.', 'error');
+                    return;
+                }
+                showMsg('usersMsg', 'Account sbloccato. L\'utente può accedere di nuovo.', 'success');
+                if (typeof afterOk === 'function') afterOk();
+                loadUsers();
+            } catch {
+                showMsg('usersMsg', 'Errore di rete nello sblocco.', 'error');
+            }
+        });
+    }
+
+    function resetUserPassword(id, email) {
+        showConfirm(`Resettare la password di ${email}? L'utente riceverà un'email con una password temporanea.`, async () => {
+            try {
+                const res = await fetch('/api/auth/users/' + id + '/reset-password', {
+                    method: 'POST',
+                    headers: authHeader(),
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    let msg = d.error || 'Errore nel reset password.';
+                    if (d.temporaryPassword) msg += ' Password temporanea: ' + d.temporaryPassword;
+                    showMsg('usersMsg', msg, 'error');
+                    return;
+                }
+                if (d.emailSent) {
+                    showMsg('usersMsg', `Password resettata. Email inviata a ${email}.`, 'success');
+                } else {
+                    showMsg(
+                        'usersMsg',
+                        (d.warning || 'Email non inviata.') + (d.temporaryPassword ? ' Password temporanea: ' + d.temporaryPassword : ''),
+                        'error'
+                    );
+                }
+            } catch {
+                showMsg('usersMsg', 'Errore di rete nel reset password.', 'error');
+            }
+        });
+    }
+
+    function changeRole(id, email, newRole, sel) {
+        showConfirm(`Cambiare il ruolo di ${email} in ${ROLE_LABEL[newRole]||newRole}?`, async () => {
+            const res = await fetch('/api/auth/users/' + id, { method: 'PATCH', headers: authHeader(), body: JSON.stringify({ role: newRole }) });
+            const d   = await res.json();
+            if (res.ok && d.pending) {
+                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+                refreshAarTabBadge();
+            } else {
+                showMsg('usersMsg', res.ok ? `Ruolo aggiornato a ${ROLE_LABEL[newRole]||newRole}.` : (d.error||'Errore.'), res.ok ? 'success' : 'error');
+            }
+            loadUsers();
+        }, () => loadUsers());
+    }
+
+    // ── Invito ────────────────────────────────────────────────────────────────
+    async function sendInvite() {
+        const email = document.getElementById('inviteEmail').value.trim();
+        const role  = getInviteRole();
+        const cards = getSelectedCards('inviteCard');
+        const docente = roleCanBeDocente(role) && !!document.getElementById('inviteDocente')?.checked;
+        document.getElementById('inviteResult').style.display = 'none';
+        if (!email) { showMsg('inviteMsg', 'Inserisci un\'email.', 'error'); return; }
+        if (!cards.length) { showMsg('inviteMsg', 'Seleziona almeno una scheda del portale.', 'error'); return; }
+        const res  = await fetch('/api/auth/invite', {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify({ email, role, cards, docente }),
+        });
+        const data = await res.json();
+        if (!res.ok) { showMsg('inviteMsg', data.error || 'Errore.', 'error'); return; }
+        const fullLink  = window.location.origin + data.link;
+        const roleLabel = ROLE_LABEL[data.role] || data.role;
+        const catNote = data.docente ? ' · Docente' : '';
+        document.getElementById('inviteLink').textContent = fullLink;
+        document.getElementById('inviteResult').style.display = 'block';
+        document.getElementById('inviteEmail').value = '';
+        document.getElementById('inviteDocente').checked = false;
+        setCardsForRole('inviteCard', getInviteRole());
+        syncInviteDocenteVisibility(getInviteRole());
+        const note = data.emailSent ? '— email inviata automaticamente.' : '— copia e invia il link (SMTP non configurato).';
+        showMsg('inviteMsg', `Invito ${roleLabel}${catNote} generato ${note}`, 'success');
+        loadInvitations();
+    }
+
+    function copyInviteLink() {
+        navigator.clipboard.writeText(document.getElementById('inviteLink').textContent).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            btn.textContent = '✓ Copiato!';
+            setTimeout(() => btn.textContent = 'Copia link', 2000);
+        });
+    }
+
+    // ── Inviti in sospeso ─────────────────────────────────────────────────────
+    async function loadInvitations() {
+        const list = document.getElementById('invList');
+        list.innerHTML = '<div class="empty-state">Caricamento...</div>';
+        try {
+            const res  = await fetch('/api/auth/invitations', { headers: authHeader() });
+            const data = await res.json();
+            if (!data.length) { list.innerHTML = '<div class="empty-state">Nessun invito in sospeso.</div>'; return; }
+            list.innerHTML = data.map(i => {
+                const rLabel  = ROLE_LABEL[i.role] || i.role;
+                const bCls    = (i.role==='admin'||i.role==='superadmin') ? 'badge-admin' : 'badge-user';
+                const exp     = new Date(i.expiresAt).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'});
+                const cardsLabel = (i.cards || []).map(c => CARD_LABEL[c] || c).join(', ') || '—';
+                const docBadge = i.docente ? '<span class="badge badge-docente inv-role">Docente</span>' : '';
+                return `<div class="inv-item">
+                    <div style="display:flex;flex-direction:column;gap:0.25rem;min-width:0;flex:1;">
+                        <span class="inv-email">${i.email}</span>
+                        <span style="font-size:0.75rem;color:#5ABBC8;">Schede: ${cardsLabel}</span>
+                    </div>
+                    <span class="badge ${bCls} inv-role">${rLabel}</span>${docBadge}
+                    <span class="inv-exp">Scade: ${exp}</span>
+                    <button class="btn-del" onclick="cancelInvitation('${i.token}','${i.email}')">Annulla</button>
+                </div>`;
+            }).join('');
+        } catch { list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>'; }
+    }
+
+    function cancelInvitation(token, email) {
+        showConfirm(`Annullare l'invito per ${email}?`, async () => {
+            const res = await fetch('/api/auth/invitations/' + token, { method: 'DELETE', headers: authHeader() });
+            if (res.ok) { showMsg('invitationsMsg', 'Invito annullato.', 'success'); loadInvitations(); }
+            else { const d = await res.json(); showMsg('invitationsMsg', d.error||'Errore.', 'error'); }
+        });
+    }
+
+    // ── Vista / Modifica profilo (admin) ───────────────────────────────────────
+    let _viewUserId = null;
+
+    function onUserRowClick(ev, userId) {
+        // Ignora click provenienti da controlli interattivi (già gestiti da stopPropagation sulla cella Azioni)
+        if (ev.target.closest('button, a, .csel, .csel-btn, .csel-panel')) return;
+        openViewModal(userId);
+    }
+
+    function openViewModal(userId) {
+        const u = _usersCache.find(x => x.id === userId);
+        if (!u) return;
+        _viewUserId = userId;
+        const isFounder = u.email === 'portalecrypto@proton.me';
+        document.getElementById('viewEmail').textContent = u.email || '—';
+        document.getElementById('viewNome').textContent = isFounder ? 'Super Admin' : (u.nome || '—');
+        document.getElementById('viewCognome').textContent = isFounder ? '—' : (u.cognome || '—');
+
+        const gradoDd = document.getElementById('viewGrado');
+        if (isFounder || !u.grado) {
+            gradoDd.innerHTML = '<span style="color:#5ABBC8;">—</span>';
+        } else {
+            const f = GRADO_IMG[u.grado];
+            gradoDd.innerHTML = f
+                ? `<img src="/immagini/gradi/${encodeURIComponent(f)}" alt=""> <span>${u.grado}</span>`
+                : `<span>${u.grado}</span>`;
+        }
+
+        document.getElementById('viewDataNascita').textContent = isFounder ? '—' : formatDateIT(u.dataNascita);
+        document.getElementById('viewLuogoNascita').textContent = isFounder ? '—' : dash(u.luogoNascita);
+        document.getElementById('viewResidenza').textContent = isFounder ? '—' : dash(u.residenza);
+        const domLabel = isFounder ? '—' : (u.domicilioComeResidenza
+            ? (dash(u.residenza) === '—' ? '—' : dash(u.residenza) + ' (come residenza)')
+            : dash(u.domicilio));
+        document.getElementById('viewDomicilio').textContent = domLabel;
+        document.getElementById('viewTelefono').textContent = isFounder ? '—' : dash(formatTelefonoDisplay(u));
+
+        const badgeCls = (u.role === 'superadmin' || u.role === 'admin') ? 'badge-admin' : 'badge-user';
+        document.getElementById('viewRuolo').innerHTML =
+            `<span class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}</span>`;
+        document.getElementById('viewDocente').innerHTML = u.docente
+            ? '<span class="badge badge-docente">Docente</span>'
+            : '—';
+        document.getElementById('viewRegistrato').textContent =
+            u.createdAt ? new Date(u.createdAt).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : '—';
+        const elimDd = document.getElementById('viewEliminato');
+        if (elimDd) {
+            elimDd.textContent = u.hiddenAt
+                ? new Date(u.hiddenAt).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' })
+                : '—';
+        }
+
+        const lockDd = document.getElementById('viewLoginLock');
+        const unlockBtn = document.getElementById('viewUnlockBtn');
+        if (u.visible === false) {
+            lockDd.innerHTML = '<span class="badge badge-hidden">Revocato</span>';
+            unlockBtn.style.display = 'none';
+        } else if (u.loginLocked) {
+            const until = u.loginLockedUntil
+                ? new Date(u.loginLockedUntil).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
+                : '';
+            const why = u.loginLockedReason === 'otp_fail' ? '3 OTP errati' : '3 invii OTP';
+            lockDd.innerHTML = `<span class="badge badge-locked">Bloccato</span> ${until ? 'fino alle ' + until : ''} (${why})`;
+            unlockBtn.style.display = (_currentUser.role === 'superadmin' && u.role !== 'superadmin') ? '' : 'none';
+        } else {
+            lockDd.textContent = 'Attivo';
+            unlockBtn.style.display = 'none';
+        }
+
+        const editBtn = document.getElementById('viewEditBtn');
+        editBtn.style.display = isFounder ? 'none' : '';
+        document.getElementById('viewModal').style.display = 'flex';
+    }
+
+    function closeViewModal() {
+        document.getElementById('viewModal').style.display = 'none';
+        _viewUserId = null;
+    }
+
+    function editFromView() {
+        const id = _viewUserId;
+        if (!id) return;
+        closeViewModal();
+        openEditModal(id);
+    }
+
+    function canChangeUserRole(u) {
+        if (!u || !_currentUser) return false;
+        const isSelf = u.id === _currentUser.id;
+        const isFounder = u.email === 'portalecrypto@proton.me';
+        const isSuperadmin = u.role === 'superadmin';
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        const targetLevel = ROLE_LEVEL[u.role] ?? 0;
+        return !isSelf && !isFounder && !isSuperadmin && targetLevel < myLevel;
+    }
+
+    async function openEditModal(userId) {
+        const u = _usersCache.find(x => x.id === userId);
+        if (!u) return;
+        document.getElementById('editUserId').value = userId;
+        _editOriginalRole = u.role || 'user';
+        const isStrumento = isStrumentoUser(u);
+        const isSA = _currentUser.role === 'superadmin';
+
+        if (!isStrumento) {
+            if (!editLuogoNascitaLn) {
+                editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
+            }
+            if (!_editDomicilioWired) {
+                wireDomicilioSync(EDIT_IDS);
+                _editDomicilioWired = true;
+            }
+            fillProfileFields(EDIT_IDS, u, (g) => { if (editGradoCs) editGradoCs.setValue(g || ''); });
+        }
+
+        document.getElementById('editFullProfileWrap').style.display = (isSA && !isStrumento) ? '' : 'none';
+        document.getElementById('editModalTitle').textContent = isStrumento
+            ? ('Strumenti — ' + (u.username || u.displayName || 'monitor'))
+            : (isSA ? 'Modifica profilo' : 'Modifica accesso');
+        renderCardsGrid('editCardsGrid', u.cards || (isStrumento ? [] : defaultCardsForRole(u.role)), 'editCard');
+        const authLocked = u.visible === false;
+        const canDoc = !isStrumento && roleCanBeDocente(u.role);
+        document.getElementById('editProfiliPick').style.display = canDoc ? '' : 'none';
+        document.getElementById('editDocente').checked = canDoc && !!u.docente;
+        document.getElementById('editDocente').disabled = authLocked;
+        document.querySelectorAll('#editCardsGrid input[name="editCard"]').forEach((cb) => { cb.disabled = authLocked; });
+        const cardsHint = document.querySelector('#editCardsPick .cards-pick-hint');
+        if (cardsHint) {
+            cardsHint.dataset.defaultHint = cardsHint.dataset.defaultHint || cardsHint.textContent;
+            if (authLocked) {
+                cardsHint.textContent = 'Utente non visibile: le autorizzazioni non si possono modificare. Usa Ripristina per sbloccarle.';
+            } else if (isStrumento) {
+                cardsHint.textContent = 'Solo gli strumenti selezionati saranno accessibili da questo profilo monitor.';
+            } else {
+                cardsHint.textContent = cardsHint.dataset.defaultHint;
+            }
+        }
+
+        const canRole = isSA && !isStrumento && canChangeUserRole(u);
+        document.getElementById('editRoleWrap').style.display = canRole ? '' : 'none';
+        if (canRole && editRoleCs) {
+            const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+            const roleOpts = RUOLI_OPTIONS.filter(r => (ROLE_LEVEL[r.value] || 0) <= myLevel);
+            editRoleCs.setOptions(roleOpts, u.role);
+        }
+
+        document.getElementById('editMsg').style.display = 'none';
+        document.getElementById('editModal').style.display = 'flex';
+        if (isSA && !isStrumento) setTimeout(() => document.getElementById('editNome').focus(), 100);
+    }
+    function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+
+    async function saveProfile() {
+        const id = document.getElementById('editUserId').value;
+        const cards = getSelectedCards('editCard');
+        const msgEl = document.getElementById('editMsg');
+        msgEl.style.display = 'none';
+        const u = _usersCache.find(x => x.id === id);
+        const authLocked = !!(u && u.visible === false);
+        const isSA = _currentUser.role === 'superadmin';
+        const isStrumento = isStrumentoUser(u);
+        if (authLocked && !isSA) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = 'Le autorizzazioni di un utente non visibile non si possono modificare.';
+            msgEl.style.display = 'block';
+            return;
+        }
+        if (!authLocked && !cards.length) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = isStrumento
+                ? 'Seleziona almeno uno strumento.'
+                : 'Seleziona almeno una scheda del portale.';
+            msgEl.style.display = 'block';
+            return;
+        }
+
+        if (isStrumento) {
+            const res = await fetch(`/api/auth/users/${id}/profile`, {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ cards }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok) {
+                closeEditModal();
+                showMsg('strumentiMsg', 'Strumenti aggiornati per «' + (u.username || '') + '».', 'success');
+                loadUsers();
+            } else {
+                msgEl.className = 'feedback error';
+                msgEl.textContent = d.error || 'Errore.';
+                msgEl.style.display = 'block';
+            }
+            return;
+        }
+
+        const newRole = (isSA && canChangeUserRole(u) && editRoleCs) ? (editRoleCs.getValue() || u.role) : u.role;
+        const docente = roleCanBeDocente(newRole) && !!document.getElementById('editDocente')?.checked;
+        const profilePayload = authLocked ? {} : { cards, docente };
+
+        if (!isSA) {
+            const res = await fetch(`/api/auth/users/${id}/profile`, {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ cards, docente }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.pending) {
+                closeEditModal();
+                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+                refreshAarTabBadge();
+            } else if (res.ok) {
+                closeEditModal();
+                showMsg('usersMsg', 'Accesso aggiornato.', 'success');
+                loadUsers();
+            } else {
+                msgEl.className = 'feedback error';
+                msgEl.textContent = d.error || 'Errore.';
+                msgEl.style.display = 'block';
+            }
+            return;
+        }
+
+        const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
+        const reqErr = validateRequiredProfile(profile);
+        if (reqErr) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = reqErr;
+            msgEl.style.display = 'block';
+            return;
+        }
+        const dateErr = validateProfileDates(EDIT_IDS);
+        if (dateErr) {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = dateErr;
+            msgEl.style.display = 'block';
+            return;
+        }
+
+        // Cambio ruolo (se consentito e diverso)
+        if (canChangeUserRole(u) && newRole && newRole !== _editOriginalRole) {
+            const roleRes = await fetch('/api/auth/users/' + id, {
+                method: 'PATCH',
+                headers: authHeader(),
+                body: JSON.stringify({ role: newRole }),
+            });
+            const roleData = await roleRes.json().catch(() => ({}));
+            if (!roleRes.ok) {
+                msgEl.className = 'feedback error';
+                msgEl.textContent = roleData.error || 'Errore nel cambio ruolo.';
+                msgEl.style.display = 'block';
+                return;
+            }
+            if (roleData.pending) {
+                // Profilo può comunque essere aggiornato; avvisa sul ruolo in attesa
+                const res = await fetch(`/api/auth/users/${id}/profile`, {
+                    method: 'PATCH',
+                    headers: authHeader(),
+                    body: JSON.stringify({ ...profile, ...profilePayload }),
+                });
+                const d = await res.json().catch(() => ({}));
+                closeEditModal();
+                if (res.ok && d.pending) {
+                    showMsg('usersMsg', (roleData.message || 'Cambio ruolo in approvazione.') + ' ' + (d.message || ''), 'success');
+                } else if (res.ok) {
+                    showMsg('usersMsg', (roleData.message || 'Cambio ruolo in approvazione.') + ' Profilo aggiornato.', 'success');
+                } else {
+                    showMsg('usersMsg', roleData.message || 'Cambio ruolo in approvazione. Errore sul profilo: ' + (d.error || ''), 'error');
+                }
+                refreshAarTabBadge();
+                loadUsers();
+                return;
+            }
+        }
+
+        const res = await fetch(`/api/auth/users/${id}/profile`, {
+            method: 'PATCH',
+            headers: authHeader(),
+            body: JSON.stringify({ ...profile, ...profilePayload }),
+        });
+        const d = await res.json();
+        if (res.ok && d.pending) {
+            closeEditModal();
+            showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
+            refreshAarTabBadge();
+        }
+        else if (res.ok) {
+            closeEditModal();
+            const roleNote = (newRole && newRole !== _editOriginalRole)
+                ? ` Ruolo aggiornato a ${ROLE_LABEL[newRole] || newRole}.`
+                : '';
+            showMsg('usersMsg', 'Profilo aggiornato.' + roleNote, 'success');
+            loadUsers();
+        }
+        else { msgEl.className='feedback error'; msgEl.textContent=d.error||'Errore.'; msgEl.style.display='block'; }
+    }
+
+    // ── Approvazioni (profilo + azioni admin, elenco unico) ──────────────────
+    function renderPcrItem(r) {
+        const extras = [
+            r.dataNascita ? `Nascita: ${formatDateIT(r.dataNascita)}` : null,
+            r.luogoNascita ? `Luogo: ${r.luogoNascita}` : null,
+            r.residenza ? `Residenza: ${r.residenza}` : null,
+            r.domicilioComeResidenza ? 'Domicilio: come residenza' : (r.domicilio ? `Domicilio: ${r.domicilio}` : null),
+            r.telefono ? `Tel: ${formatTelefonoDisplay(r)}` : null,
+        ].filter(Boolean).join(' · ');
+        const pcrName = [r.cognome, r.nome].filter(Boolean).map((s, i) => i === 0 ? String(s).toUpperCase() : s).join(' ') || r.userEmail;
+        return `
+                <div class="pcr-item">
+                    <div class="pcr-info">
+                        <strong>${escapeHtml(pcrName)}</strong>
+                        <small>Richiesta: ${gradoImgTag(r.grado)} ${escapeHtml(String(r.cognome || '').toUpperCase())} ${escapeHtml(r.nome || '')} — ${escapeHtml(r.grado || '')}</small>
+                        ${extras ? `<small>${escapeHtml(extras)}</small>` : ''}
+                        <small style="color:#7ACCE0;">Inviata: ${new Date(r.requestedAt).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <button class="btn-ok-sm" onclick="approveProfile('${r.id}')">✓ Approva</button>
+                        <button class="btn-rej"   onclick="rejectProfile('${r.id}')">✕ Rifiuta</button>
+                    </div>
+                </div>`;
+    }
+
+    function renderAarItem(r) {
+        const isMine = r.requestedById === _currentUser.id;
+        const approvals = r.approvals || [];
+        const alreadyApproved = approvals.some(a => a.id === _currentUser.id);
+        const superOnly = !!r.superadminOnly;
+        const canApprove = !isMine && !alreadyApproved && (!superOnly || _currentUser.role === 'superadmin');
+        const when = new Date(r.requestedAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+        const approvedBy = !superOnly && approvals.length
+            ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.label || a.email).join(', ')}</small>`
+            : (superOnly ? '<small style="color:#7ACCE0;">Solo Super Admin</small>' : '');
+        const targetName = r.targetLabel || r.targetEmail;
+        const requesterName = r.requestedByLabel || r.requestedByEmail;
+        return `
+                <div class="pcr-item">
+                    <div class="pcr-info">
+                        <strong>${escapeHtml(r.typeLabel)} — ${escapeHtml(targetName)}</strong>
+                        <small>${escapeHtml(r.summary)}</small>
+                        <small style="color:#7ACCE0;">Richiesta da ${escapeHtml(requesterName)}${isMine ? ' (tu)' : ''} · ${when}</small>
+                        ${approvedBy}
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                        ${canApprove ? `<button class="btn-ok-sm" onclick="approveAdminRequest('${r.id}')">✓ Approva</button>` : ''}
+                        ${alreadyApproved ? '<span style="font-size:0.78rem;color:#5ABBC8;">Già approvata da te</span>' : ''}
+                        <button class="btn-rej" onclick="rejectAdminRequest('${r.id}', ${isMine})">${isMine ? '✕ Annulla' : '✕ Rifiuta'}</button>
+                    </div>
+                </div>`;
+    }
+
+    async function loadApprovals() {
+        const list = document.getElementById('approvalsList');
+        if (!list) return;
+        list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Caricamento...</div>';
+        try {
+            const [pcrRes, aarRes] = await Promise.all([
+                fetch('/api/auth/profile-change-requests', { headers: authHeader() }),
+                fetch('/api/auth/admin-requests', { headers: authHeader() }),
+            ]);
+            const pcr = await pcrRes.json().catch(() => []);
+            const aar = await aarRes.json().catch(() => []);
+            refreshRequestsBadge();
+            const items = [];
+            (Array.isArray(pcr) ? pcr : []).forEach((r) => {
+                items.push({ at: r.requestedAt, html: renderPcrItem(r) });
+            });
+            (Array.isArray(aar) ? aar : []).forEach((r) => {
+                items.push({ at: r.requestedAt, html: renderAarItem(r) });
+            });
+            items.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-state">Nessuna richiesta in attesa.</div>';
+                return;
+            }
+            list.innerHTML = items.map((i) => i.html).join('');
+        } catch {
+            list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>';
+        }
+    }
+
+    function loadProfileChangeRequests() { return loadApprovals(); }
+
+    function approveProfile(id) {
+        showConfirm('Approvare questa modifica profilo?', async () => {
+            const res = await fetch(`/api/auth/profile-change-requests/${id}/approve`, { method:'POST', headers:authHeader() });
+            if (res.ok) { showMsg('requestsMsg','Modifica approvata e applicata.','success'); loadProfileChangeRequests(); loadUsers(); refreshNavBell(); refreshRequestsBadge(); }
+            else { const d=await res.json(); showMsg('requestsMsg',d.error||'Errore.','error'); }
+        });
+    }
+    function rejectProfile(id) {
+        showConfirm('Rifiutare questa richiesta?', async () => {
+            const res = await fetch(`/api/auth/profile-change-requests/${id}`, { method:'DELETE', headers:authHeader() });
+            if (res.ok) { showMsg('requestsMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); refreshNavBell(); refreshRequestsBadge(); }
+            else { const d=await res.json(); showMsg('requestsMsg',d.error||'Errore.','error'); }
+        });
+    }
+
+    function approveAdminRequest(id) {
+        showConfirm('Approvare questa richiesta?', async () => {
+            const res = await fetch(`/api/auth/admin-requests/${id}/approve`, { method: 'POST', headers: authHeader() });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok) {
+                showMsg(
+                    'requestsMsg',
+                    d.executed
+                        ? 'Richiesta approvata: operazione applicata.'
+                        : `Approvazione registrata (${d.approvals}/${d.needed}). Serve un'altra approvazione.`,
+                    'success'
+                );
+                loadApprovals(); loadUsers(); refreshAarTabBadge();
+                if (typeof refreshNavBell === 'function') refreshNavBell();
+            } else {
+                showMsg('requestsMsg', d.error || 'Errore.', 'error');
+                loadApprovals(); refreshAarTabBadge();
+            }
+        });
+    }
+
+    function rejectAdminRequest(id, isMine) {
+        showConfirm(isMine ? 'Annullare la tua richiesta?' : 'Rifiutare questa richiesta?', async () => {
+            const res = await fetch(`/api/auth/admin-requests/${id}`, { method: 'DELETE', headers: authHeader() });
+            if (res.ok) {
+                showMsg('requestsMsg', isMine ? 'Richiesta annullata.' : 'Richiesta rifiutata.', 'success');
+                loadApprovals(); refreshAarTabBadge();
+                if (typeof refreshNavBell === 'function') refreshNavBell();
+            }
+            else { const d = await res.json(); showMsg('requestsMsg', d.error || 'Errore.', 'error'); }
+        });
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Storico corsi — CryptocurrenciesSection</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Abril+Fatface">
+    <link rel="stylesheet" href="/corsi/css/poole.css">
+    <link rel="stylesheet" href="/corsi/css/hyde.css">
+    <link rel="stylesheet" href="/corsi/css/syntax.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="/corsi/corsi-app.css?v=56">
+    <script src="/seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="/seasonal-theme.css?v=24">
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <div class="sidebar">
+        <div class="container sidebar-sticky">
+            <div class="sidebar-about">
+                <h1>Corsi</h1>
+                <p class="lead">Storico versioni Markdown.</p>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Navigazione storico">
+                <a class="sidebar-nav-item" href="/corsi">Corsi</a>
+                <a class="sidebar-nav-item" href="/corsi-gestione">Gestione contenuti</a>
+                <a class="sidebar-nav-item active" href="/corsi-storico">Storico versioni</a>
+            </nav>
+
+            <div class="sidebar-actions">
+                <a class="btn-portal" href="/corsi">Torna ai corsi</a>
+                <button type="button" class="btn-portal" id="btnExportMd" style="display:none;">Esporta</button>
+                <a class="btn-portal" href="/portal">Torna al portale</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content container">
+        <div id="contentRoot" class="page">
+            <h1 class="page-title">Storico versioni</h1>
+            <p>Caricamento...</p>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="corsi-modal" style="display:none;" role="dialog" aria-modal="true">
+        <div class="corsi-modal-box">
+            <p id="confirmMsg">Vuoi davvero disconnetterti?</p>
+            <div class="corsi-modal-actions">
+                <button type="button" id="confirmCancel">Annulla</button>
+                <button type="button" id="confirmOk">Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/auth-token.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="/corsi-export.js?v=9"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
+    <script src="/corsi-storico.js?v=22"></script>
+</body>
+</html>

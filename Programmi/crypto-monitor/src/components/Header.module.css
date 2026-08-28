@@ -1,0 +1,130 @@
+.header {
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.2s;
+}
+
+.logoSection {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+}
+
+.logoImage {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.logoImageActive {
+    transform: rotate(360deg) scale(1.2);
+}
+
+.titleContainer {
+    position: relative;
+}
+
+.title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.subtitle {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.easterEggBadge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: linear-gradient(45deg, #fbbf24, #f59e0b);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.5);
+    animation: bounce 0.5s ease-in-out infinite;
+}
+
+.controlsSection {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-left: auto;
+}
+
+.systemStatus {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #15803d;
+    background: #dcfce7;
+    /* Fallback */
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.systemStatusDark {
+    background: rgba(21, 128, 61, 0.2);
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    background: #16a34a;
+    border-radius: 50%;
+}
+
+.btnSecondary {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+}
+
+.btnActive {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.themeButton {
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-main);
+}
+
+.themeButtonDark {
+    color: #fbbf24;
+}
+
+
+
+/* Animations for Easter Egg Overlay (copied from inline styles) */
+/* Note: For global overlay animations it's better to keep them in a global css or make them global here */
+/* But Header.jsx used inline style tags for keyframes. I should probably move those to App.css or keep them if they are specific. */
+/* Actually, the easter egg overlay in Header.jsx is fixed positioned and essentially global. */

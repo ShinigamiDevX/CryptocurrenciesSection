@@ -1,0 +1,475 @@
+.dashboardGrid {
+    display: grid;
+    grid-template-columns: minmax(400px, 1fr) 1fr;
+    grid-template-rows: 1fr;
+    /* Force columns to respect grid height */
+    gap: 2rem;
+    height: 100%;
+    padding: 0 2rem 2rem 2rem;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.leftColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+    padding-right: 1rem;
+    height: 100%;
+    /* Explicit height */
+    max-height: 100%;
+}
+
+.totalValueCard {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.02) 100%);
+    border-color: rgba(37, 99, 235, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 120px;
+}
+
+.totalValueLabel {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0 0 0.25rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+}
+
+.totalValueAmount {
+    font-size: clamp(2.5rem, 3.5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.statusCard {
+    padding: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.statusCardConfiscated {
+    border-left: 3px solid #10b981;
+}
+
+.statusCardReleased {
+    border-left: 3px solid #ef4444;
+}
+
+.statusCardFrozen {
+    border-left: 3px solid #06b6d4; /* Cyan color */
+}
+
+.statusCardLabel {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.statusCardAmount {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.amountConfiscated {
+    color: #6ee7b7;
+}
+
+.amountReleased {
+    color: #fca5a5;
+}
+
+.amountFrozen {
+    color: #67e8f9;
+}
+
+.chartsRow {
+    display: flex;
+    gap: 1rem;
+    flex: 0 0 auto;
+    min-height: 280px;
+    flex-wrap: wrap;
+}
+
+.pieChartPanel {
+    flex: 2;
+    padding: 1rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.pieChartContainer {
+    flex: 1 1 200px;
+    min-height: 200px;
+    min-width: 200px;
+    display: flex;
+    justify-content: center;
+}
+
+.emptyChart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+}
+
+.legendGrid {
+    flex: 1 1 50%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px 12px;
+    min-width: 280px;
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-content: center;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.legendItemInner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legendDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legendSymbol {
+    font-weight: 500;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.legendPercent {
+    margin-left: auto;
+}
+
+.statsSummaryCard {
+    flex: 0 0 220px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.statsColumn {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.statsCardSmall {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.statsIcon {
+    background: var(--bg-app);
+    padding: 10px;
+    border-radius: 50%;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.statsCount {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+.statsLabel {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.historyChartPanel {
+    padding: 1.5rem;
+    flex: 0 0 auto;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.historyHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.historyTitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.historyChartContainer {
+    flex: 1;
+    width: 100%;
+    min-height: 150px;
+}
+
+.loadingHistory {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.errorMessage {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rightColumn {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    /* Explicit height */
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
+    /* Prevent horizontal overflow */
+}
+
+.searchHeader {
+    margin-bottom: 1rem;
+    padding-right: 1rem;
+}
+
+.searchTitle {
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    color: var(--text-main);
+}
+
+.searchBarContainer {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.searchInputWrapper {
+    position: relative;
+    flex: 1;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+
+.searchInput {
+    padding-left: 2.5rem;
+    padding-right: 2rem;
+    width: 100%;
+    /* Usually inherits from input-field class but can reinforce */
+}
+
+.clearSearch {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refreshButton {
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.assetGrid {
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    align-content: start;
+    min-height: 0;
+    /* Ensure grid doesn't overflow parent flex */
+}
+
+/* Ensure scrollbar is visible */
+.assetGrid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.assetGrid::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.assetGrid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.assetGrid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Tooltip Styles (used in recharts custom content) */
+.tooltipCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+}
+
+.tooltipTitle {
+    margin: 0;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.tooltipValue {
+    margin: 0;
+    color: var(--primary);
+}
+
+.tooltipPercent {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.tooltipHistoryDate {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.tooltipHistoryTotal {
+    margin: 4px 0 0 0;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+/* Export Mode Styles - Optimized for PDF capture */
+.isExporting #pie-chart-export,
+.isExporting #history-chart-export {
+    width: 1200px !important;
+    height: 450px !important;
+    min-height: 450px !important;
+    background: white !important;
+    padding: 30px !important;
+    border-radius: 0 !important;
+}
+
+.isExporting .historyTitle {
+    font-size: 1.8rem !important;
+    margin-bottom: 20px !important;
+}
+
+.isExporting .legendItem {
+    font-size: 1.4rem !important;
+    gap: 20px !important;
+}
+
+.isExporting .legendDot {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.isExporting .legendSymbol {
+    font-size: 1.4rem !important;
+}
+
+.isExporting .legendPercent {
+    font-size: 1.4rem !important;
+}
+
+/* Local Print Overrides to defeat CSS modules scoping */
+@media print {
+    .dashboardGrid {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+    }
+
+    .leftColumn {
+        height: auto !important;
+        overflow: visible !important;
+        max-height: none !important;
+        margin-bottom: 2rem !important;
+    }
+
+    .rightColumn {
+        height: auto !important;
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
+    .assetGrid {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .searchHeader {
+        display: none !important;
+    }
+}

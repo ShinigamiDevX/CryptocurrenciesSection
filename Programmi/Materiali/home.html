@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://world.openfoodfacts.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+    <title>Gestione Materiale Informatico - Selezione anno</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Su home la pagina deve scrollare (override di styles.css che blocca body) */
+        body.home-wrap {
+            height: auto;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .home-wrap {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+        }
+        .home-header {
+            background: var(--gradient-primary);
+            background-image: url('immagini/header_bianco.png');
+            background-size: cover;
+            background-position: center;
+            padding: 40px 24px;
+            text-align: center;
+            color: white;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+        }
+        .home-header .header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .home-header .header-top .theme-wrap {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+        }
+        .home-header .header-top .theme-wrap .theme-toggle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 1.4em;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .home-header .header-top .theme-wrap .theme-toggle:hover {
+            background: rgba(255,255,255,0.35);
+            transform: scale(1.08);
+        }
+        [data-theme="dark"] .home-header {
+            background-image: url('immagini/header_nero.jpg');
+        }
+        .home-header h1 {
+            margin: 0 0 8px 0;
+            font-size: clamp(1.5rem, 4vw, 2.2rem);
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .home-header p {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 1rem;
+        }
+        .home-actions {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        .home-actions label {
+            color: inherit;
+            font-weight: 600;
+        }
+        .anno-selector {
+            display: flex;
+            align-items: stretch;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: var(--border-radius-sm);
+            background: rgba(255,255,255,0.2);
+            overflow: hidden;
+        }
+        .home-actions input[type="number"] {
+            width: 90px;
+            padding: 12px 14px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-align: center;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            color: white;
+            -moz-appearance: textfield;
+        }
+        .home-actions input[type="number"]::-webkit-outer-spin-button,
+        .home-actions input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .home-actions input[type="number"]:focus {
+            outline: none;
+        }
+        .anno-selector:focus-within {
+            border-color: white;
+            background: rgba(255,255,255,0.25);
+        }
+        .home-actions input[type="number"]::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+        .anno-spinner {
+            display: flex;
+            flex-direction: column;
+            width: 28px;
+            flex-shrink: 0;
+            border-left: 1px solid rgba(255,255,255,0.3);
+        }
+        .anno-spinner button {
+            flex: 1;
+            min-height: 22px;
+            border: none;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 0.75rem;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .anno-spinner button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .anno-spinner button:first-child { border-radius: 0 var(--border-radius-sm) 0 0; }
+        .anno-spinner button:last-child { border-radius: 0 0 var(--border-radius-sm) 0; }
+        .btn-accedi {
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 700;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            background: rgba(255,255,255,0.95);
+            color: var(--accent-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+        }
+        .btn-accedi:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .home-main {
+            flex: 1;
+            padding: 40px 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .home-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius-lg);
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+        }
+        .home-card h2 {
+            margin: 0 0 24px 0;
+            font-size: 1.35rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stats-anni {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .anno-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .anno-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-colored);
+        }
+        .anno-card h3 {
+            margin: 0 0 16px 0;
+            font-size: 1.5rem;
+            color: var(--accent-primary);
+            font-family: 'Orbitron', monospace;
+        }
+        .anno-card .anno-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .anno-card .anno-stats span {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .anno-card .anno-stats strong {
+            color: var(--text-primary);
+        }
+        .anno-card .btn-anno {
+            display: inline-block;
+            width: 100%;
+            padding: 10px 16px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.1);
+            border: 2px solid var(--accent-primary);
+            border-radius: var(--border-radius-sm);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .anno-card .btn-anno:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+        .home-theme {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        .home-theme .theme-toggle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            background: var(--bg-card);
+            font-size: 1.4em;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+        }
+        .home-theme .theme-toggle:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.05);
+        }
+        /* Pulsante tema nell'header (visibile e accessibile) */
+        @media (max-width: 500px) {
+            .home-header .header-top .theme-wrap { position: static; margin-left: auto; }
+        }
+        .no-stats {
+            color: var(--text-muted);
+            font-style: italic;
+            padding: 20px 0;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 28px;
+            margin-top: 24px;
+        }
+        .chart-container {
+            position: relative;
+            height: 260px;
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+        .chart-container.wide {
+            grid-column: 1 / -1;
+            height: 280px;
+        }
+        .chart-container h3 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="home-wrap">
+    <header class="home-header">
+        <div class="header-top">
+            <div class="theme-wrap">
+                <button type="button" class="theme-toggle" id="themeToggle" aria-label="Cambia tema chiaro/scuro">
+                    <span id="themeIcon">🌙</span>
+                </button>
+            </div>
+        </div>
+        <h1>DATABASE MAGAZZINO</h1>
+        <p>Gestione materiale informatico e fondi</p>
+        <div class="home-actions">
+            <label for="annoInput">Anno di interesse:</label>
+            <div class="anno-selector">
+                <input type="number" id="annoInput" min="2000" max="2100" value="" placeholder="Anno">
+                <div class="anno-spinner">
+                    <button type="button" id="annoUp" aria-label="Aumenta anno">▲</button>
+                    <button type="button" id="annoDown" aria-label="Diminuisci anno">▼</button>
+                </div>
+            </div>
+            <button type="button" class="btn-accedi" id="btnAccedi">Accedi al database</button>
+        </div>
+    </header>
+
+    <main class="home-main">
+        <div class="home-card" id="chartsCard" style="display: none;">
+            <h2>📈 Grafici</h2>
+            <div class="charts-grid">
+                <div class="chart-container wide">
+                    <h3>Budget totale per anno</h3>
+                    <canvas id="chartBudget"></canvas>
+                </div>
+                <div class="chart-container wide">
+                    <h3>Valore materiale per anno</h3>
+                    <canvas id="chartValore"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Distribuzione materiale per fondo</h3>
+                    <canvas id="chartFondi"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Pezzi materiale e licenze per anno</h3>
+                    <canvas id="chartPezzi"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="home-card">
+            <h2>📊 Statistiche anni precedenti</h2>
+            <div id="statsAnni" class="stats-anni"></div>
+        </div>
+    </main>
+
+    <script src="js/db-storage.js"></script>
+    <script src="js/escape-utils.js"></script>
+    <script>
+        const ANNO_INPUT = document.getElementById('annoInput');
+        const BTN_ACCEDI = document.getElementById('btnAccedi');
+        const STATS_ANNI = document.getElementById('statsAnni');
+
+        const annoCorrente = new Date().getFullYear();
+        ANNO_INPUT.placeholder = String(annoCorrente);
+        ANNO_INPUT.value = annoCorrente;
+
+        function getAnniDisponibili() {
+            const anni = new Set();
+            if (window.DBStorage) {
+                const dbKeys = DBStorage.getKeysByPrefix('fondi_database_');
+                dbKeys.forEach(key => {
+                    const match = key && key.match(/^fondi_database_(\d{4})$/);
+                    if (match) anni.add(match[1]);
+                });
+            }
+            return Array.from(anni).sort((a, b) => Number(b) - Number(a));
+        }
+
+        function getDatiAnno(anno) {
+            let keyFondi = `fondi_database_${anno}`;
+            let keyMateriale = `materiale_informatico_${anno}`;
+            let keyLicenze = `licenze_database_${anno}`;
+            const fondi = window.DBStorage ? DBStorage.getArray(keyFondi) : [];
+            const materiale = window.DBStorage ? DBStorage.getArray(keyMateriale) : [];
+            const licenze = window.DBStorage ? DBStorage.getArray(keyLicenze) : [];
+            const budgetTotale = fondi.reduce((s, f) => s + (parseFloat(f.budgetIniziale) || 0), 0);
+            const valoreMateriale = materiale.reduce((s, m) => s + (parseFloat(m.costo) || 0), 0);
+            return { fondi, materiale, licenze, budgetTotale, valoreMateriale };
+        }
+
+        function renderStatisticheAnni() {
+            const anni = getAnniDisponibili();
+            if (anni.length === 0) {
+                STATS_ANNI.innerHTML = '<p class="no-stats">Nessun dato salvato per anni precedenti. Accedi al database per un anno e inserisci i dati.</p>';
+                return;
+            }
+            STATS_ANNI.innerHTML = anni.map(anno => {
+                const d = getDatiAnno(anno);
+                return `
+                    <div class="anno-card">
+                        <h3>${escapeHtml(anno)}</h3>
+                        <div class="anno-stats">
+                            <span><strong>${d.materiale.length}</strong> pezzi materiale</span>
+                            <span><strong>€${d.budgetTotale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong> budget totale</span>
+                            <span><strong>€${d.valoreMateriale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong> valore materiale</span>
+                            <span><strong>${d.licenze.length}</strong> licenze</span>
+                        </div>
+                        <a href="dashboard.html" class="btn-anno" data-anno="${escapeAttr(anno)}">Apri database ${escapeHtml(anno)}</a>
+                    </div>
+                `;
+            }).join('');
+
+            STATS_ANNI.querySelectorAll('.btn-anno').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const anno = this.getAttribute('data-anno');
+                    if (!anno || !/^\d{4}$/.test(anno)) return;
+                    sessionStorage.setItem('materiali_anno', anno);
+                    window.location.href = this.getAttribute('href');
+                });
+            });
+        }
+
+        let chartBudgetInst = null, chartValoreInst = null, chartFondiInst = null, chartPezziInst = null;
+        const CHART_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899'];
+        const CHART_COLORS_LIGHT = ['rgba(99,102,241,0.85)', 'rgba(139,92,246,0.85)', 'rgba(6,182,212,0.85)', 'rgba(16,185,129,0.85)', 'rgba(245,158,11,0.85)', 'rgba(236,72,153,0.85)'];
+
+        function getChartOptions(title) {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const textColor = isDark ? '#cbd5e1' : '#495057';
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: textColor, font: { size: 12 } } }
+                },
+                scales: {
+                    x: { ticks: { color: textColor }, grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' } },
+                    y: { ticks: { color: textColor }, grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' } }
+                }
+            };
+        }
+
+        function renderGrafici() {
+            const anni = getAnniDisponibili();
+            const card = document.getElementById('chartsCard');
+            if (anni.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = 'block';
+
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const textColor = isDark ? '#cbd5e1' : '#495057';
+            const palette = isDark ? CHART_COLORS : CHART_COLORS_LIGHT;
+
+            const budgets = anni.map(a => getDatiAnno(a).budgetTotale);
+            const valori = anni.map(a => getDatiAnno(a).valoreMateriale);
+            const pezzi = anni.map(a => getDatiAnno(a).materiale.length);
+            const licenze = anni.map(a => getDatiAnno(a).licenze.length);
+
+            [chartBudgetInst, chartValoreInst, chartFondiInst, chartPezziInst].forEach(c => { if (c) c.destroy(); });
+
+            chartBudgetInst = new Chart(document.getElementById('chartBudget'), {
+                type: 'bar',
+                data: {
+                    labels: anni,
+                    datasets: [{
+                        label: 'Budget totale (€)',
+                        data: budgets,
+                        backgroundColor: palette[0],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    ...getChartOptions(),
+                    plugins: {
+                        ...getChartOptions().plugins,
+                        tooltip: { callbacks: { label: (ctx) => '€ ' + (ctx.raw || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 }) } }
+                    }
+                }
+            });
+
+            chartValoreInst = new Chart(document.getElementById('chartValore'), {
+                type: 'bar',
+                data: {
+                    labels: anni,
+                    datasets: [{
+                        label: 'Valore materiale (€)',
+                        data: valori,
+                        backgroundColor: palette[2],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    ...getChartOptions(),
+                    plugins: {
+                        ...getChartOptions().plugins,
+                        tooltip: { callbacks: { label: (ctx) => '€ ' + (ctx.raw || 0).toLocaleString('it-IT', { minimumFractionDigits: 2 }) } }
+                    }
+                }
+            });
+
+            const ultimoAnno = anni[0];
+            const dUltimo = getDatiAnno(ultimoAnno);
+            const perFondo = {};
+            dUltimo.materiale.forEach(m => {
+                const f = (m.fondo || 'Altro').trim() || 'Altro';
+                perFondo[f] = (perFondo[f] || 0) + 1;
+            });
+            const fondiLabels = Object.keys(perFondo);
+            const fondiData = Object.values(perFondo);
+            if (fondiLabels.length === 0) { fondiLabels.push('Nessun dato'); fondiData.push(1); }
+
+            chartFondiInst = new Chart(document.getElementById('chartFondi'), {
+                type: 'doughnut',
+                data: {
+                    labels: fondiLabels,
+                    datasets: [{
+                        data: fondiData,
+                        backgroundColor: palette,
+                        borderWidth: 2,
+                        borderColor: isDark ? '#1e293b' : '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '58%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, padding: 14 } }
+                    }
+                }
+            });
+
+            chartPezziInst = new Chart(document.getElementById('chartPezzi'), {
+                type: 'bar',
+                data: {
+                    labels: anni,
+                    datasets: [
+                        { label: 'Pezzi materiale', data: pezzi, backgroundColor: palette[0], borderRadius: 6, borderSkipped: false },
+                        { label: 'Licenze', data: licenze, backgroundColor: palette[3], borderRadius: 6, borderSkipped: false }
+                    ]
+                },
+                options: {
+                    ...getChartOptions(),
+                    scales: {
+                        ...getChartOptions().scales,
+                        y: { ...getChartOptions().scales.y, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        BTN_ACCEDI.addEventListener('click', function() {
+            let anno = ANNO_INPUT.value.trim() || String(annoCorrente);
+            const num = parseInt(anno, 10);
+            if (num < 2000 || num > 2100) {
+                alert('Inserisci un anno tra 2000 e 2100.');
+                return;
+            }
+            anno = String(num);
+            sessionStorage.setItem('materiali_anno', anno);
+            window.location.href = 'dashboard.html';
+        });
+
+        ANNO_INPUT.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') BTN_ACCEDI.click();
+        });
+
+        document.getElementById('annoUp').addEventListener('click', function() {
+            const n = parseInt(ANNO_INPUT.value || annoCorrente, 10);
+            ANNO_INPUT.value = Math.min(2100, n + 1);
+        });
+        document.getElementById('annoDown').addEventListener('click', function() {
+            const n = parseInt(ANNO_INPUT.value || annoCorrente, 10);
+            ANNO_INPUT.value = Math.max(2000, n - 1);
+        });
+
+        renderStatisticheAnni();
+
+        // Tema chiaro/scuro
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const html = document.documentElement;
+        function initTheme() {
+            const saved = sessionStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (saved) html.setAttribute('data-theme', saved);
+            else if (prefersDark) html.setAttribute('data-theme', 'dark');
+            else html.setAttribute('data-theme', 'light');
+            if (themeIcon) themeIcon.textContent = html.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+        }
+        function toggleTheme() {
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            sessionStorage.setItem('theme', next);
+            if (themeIcon) themeIcon.textContent = next === 'dark' ? '☀️' : '🌙';
+            if (typeof renderGrafici === 'function') renderGrafici();
+        }
+        if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+        initTheme();
+        renderGrafici();
+    </script>
+</body>
+</html>

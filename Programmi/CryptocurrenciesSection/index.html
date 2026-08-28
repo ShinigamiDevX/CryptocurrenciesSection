@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0;url=/login">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>CryptocurrenciesSection</title>
+    <script src="auth-token.js?v=2"></script>
+</head>
+<body>
+    <script>
+        (async function () {
+            const token = typeof getAuthToken === 'function' ? getAuthToken() : localStorage.getItem('authToken');
+            if (token) {
+                try {
+                    const res = await fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + token } });
+                    if (res.ok) { window.location.replace('/portal'); return; }
+                } catch { /* ignore */ }
+                if (typeof clearAuth === 'function') clearAuth();
+                else localStorage.removeItem('authToken');
+            }
+            window.location.replace('/login');
+        })();
+    </script>
+</body>
+</html>

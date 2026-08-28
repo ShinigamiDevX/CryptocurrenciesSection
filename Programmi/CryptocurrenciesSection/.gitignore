@@ -1,0 +1,23 @@
+# Node
+cluster/dashboard/node_modules/
+auth/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+cluster/**/__pycache__/
+analisi/.venv/
+
+# Upload temporanei (i file generati, non la cartella)
+cluster/dashboard/uploads/*.csv
+cluster/dashboard/uploads/*.txt
+
+# Certificati locali
+cluster/dashboard/cert/
+
+# Auth — dati sensibili (non committare nel repo)
+auth/data/
+
+# Environment
+.env

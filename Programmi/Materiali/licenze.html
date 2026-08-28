@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://world.openfoodfacts.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+    <title>Licenze</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .sort-icon {
+            font-size: 0.8em;
+            opacity: 0.5;
+            margin-left: 5px;
+        }
+        .sortable.sort-asc .sort-icon::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        .sortable.sort-desc .sort-icon::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        .sortable.sort-asc .sort-icon,
+        .sortable.sort-desc .sort-icon {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="theme-toggle" id="themeToggle" aria-label="Cambia tema">
+                <span id="themeIcon">🌙</span>
+            </button>
+            <h2 class="sidebar-title">Menu</h2>
+        </div>
+        <div class="sidebar-anno" style="padding: 12px 24px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+            <span class="sidebar-text">Anno <strong id="sidebarAnno">—</strong></span>
+            <a href="home.html" class="sidebar-link" style="padding: 8px 0; margin-top: 4px;">Cambia anno</a>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="sidebar-link">
+                <span class="sidebar-icon">📊</span>
+                <span class="sidebar-text">Dashboard</span>
+            </a>
+            <a href="fondi.html" class="sidebar-link">
+                <span class="sidebar-icon">💰</span>
+                <span class="sidebar-text">Fondi</span>
+            </a>
+            <a href="materiale.html" class="sidebar-link">
+                <span class="sidebar-icon">💻</span>
+                <span class="sidebar-text">Materiale</span>
+            </a>
+            <a href="licenze.html" class="sidebar-link">
+                <span class="sidebar-icon">📜</span>
+                <span class="sidebar-text">Licenze</span>
+            </a>
+            <a href="personale.html" class="sidebar-link">
+                <span class="sidebar-icon">👤</span>
+                <span class="sidebar-text">Personale</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <h1 style="margin: 0;">GESTIONE LICENZE</h1>
+                <button class="btn btn-primary" onclick="openAddLicenzaModal()" style="font-size: 1em; padding: 12px 25px; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); backdrop-filter: blur(10px);">
+                    ➕ Aggiungi Nuova Licenza
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="stats" id="stats"></div>
+
+            <div class="filters">
+            <div class="filters">
+                <input type="text" id="searchInput" placeholder="Cerca per nome, tipo o account utente...">
+            </div>
+
+            <div class="table-section">
+                <table id="licenzeTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="nome">Nome <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="tipo">Tipo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="accountUtente">Account utente <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="fondo">Fondo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="capitolo">Capitolo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="dataAcquisto">Data Acquisto <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="dataScadenza">Data Scadenza <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="stato">Stato <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="costo">Costo <span class="sort-icon">⇅</span></th>
+                            <th class="sortable" data-sort="note">Note <span class="sort-icon">⇅</span></th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="licenzeTableBody"></tbody>
+                </table>
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <h3>Nessuna licenza trovata</h3>
+                    <p>Aggiungi una licenza utilizzando il form sopra</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale per aggiungere/modificare licenza -->
+    <div id="addLicenzaModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <button class="modal-close" onclick="closeAddLicenzaModal()">×</button>
+            <div class="modal-header">
+                <h2 id="modalLicenzaTitle">Aggiungi Nuova Licenza</h2>
+            </div>
+            <div class="modal-body">
+                <form id="licenzaForm">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <div>
+                            <label for="modalNome">Nome Licenza *</label>
+                            <input type="text" id="modalNome" required placeholder="Es. Microsoft Office 365" maxlength="200">
+                        </div>
+                        <div>
+                            <label for="modalTipo">Tipo/Software</label>
+                            <input type="text" id="modalTipo" placeholder="Es. Software, Cloud Service" maxlength="100">
+                        </div>
+                        <div>
+                            <label for="modalAccountUtente">Account utente *</label>
+                            <input type="text" id="modalAccountUtente" required placeholder="Es. mario.rossi@ente.it" maxlength="200">
+                        </div>
+                        <div style="grid-column: 1 / -1; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 180px;">
+                                <label for="modalFondo">Fondo di Acquisto *</label>
+                                <select id="modalFondo" required class="modal-select">
+                                    <option value="">Seleziona fondo...</option>
+                                </select>
+                            </div>
+                            <div id="modalCapitoloGroup" class="modal-capitolo-appear" style="display: none; flex: 1; min-width: 180px;">
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <label for="modalCapitoloNumeroLicenza">Capitolo (numero) *</label>
+                                    <input type="number" id="modalCapitoloNumeroLicenza" required placeholder="Es. 944" min="1" step="1" style="margin-bottom: 4px;">
+                                    <label for="modalCapitoloDescrizioneLicenza">Descrizione capitolo *</label>
+                                    <input type="text" id="modalCapitoloDescrizioneLicenza" required placeholder="Es. Voce acquisti informatica" maxlength="200">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="grid-column: 1 / -1; margin-top: -8px; margin-bottom: 8px;">
+                            <small id="modalFondoBudgetInfo" style="display: none; color: var(--text-secondary); font-weight: 600;"></small>
+                        </div>
+                        <div>
+                            <label for="modalDataAcquisto">Data Acquisto *</label>
+                            <input type="date" id="modalDataAcquisto" required>
+                        </div>
+                        <div>
+                            <label for="modalDataScadenza">Data Scadenza *</label>
+                            <input type="date" id="modalDataScadenza" required>
+                        </div>
+                        <div>
+                            <label for="modalCosto">Costo (€) *</label>
+                            <div class="number-spinner-wrap">
+                                <input type="number" id="modalCosto" step="0.01" min="0.01" required placeholder="0.00">
+                                <div class="number-spinner">
+                                    <button type="button" aria-label="Aumenta">▲</button>
+                                    <button type="button" aria-label="Diminuisci">▼</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label for="modalNote">Note</label>
+                            <input type="text" id="modalNote" placeholder="Note aggiuntive" maxlength="500">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddLicenzaModal()">Annulla</button>
+                <button class="btn btn-primary" id="modalLicenzaSubmit" onclick="confirmAddLicenza()">Aggiungi Licenza</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db-storage.js"></script>
+    <script src="js/escape-utils.js"></script>
+    <script>
+        function getMaterialiAnno() {
+            const fromSession = sessionStorage.getItem('materiali_anno');
+            if (fromSession && /^\d{4}$/.test(fromSession)) return fromSession;
+            const fromUrl = new URLSearchParams(window.location.search).get('anno');
+            if (fromUrl && /^\d{4}$/.test(fromUrl)) return fromUrl;
+            return String(new Date().getFullYear());
+        }
+        const ANNO = getMaterialiAnno();
+        const STORAGE_KEY = 'licenze_database_' + ANNO;
+        const FONDI_STORAGE_KEY = 'fondi_database_' + ANNO;
+
+        if (document.getElementById('sidebarAnno')) document.getElementById('sidebarAnno').textContent = ANNO;
+
+        let editingLicenzaId = null;
+        
+        // Variabili per ordinamento
+        let currentSortColumn = null;
+        let currentSortDirection = 'asc';
+
+        function loadData() {
+            if (!window.DBStorage) return [];
+            return DBStorage.getArray(STORAGE_KEY);
+        }
+
+        function saveData(data) {
+            if (window.DBStorage) DBStorage.set(STORAGE_KEY, data);
+        }
+
+        function loadFondi() {
+            if (!window.DBStorage) return [];
+            return DBStorage.getArray(FONDI_STORAGE_KEY);
+        }
+
+        // Parsing capitolo: da stringa "944 - Voce" o "Capitolo 944" -> { numero, descrizione }
+        function parseCapitolo(str) {
+            if (!str || !String(str).trim()) return { numero: '', descrizione: '' };
+            const s = String(str).trim();
+            const m = s.match(/^(?:Capitolo\s*)?(\d+)\s*(?:[-–]\s*(.*))?$/i) || s.match(/^(\d+)\s*(?:[-–]\s*(.*))?$/);
+            if (m) return { numero: m[1].trim(), descrizione: (m[2] || '').trim() };
+            if (/^\d+$/.test(s)) return { numero: s, descrizione: '' };
+            return { numero: '', descrizione: s };
+        }
+        function buildCapitolo(numero, descrizione) {
+            const n = (numero || '').toString().trim();
+            const d = (descrizione || '').trim();
+            return n ? (d ? n + ' - ' + d : n) : '';
+        }
+        // Catalogo numero -> descrizione da materiale, licenze, fondi (per auto-compilazione)
+        function getCapitoliCensiti() {
+            const map = {};
+            function add(str) {
+                const p = parseCapitolo(str);
+                if (p.numero && p.descrizione && !map[p.numero]) map[p.numero] = p.descrizione;
+            }
+            try {
+                const mat = window.DBStorage ? DBStorage.getArray('materiale_informatico_' + ANNO) : [];
+                (mat || []).forEach(m => add(m.capitolo));
+            } catch (e) {}
+            (loadData() || []).forEach(l => add(l.capitolo));
+            (loadFondi() || []).forEach(f => add(f.capitolo));
+            return map;
+        }
+        function populateFondiSelect() {
+            const fondi = loadFondi();
+            const modalFondo = document.getElementById('modalFondo');
+            if (modalFondo) {
+                modalFondo.innerHTML = '<option value="">Seleziona fondo...</option>';
+                fondi.forEach(fondo => {
+                    const option = document.createElement('option');
+                    option.value = fondo.nome;
+                    option.textContent = fondo.nome;
+                    modalFondo.appendChild(option);
+                });
+            }
+        }
+
+        function updateCapitoloGroupLicenza() {
+            const gruppo = document.getElementById('modalCapitoloGroup');
+            const fondoSelect = document.getElementById('modalFondo');
+            const capNum = document.getElementById('modalCapitoloNumeroLicenza');
+            const capDesc = document.getElementById('modalCapitoloDescrizioneLicenza');
+            const budgetInfo = document.getElementById('modalFondoBudgetInfo');
+            const nomeFondo = fondoSelect && fondoSelect.value ? fondoSelect.value.trim() : '';
+            if (!nomeFondo) {
+                if (gruppo) gruppo.style.display = 'none';
+                if (budgetInfo) budgetInfo.style.display = 'none';
+                if (capNum) capNum.removeAttribute('required');
+                if (capDesc) capDesc.removeAttribute('required');
+                return;
+            }
+            const fondi = loadFondi();
+            const fondo = fondi.find(f => f.nome === nomeFondo);
+            if (!fondo) {
+                if (gruppo) gruppo.style.display = 'none';
+                if (budgetInfo) budgetInfo.style.display = 'none';
+                if (capNum) capNum.removeAttribute('required');
+                if (capDesc) capDesc.removeAttribute('required');
+                return;
+            }
+            if (gruppo) {
+                gruppo.style.display = 'block';
+                gruppo.classList.add('just-appeared');
+                setTimeout(() => gruppo.classList.remove('just-appeared'), 600);
+            }
+            const parsed = parseCapitolo(fondo.capitolo || '');
+            if (capNum) { capNum.value = parsed.numero || ''; capNum.setAttribute('required', 'required'); }
+            if (capDesc) { capDesc.value = parsed.descrizione || ''; capDesc.setAttribute('required', 'required'); }
+            if (budgetInfo) {
+                budgetInfo.style.display = 'block';
+                const residuo = parseFloat(fondo.budgetResiduo) || 0;
+                const iniziale = parseFloat(fondo.budgetIniziale) || 0;
+                budgetInfo.textContent = 'Disponibile in questo fondo: €' + residuo.toLocaleString('it-IT', { minimumFractionDigits: 2 }) + ' (su €' + iniziale.toLocaleString('it-IT', { minimumFractionDigits: 2 }) + ' budget iniziale)';
+            }
+        }
+
+        window.openAddLicenzaModal = function() {
+            editingLicenzaId = null;
+            document.getElementById('modalLicenzaTitle').textContent = 'Aggiungi Nuova Licenza';
+            document.getElementById('modalLicenzaSubmit').textContent = 'Aggiungi Licenza';
+            document.getElementById('licenzaForm').reset();
+            document.getElementById('modalCapitoloGroup').style.display = 'none';
+            const capNum = document.getElementById('modalCapitoloNumeroLicenza');
+            const capDesc = document.getElementById('modalCapitoloDescrizioneLicenza');
+            if (capNum) capNum.removeAttribute('required');
+            if (capDesc) capDesc.removeAttribute('required');
+            populateFondiSelect();
+            document.getElementById('addLicenzaModal').classList.add('active');
+            document.getElementById('modalNome').focus();
+        };
+
+        function closeAddLicenzaModal() {
+            document.getElementById('addLicenzaModal').classList.remove('active');
+            editingLicenzaId = null;
+            document.getElementById('licenzaForm').reset();
+        }
+
+        window.confirmAddLicenza = function() {
+            const form = document.getElementById('licenzaForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            const capNumLic = document.getElementById('modalCapitoloNumeroLicenza');
+            const capDescLic = document.getElementById('modalCapitoloDescrizioneLicenza');
+            const nuovaLicenza = {
+                id: editingLicenzaId || generateId(),
+                nome: sanitizeInput(document.getElementById('modalNome').value, 200),
+                tipo: sanitizeInput(document.getElementById('modalTipo').value, 100),
+                accountUtente: sanitizeInput(document.getElementById('modalAccountUtente') && document.getElementById('modalAccountUtente').value, 200),
+                fondo: (document.getElementById('modalFondo').value || '').trim().slice(0, 200),
+                capitolo: buildCapitolo(capNumLic && capNumLic.value, sanitizeInput(capDescLic && capDescLic.value, 200)),
+                dataAcquisto: document.getElementById('modalDataAcquisto').value || '',
+                dataScadenza: document.getElementById('modalDataScadenza').value || '',
+                costo: document.getElementById('modalCosto').value || '0',
+                note: sanitizeInput(document.getElementById('modalNote').value, 500),
+                dataInserimento: editingLicenzaId ? loadData().find(l => l.id === editingLicenzaId)?.dataInserimento : new Date().toISOString()
+            };
+
+            const licenze = loadData();
+            const isEditing = !!editingLicenzaId;
+            
+            if (isEditing) {
+                // Modifica licenza esistente
+                const index = licenze.findIndex(l => l.id === editingLicenzaId);
+                if (index !== -1) {
+                    licenze[index] = nuovaLicenza;
+                }
+                editingLicenzaId = null;
+            } else {
+                // Aggiungi nuova licenza
+                licenze.push(nuovaLicenza);
+            }
+            
+            saveData(licenze);
+
+            closeAddLicenzaModal();
+
+            // Aggiorna visualizzazione
+            renderTable();
+            renderStats();
+
+            alert(isEditing ? 'Licenza modificata con successo!' : 'Licenza aggiunta con successo!');
+        };
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function getFondoBadgeClass(fondo) {
+            const classMap = {
+                'Fondi Europei': 'badge-fondi-europei',
+                'Arma dei Carabinieri': 'badge-carabinieri',
+                'Europol': 'badge-europol',
+                'Altro': 'badge-altro'
+            };
+            return classMap[fondo] || 'badge-altro';
+        }
+
+        function getStatoLicenza(dataScadenza) {
+            if (!dataScadenza) return 'attiva';
+            
+            const oggi = new Date();
+            oggi.setHours(0, 0, 0, 0);
+            const scadenza = new Date(dataScadenza);
+            scadenza.setHours(0, 0, 0, 0);
+            
+            const giorniRimanenti = Math.ceil((scadenza - oggi) / (1000 * 60 * 60 * 24));
+            
+            if (giorniRimanenti < 0) return 'scaduta';
+            if (giorniRimanenti <= 30) return 'in-scadenza';
+            return 'attiva';
+        }
+
+        function getStatoBadgeClass(stato) {
+            const classMap = {
+                'attiva': 'badge-magazzino',
+                'in-scadenza': 'badge-in-uso',
+                'scaduta': 'badge-altro'
+            };
+            return classMap[stato] || 'badge-altro';
+        }
+
+        function getStatoText(stato, dataScadenza) {
+            if (!dataScadenza) return stato;
+            
+            const oggi = new Date();
+            oggi.setHours(0, 0, 0, 0);
+            const scadenza = new Date(dataScadenza);
+            scadenza.setHours(0, 0, 0, 0);
+            
+            const giorniRimanenti = Math.ceil((scadenza - oggi) / (1000 * 60 * 60 * 24));
+            
+            if (giorniRimanenti < 0) return `Scaduta (${Math.abs(giorniRimanenti)} giorni fa)`;
+            if (giorniRimanenti <= 30) return `In Scadenza (${giorniRimanenti} giorni)`;
+            return `Attiva (${giorniRimanenti} giorni)`;
+        }
+
+        function renderStats() {
+            const licenze = loadData();
+            const totale = licenze.length;
+            const attive = licenze.filter(l => getStatoLicenza(l.dataScadenza) === 'attiva').length;
+            const inScadenza = licenze.filter(l => getStatoLicenza(l.dataScadenza) === 'in-scadenza').length;
+            const scadute = licenze.filter(l => getStatoLicenza(l.dataScadenza) === 'scaduta').length;
+            const totaleCosto = licenze.reduce((sum, l) => sum + (parseFloat(l.costo) || 0), 0);
+
+            const statsHTML = `
+                <div class="stat-card">
+                    <h3>${totale}</h3>
+                    <p>Totale Licenze</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${attive}</h3>
+                    <p>Attive</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${inScadenza}</h3>
+                    <p>In Scadenza</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${scadute}</h3>
+                    <p>Scadute</p>
+                </div>
+                <div class="stat-card">
+                    <h3>€${totaleCosto.toLocaleString('it-IT', {minimumFractionDigits: 2})}</h3>
+                    <p>Valore Totale</p>
+                </div>
+            `;
+
+            document.getElementById('stats').innerHTML = statsHTML;
+        }
+
+        function sortLicenze(data, column, direction) {
+            const sorted = [...data].sort((a, b) => {
+                let aVal = a[column] || '';
+                let bVal = b[column] || '';
+                
+                // Gestione valori numerici
+                if (column === 'costo') {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                
+                // Gestione date
+                if (column === 'dataAcquisto' || column === 'dataScadenza') {
+                    aVal = aVal ? new Date(aVal).getTime() : 0;
+                    bVal = bVal ? new Date(bVal).getTime() : 0;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                
+                // Gestione stato (calcola dinamicamente)
+                if (column === 'stato') {
+                    aVal = getStatoLicenza(a.dataScadenza);
+                    bVal = getStatoLicenza(b.dataScadenza);
+                }
+                
+                // Gestione stringhe
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+                
+                if (direction === 'asc') {
+                    return aVal.localeCompare(bVal);
+                } else {
+                    return bVal.localeCompare(aVal);
+                }
+            });
+            
+            return sorted;
+        }
+
+        function handleSortClick(column) {
+            if (currentSortColumn === column) {
+                // Inverti direzione se stessa colonna
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // Nuova colonna, inizia con asc
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+            
+            // Aggiorna icone
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.getAttribute('data-sort') === column) {
+                    th.classList.add(`sort-${currentSortDirection}`);
+                }
+            });
+            
+            // Applica ordinamento e renderizza
+            const licenze = loadData();
+            const sorted = sortLicenze(licenze, column, currentSortDirection);
+            renderTable(sorted);
+        }
+
+        function renderTable(filteredData = null) {
+            let licenze = filteredData || loadData();
+            const tbody = document.getElementById('licenzeTableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            // Applica ordinamento se presente
+            if (currentSortColumn && !filteredData) {
+                licenze = sortLicenze(licenze, currentSortColumn, currentSortDirection);
+            }
+
+            if (licenze.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            tbody.innerHTML = licenze.map(item => {
+                const costo = parseFloat(item.costo) || 0;
+                const stato = getStatoLicenza(item.dataScadenza);
+                const statoText = getStatoText(stato, item.dataScadenza);
+                
+                return `
+                    <tr>
+                        <td>${escapeHtml(item.nome)}</td>
+                        <td>${escapeHtml(item.tipo || '-')}</td>
+                        <td>${escapeHtml(item.accountUtente || '-')}</td>
+                        <td><span class="badge ${getFondoBadgeClass(item.fondo)}">${escapeHtml(item.fondo)}</span></td>
+                        <td>${escapeHtml(item.capitolo || '-')}</td>
+                        <td>${escapeHtml(item.dataAcquisto || '-')}</td>
+                        <td>${escapeHtml(item.dataScadenza || '-')}</td>
+                        <td><span class="badge ${getStatoBadgeClass(stato)}">${escapeHtml(statoText)}</span></td>
+                        <td>${costo > 0 ? '€' + costo.toLocaleString('it-IT', {minimumFractionDigits: 2}) : '-'}</td>
+                        <td>${escapeHtml(item.note || '-')}</td>
+                        <td class="actions">
+                            <button class="btn btn-secondary edit-licenza-btn" data-licenza-id="${escapeAttr(item.id)}" style="font-size: 0.85em; padding: 8px 15px;">Modifica</button>
+                            <button class="btn btn-danger delete-licenza-btn" data-licenza-id="${escapeAttr(item.id)}" style="font-size: 0.85em; padding: 8px 15px;">Elimina</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Elimina licenza
+        window.deleteLicenza = function(id) {
+            if (confirm('Sei sicuro di voler eliminare questa licenza?')) {
+                const licenze = loadData();
+                const filtered = licenze.filter(l => l.id !== id);
+                saveData(filtered);
+                renderTable();
+                renderStats();
+            }
+        };
+
+        // Modifica licenza
+        function editLicenza(id) {
+            const licenze = loadData();
+            const item = licenze.find(l => l.id === id);
+            if (!item) return;
+
+            editingLicenzaId = id;
+
+            document.getElementById('modalNome').value = item.nome;
+            document.getElementById('modalTipo').value = item.tipo || '';
+            if (document.getElementById('modalAccountUtente')) document.getElementById('modalAccountUtente').value = item.accountUtente || '';
+            populateFondiSelect();
+            document.getElementById('modalFondo').value = item.fondo;
+            updateCapitoloGroupLicenza();
+            const parsed = parseCapitolo(item.capitolo || '');
+            const capNum = document.getElementById('modalCapitoloNumeroLicenza');
+            const capDesc = document.getElementById('modalCapitoloDescrizioneLicenza');
+            if (capNum) capNum.value = parsed.numero || '';
+            if (capDesc) capDesc.value = parsed.descrizione || '';
+            document.getElementById('modalDataAcquisto').value = item.dataAcquisto || '';
+            document.getElementById('modalDataScadenza').value = item.dataScadenza || '';
+            document.getElementById('modalCosto').value = item.costo || '';
+            document.getElementById('modalNote').value = item.note || '';
+
+            document.getElementById('modalLicenzaTitle').textContent = 'Modifica Licenza';
+            document.getElementById('modalLicenzaSubmit').textContent = 'Salva Modifiche';
+            
+            document.getElementById('addLicenzaModal').classList.add('active');
+            document.getElementById('modalNome').focus();
+        }
+
+        // Filtra licenze
+        function filterLicenze() {
+            const licenze = loadData();
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = licenze;
+
+            if (searchTerm) {
+                filtered = filtered.filter(l => 
+                    l.nome.toLowerCase().includes(searchTerm) ||
+                    (l.tipo && l.tipo.toLowerCase().includes(searchTerm)) ||
+                    (l.accountUtente && l.accountUtente.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            // Applica ordinamento se presente
+            if (currentSortColumn) {
+                filtered = sortLicenze(filtered, currentSortColumn, currentSortDirection);
+            }
+
+            renderTable(filtered);
+        }
+
+        // Gestione chiusura modale con click esterno o ESC
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('addLicenzaModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeAddLicenzaModal();
+                    }
+                });
+            }
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+                    closeAddLicenzaModal();
+                }
+            });
+        });
+
+        // Aggiungi event listener ai pulsanti dopo il rendering
+        function attachEventListeners() {
+            document.querySelectorAll('.edit-licenza-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const licenzaId = this.getAttribute('data-licenza-id');
+                    editLicenza(licenzaId);
+                });
+            });
+
+            document.querySelectorAll('.delete-licenza-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const licenzaId = this.getAttribute('data-licenza-id');
+                    deleteLicenza(licenzaId);
+                });
+            });
+        }
+
+        // Event listeners per filtri
+        document.getElementById('searchInput').addEventListener('input', filterLicenze);
+        document.getElementById('modalFondo').addEventListener('change', updateCapitoloGroupLicenza);
+        // Auto-compila descrizione capitolo se il numero è già censito
+        (function() {
+            const numInput = document.getElementById('modalCapitoloNumeroLicenza');
+            const descInput = document.getElementById('modalCapitoloDescrizioneLicenza');
+            if (numInput && descInput) numInput.addEventListener('blur', function() {
+                const n = (this.value || '').toString().trim();
+                if (!n) return;
+                const catalog = getCapitoliCensiti();
+                if (catalog[n]) descInput.value = catalog[n];
+            });
+        })();
+
+        // Inizializzazione
+        populateFondiSelect();
+        renderTable();
+        renderStats();
+        
+        // Attacca event listener per ordinamento
+        function attachSortListeners() {
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.removeEventListener('click', handleSortClickHandler);
+                const column = th.getAttribute('data-sort');
+                th.addEventListener('click', function() {
+                    handleSortClick(column);
+                });
+            });
+        }
+        
+        // Attacca gli event listener dopo un breve delay
+        setTimeout(() => {
+            attachEventListeners();
+            attachSortListeners();
+        }, 100);
+        
+        // Attacca anche dopo ogni renderTable
+        const originalRenderTable = renderTable;
+        renderTable = function(filteredData = null) {
+            originalRenderTable(filteredData);
+            setTimeout(() => {
+                attachEventListeners();
+                attachSortListeners();
+            }, 50);
+        };
+
+        // Gestione Tema
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const html = document.documentElement;
+
+        function initTheme() {
+            const savedTheme = sessionStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                html.setAttribute('data-theme', savedTheme);
+            } else if (prefersDark) {
+                html.setAttribute('data-theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            sessionStorage.setItem('theme', newTheme);
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const currentTheme = html.getAttribute('data-theme');
+            themeIcon.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        initTheme();
+
+        // Frecce ▲▼ per campi numerici
+        function initNumberSpinners() {
+            document.querySelectorAll('.number-spinner-wrap').forEach(wrap => {
+                const input = wrap.querySelector('input[type="number"]');
+                if (!input) return;
+                const step = parseFloat(input.getAttribute('step')) || 1;
+                const min = input.hasAttribute('min') ? parseFloat(input.getAttribute('min')) : null;
+                const max = input.hasAttribute('max') ? parseFloat(input.getAttribute('max')) : null;
+                const buttons = wrap.querySelectorAll('.number-spinner button');
+                if (buttons[0]) buttons[0].addEventListener('click', () => {
+                    let v = parseFloat(input.value) || 0;
+                    v = step >= 1 && step === Math.floor(step) ? v + step : parseFloat((v + step).toFixed(2));
+                    if (max != null && v > max) v = max;
+                    input.value = String(v);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                if (buttons[1]) buttons[1].addEventListener('click', () => {
+                    let v = parseFloat(input.value) || 0;
+                    v = step >= 1 && step === Math.floor(step) ? v - step : parseFloat((v - step).toFixed(2));
+                    if (min != null && v < min) v = min;
+                    input.value = String(v);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+        }
+        initNumberSpinners();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Il mio profilo — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=3">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="custom-select.css?v=8">
+    <link rel="stylesheet" href="custom-date.css?v=8">
+    <link rel="stylesheet" href="luogo-nascita.css?v=5">
+    <style>
+        .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
+        .nav-bell-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 36px; height: 36px; padding: 0; margin: 0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25);
+            border-radius: 9px; color: #7ACCE0; cursor: pointer;
+        }
+        .nav-bell-btn:hover, .nav-bell-btn.open { background: rgba(0,200,255,0.16); border-color: rgba(0,200,255,0.55); color: #00C8FF; }
+        .nav-bell-btn svg, .nav-bell-btn img { width: 18px; height: 18px; fill: currentColor; display: block; }
+        .nav-bell-badge {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
+            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+        }
+        .nav-bell-badge.visible { display: block; }
+        #navBellPanel {
+            display: none !important; position: fixed; top: 64px; right: 1rem;
+            width: min(360px, calc(100vw - 2rem)); background: #030E1C;
+            border: 1px solid rgba(0,200,255,0.28); border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.65); z-index: 3000; overflow: hidden;
+        }
+        #navBellPanel.open { display: block !important; }
+        #navBellPanel.open.nav-bell-fullscreen { display: flex !important; }
+        #navBellPanel .nav-bell-panel-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        #navBellPanel .nav-bell-panel-head strong { color: #00C8FF; font-size: 0.88rem; }
+        #navBellPanel .nav-bell-head-actions { display: flex; align-items: center; gap: 0.75rem; }
+        #navBellPanel .nav-bell-head-btn, #navBellPanel .nav-bell-panel-head a {
+            color: #7ACCE0 !important; font-size: 0.75rem !important; text-transform: none !important;
+            background: none !important; padding: 0 !important; letter-spacing: 0 !important;
+            border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+        }
+        #navBellPanel .nav-bell-empty { padding: 1.4rem 1rem; color: #5ABBC8; font-size: 0.85rem; text-align: center; }
+        #navBellPanel .nav-bell-item {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem;
+            padding: 0.85rem 1rem; border-bottom: 1px solid rgba(0,200,255,0.08);
+            color: #C8F0E8; text-decoration: none; text-transform: none; letter-spacing: 0;
+        }
+        #navBellPanel .nav-bell-item.unread { background: rgba(0,200,255,0.06); border-left: 3px solid #00C8FF; }
+        #navBellPanel .nav-bell-item.unread strong { color: #00C8FF; }
+        #navBellPanel .nav-bell-item-body { display: block; width: 100%; color: inherit; text-decoration: none; background: none !important; padding: 0 !important; text-transform: none; }
+        #navBellPanel .nav-bell-item strong { display: block; font-size: 0.86rem; margin-bottom: 0.2rem; }
+        #navBellPanel .nav-bell-item span { display: block; font-size: 0.78rem; color: #5ABBC8; }
+        #navBellPanel .nav-bell-item time { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7ACCE0; }
+        #navBellPanel .nav-bell-mark-one {
+            padding: 0.3rem 0.7rem; font-size: 0.72rem; font-weight: 600; font-family: inherit;
+            color: #00C8FF; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 6px; cursor: pointer;
+        }
+        #navBellPanel.nav-bell-fullscreen {
+            display: flex !important; flex-direction: column; z-index: 5000;
+            border-radius: 0 !important; border: none;
+        }
+        #navBellPanel.nav-bell-fullscreen .nav-bell-list {
+            flex: 1; max-height: none; max-width: 720px; width: 100%; margin: 0 auto; padding: 0.5rem 1rem 2rem;
+        }
+        header .header-inner { flex-wrap: nowrap !important; height: 68px !important; flex-direction: row !important; }
+        header nav ul { flex-wrap: nowrap !important; align-items: center; }
+        header nav ul li { white-space: nowrap; }
+        li.nav-logout a {
+            background: linear-gradient(135deg, #00d4ff, #7b5ea7) !important;
+            color: #fff !important; padding: 0.45rem 1.2rem !important;
+            border-radius: 8px !important; text-transform: none !important;
+        }
+
+        #authOverlay { position:fixed;inset:0;background:#030E1C;z-index:9999;display:flex;align-items:center;justify-content:center; }
+        #authOverlay span { color:#00C8FF;font-family:Inter,sans-serif;font-size:1rem; }
+
+        main { max-width: none; width: 100%; padding: 1.5rem 2rem; margin: 0 auto; }
+        .page-title { font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .page-title img, .page-title-icon { width: 1.35em; height: 1.35em; display: block; flex-shrink: 0; }
+        .page-sub   { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 2rem; text-align: center; max-width: 720px; }
+
+        .profile-card {
+            background: rgba(0,200,255,0.04);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 14px;
+            padding: 1.8rem 2rem;
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        .profile-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem;
+        }
+        .profile-head h3 { color: #C8F0E8; font-size: 1.15rem; margin: 0; }
+        .profile-head .role-badge {
+            display: inline-block; margin-left: 0.5rem; padding: 0.15rem 0.55rem;
+            border-radius: 5px; font-size: 0.75rem; font-weight: 600;
+            background: rgba(0,200,255,0.15); color: #00C8FF; vertical-align: middle;
+        }
+
+        .btn-edit {
+            padding: 0.55rem 1.2rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700;
+            font-size: 0.88rem; cursor: pointer;
+        }
+        .btn-edit:hover { opacity: 0.9; }
+        .btn-cancel {
+            padding: 0.55rem 1.2rem; background: transparent;
+            border: 1px solid rgba(0,200,255,0.3); border-radius: 7px;
+            color: #5ABBC8; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+        }
+        .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+        .btn-save {
+            padding: 0.55rem 1.3rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700;
+            font-size: 0.88rem; cursor: pointer;
+        }
+        .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .locked-note {
+            font-size: 0.85rem; color: #7ACCE0;
+            background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.2);
+            border-radius: 8px; padding: 0.7rem 1rem; margin-bottom: 1.2rem;
+        }
+
+        .dl-grid {
+            display: grid; grid-template-columns: 140px 1fr; gap: 0.85rem 1rem;
+            align-items: center;
+        }
+        .dl-grid dt {
+            font-size: 0.75rem; font-weight: 600; color: #7ACCE0;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .dl-grid dd { margin: 0; color: #C8F0E8; font-size: 0.95rem; }
+        .grado-row { display: flex; align-items: center; gap: 0.6rem; }
+        .grado-row img { width: 36px; height: 36px; object-fit: contain; }
+
+        .edit-field { margin-bottom: 1rem; }
+        .edit-field label {
+            display: block; font-size: 0.78rem; font-weight: 600; color: #7ACCE0;
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;
+        }
+        .edit-field input {
+            width: 100%; padding: 0.65rem 0.9rem; background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.22); border-radius: 8px;
+            color: #C8F0E8; font-size: 0.9rem; font-family: inherit; outline: none;
+        }
+        .edit-field input:focus { border-color: rgba(0,200,255,0.6); }
+        .edit-field input:disabled { opacity: 0.55; cursor: not-allowed; }
+        .edit-row { display: flex; gap: 0.75rem; }
+        .edit-row .edit-field { flex: 1; }
+        .check-field { margin-bottom: 0.5rem; }
+        .check-label {
+            display: flex; align-items: center; gap: 0.55rem;
+            font-size: 0.88rem; font-weight: 500; text-transform: none;
+            letter-spacing: 0; color: #C8F0E8; cursor: pointer; margin-bottom: 0;
+        }
+        .check-label input[type="checkbox"] {
+            width: auto; padding: 0; accent-color: #00C8FF; cursor: pointer;
+        }
+        .edit-actions { display: flex; gap: 0.7rem; justify-content: flex-end; margin-top: 0.5rem; }
+        .edit-field:has(.csel) { position: relative; z-index: 5; }
+        .edit-field:has(.cdate) { position: relative; z-index: 6; }
+
+        .feedback { border-radius: 8px; font-size: 0.85rem; padding: 0.7rem 1rem; margin: 0 auto 1rem; display: none; max-width: 720px; }
+        .feedback.error   { background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.35); color: #FF6B7A; }
+        .feedback.success { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35); color: #00E676; }
+
+        .confirm-bg {
+            position: fixed; inset: 0; background: rgba(3,14,28,0.85); z-index: 9500;
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        .confirm-box {
+            background: #030E1C; border: 1px solid rgba(0,200,255,0.28); border-radius: 14px;
+            padding: 1.8rem 2rem; width: 100%; max-width: 380px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.08), 0 24px 60px rgba(0,0,0,0.75);
+        }
+        .confirm-box p { color: #C8F0E8; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.4rem; }
+        .confirm-btns { display: flex; gap: 0.7rem; justify-content: flex-end; }
+        .confirm-btns .btn-ok {
+            padding: 0.6rem 1.4rem; background: linear-gradient(135deg,#00C8FF,#00E676);
+            border: none; border-radius: 7px; color: #030E1C; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+        }
+        .confirm-btns .btn-cancel {
+            padding: 0.6rem 1.2rem; background: transparent; border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 7px; color: #5ABBC8; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+        }
+        .confirm-btns .btn-cancel:hover { background: rgba(0,200,255,0.07); }
+
+        @media (max-width: 600px) {
+            .dl-grid { grid-template-columns: 1fr; gap: 0.25rem 0; }
+            .dl-grid dt { margin-top: 0.6rem; }
+            .edit-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Il mio profilo</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title">
+            <svg class="page-title-icon" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ug-line-user" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7dd3fc"/><stop offset="48%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#2dd4bf"/></linearGradient></defs><path fill="url(#ug-line-user)" d="M15.71,12.71a6,6,0,1,0-7.42,0,10,10,0,0,0-6.22,8.18,1,1,0,0,0,2,.22,8,8,0,0,1,15.9,0,1,1,0,0,0,1,.89h.11a1,1,0,0,0,.88-1.1A10,10,0,0,0,15.71,12.71ZM12,12a4,4,0,1,1,4-4A4,4,0,0,1,12,12Z"/></svg>
+            Il mio profilo
+        </div>
+        <p class="page-sub">Visualizza i tuoi dati anagrafici e modifica la password di accesso.</p>
+
+        <div class="feedback" id="profileMsg"></div>
+
+        <div class="profile-card">
+            <div class="profile-head">
+                <h3>Dati account <span class="role-badge" id="viewRole">—</span></h3>
+                <button type="button" class="btn-edit" id="btnEdit" style="display:none;" onclick="enterEditMode()">Modifica</button>
+            </div>
+
+            <div id="lockedNote" class="locked-note" style="display:none;">
+                Il profilo di sistema non può essere modificato.
+            </div>
+
+            <!-- Vista -->
+            <div id="viewMode">
+                <dl class="dl-grid">
+                    <dt>Email</dt>
+                    <dd id="viewEmail">—</dd>
+                    <dt>Nome</dt>
+                    <dd id="viewNome">—</dd>
+                    <dt>Cognome</dt>
+                    <dd id="viewCognome">—</dd>
+                    <dt id="gradoLabel">Grado</dt>
+                    <dd id="viewGrado" class="grado-row">—</dd>
+                    <dt>Data di nascita</dt>
+                    <dd id="viewDataNascita">—</dd>
+                    <dt>Luogo di nascita</dt>
+                    <dd id="viewLuogoNascita">—</dd>
+                    <dt>Residenza</dt>
+                    <dd id="viewResidenza">—</dd>
+                    <dt>Domicilio</dt>
+                    <dd id="viewDomicilio">—</dd>
+                    <dt>Telefono</dt>
+                    <dd id="viewTelefono">—</dd>
+                </dl>
+            </div>
+
+            <!-- Modifica -->
+            <div id="editMode" style="display:none;">
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label for="editNome">Nome *</label>
+                        <input type="text" id="editNome" placeholder="Nome">
+                    </div>
+                    <div class="edit-field">
+                        <label for="editCognome">Cognome *</label>
+                        <input type="text" id="editCognome" placeholder="Cognome">
+                    </div>
+                </div>
+                <div class="edit-field">
+                    <label>Grado *</label>
+                    <div id="editGradoSel" class="csel"></div>
+                </div>
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label for="editDataNascita">Data di nascita</label>
+                        <div id="editDataNascita" class="cdate"></div>
+                    </div>
+                </div>
+                <div class="edit-field">
+                    <label>Luogo di nascita</label>
+                    <div id="editLuogoNascita" class="lnasc"></div>
+                </div>
+                <div class="edit-field">
+                    <label>Residenza</label>
+                    <div id="editResidenza" class="lnasc"></div>
+                </div>
+                <div class="check-field">
+                    <label class="check-label">
+                        <input type="checkbox" id="editDomicilioComeResidenza">
+                        <span>Il domicilio corrisponde alla residenza</span>
+                    </label>
+                </div>
+                <div class="edit-field" id="editDomicilioWrap">
+                    <label>Domicilio</label>
+                    <div id="editDomicilio" class="lnasc"></div>
+                </div>
+                <div class="edit-field">
+                    <label for="editTelefono">Numero di telefono</label>
+                    <div id="editTelefono" class="tel-field"></div>
+                </div>
+                <p id="editHint" style="font-size:0.82rem;color:#5ABBC8;margin:0 0 1rem;"></p>
+                <div class="edit-actions">
+                    <button type="button" class="btn-cancel" onclick="exitEditMode()">Annulla</button>
+                    <button type="button" class="btn-save" id="btnSave" onclick="saveProfile()">Salva</button>
+                </div>
+            </div>
+
+            <div id="pwdToggleWrap" class="edit-actions" style="justify-content:flex-start;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
+                <button type="button" class="btn-cancel" id="btnShowPwd" onclick="showPasswordForm()">Modifica password</button>
+            </div>
+
+            <div id="pwdSection" style="display:none;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
+                <div class="profile-head" style="margin-bottom:1rem;">
+                    <h3 style="font-size:1.05rem;">Modifica password</h3>
+                </div>
+                <div class="feedback" id="pwdMsg" style="max-width:none;margin:0 0 1rem;"></div>
+                <div class="edit-field">
+                    <label for="pwdCurrent">Password attuale</label>
+                    <input type="password" id="pwdCurrent" autocomplete="current-password" placeholder="Inserisci la password attuale">
+                </div>
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label for="pwdNew">Nuova password</label>
+                        <input type="password" id="pwdNew" autocomplete="new-password" placeholder="Minimo 8 caratteri">
+                    </div>
+                    <div class="edit-field">
+                        <label for="pwdConfirm">Conferma nuova password</label>
+                        <input type="password" id="pwdConfirm" autocomplete="new-password" placeholder="Ripeti la nuova password">
+                    </div>
+                </div>
+                <p style="font-size:0.82rem;color:#5ABBC8;margin:0 0 1rem;">La nuova password deve contenere almeno 8 caratteri.</p>
+                <div class="edit-actions">
+                    <button type="button" class="btn-cancel" onclick="hidePasswordForm()">Annulla</button>
+                    <button type="button" class="btn-save" id="btnChangePwd" onclick="changeOwnPassword()">Aggiorna password</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="confirm-bg" id="confirmModal" style="display:none;">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button type="button" class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button type="button" class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="auth-token.js?v=2"></script>
+    <script src="custom-select.js?v=12"></script>
+    <script src="custom-date.js?v=6"></script>
+    <script src="luogo-nascita.js?v=9"></script>
+    <script src="telefono-field.js?v=7"></script>
+    <script src="profile-fields.js?v=5"></script>
+    <script src="nav-notifications.js?v=5"></script>
+    <script src="password-toggle.js?v=1"></script>
+    <script>
+    let _currentUser = null;
+    let _profile = null;
+    let editGradoCs = null;
+    let editDataNascitaCd = null;
+    let editLuogoNascitaLn = null;
+    let editResidenzaLn = null;
+    let editDomicilioLn = null;
+    let editTelefonoTf = null;
+    let _domicilioWired = false;
+    const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+    const EDIT_IDS = {
+        nome: 'editNome',
+        cognome: 'editCognome',
+        dataNascita: 'editDataNascita',
+        luogoNascita: 'editLuogoNascita',
+        residenza: 'editResidenza',
+        domicilio: 'editDomicilio',
+        domicilioComeResidenza: 'editDomicilioComeResidenza',
+        domicilioWrap: 'editDomicilioWrap',
+        telefono: 'editTelefono',
+    };
+
+    function showConfirm(message, onOk, onCancel) {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmMsg').textContent = message;
+        modal.style.display = 'flex';
+        const ok = document.getElementById('confirmOk');
+        const cancel = document.getElementById('confirmCancel');
+        function close() { modal.style.display = 'none'; ok.onclick = null; cancel.onclick = null; }
+        ok.onclick = () => { close(); if (onOk) onOk(); };
+        cancel.onclick = () => { close(); if (onCancel) onCancel(); };
+    }
+    function logout() {
+        showConfirm('Vuoi davvero disconnetterti dal portale?', () => {
+            clearAuth();
+            window.location.replace('/login');
+        });
+    }
+    function showMsg(text, type) {
+        const el = document.getElementById('profileMsg');
+        el.className = 'feedback ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4500);
+    }
+
+    function showPwdMsg(text, type) {
+        const el = document.getElementById('pwdMsg');
+        el.className = 'feedback ' + type;
+        el.textContent = text;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+
+    function showPasswordForm() {
+        document.getElementById('pwdToggleWrap').style.display = 'none';
+        document.getElementById('pwdSection').style.display = 'block';
+        document.getElementById('pwdMsg').style.display = 'none';
+        document.getElementById('pwdCurrent').value = '';
+        document.getElementById('pwdNew').value = '';
+        document.getElementById('pwdConfirm').value = '';
+        setTimeout(() => document.getElementById('pwdCurrent').focus(), 50);
+    }
+
+    function hidePasswordForm() {
+        document.getElementById('pwdSection').style.display = 'none';
+        document.getElementById('pwdToggleWrap').style.display = 'flex';
+        document.getElementById('pwdMsg').style.display = 'none';
+        document.getElementById('pwdCurrent').value = '';
+        document.getElementById('pwdNew').value = '';
+        document.getElementById('pwdConfirm').value = '';
+    }
+
+    async function changeOwnPassword() {
+        const currentPassword = document.getElementById('pwdCurrent').value;
+        const newPassword = document.getElementById('pwdNew').value;
+        const confirmPassword = document.getElementById('pwdConfirm').value;
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            showPwdMsg('Compila tutti i campi password.', 'error');
+            return;
+        }
+        if (newPassword.length < 8) {
+            showPwdMsg('La nuova password deve contenere almeno 8 caratteri.', 'error');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            showPwdMsg('La nuova password e la conferma non coincidono.', 'error');
+            return;
+        }
+        if (newPassword === currentPassword) {
+            showPwdMsg('La nuova password deve essere diversa da quella attuale.', 'error');
+            return;
+        }
+        const btn = document.getElementById('btnChangePwd');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: authHeader(),
+                body: JSON.stringify({ currentPassword, newPassword }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showPwdMsg(data.error || 'Impossibile aggiornare la password.', 'error');
+                return;
+            }
+            if (data.token) localStorage.setItem('authToken', data.token);
+            hidePasswordForm();
+            showMsg('Password aggiornata correttamente.', 'success');
+        } catch {
+            showPwdMsg('Errore di rete. Riprovare.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function renderView() {
+        const p = _profile;
+        document.getElementById('viewEmail').textContent = p.email || '—';
+        document.getElementById('viewNome').textContent = p.nome || '—';
+        document.getElementById('viewCognome').textContent = p.cognome || '—';
+        document.getElementById('viewRole').textContent = ROLE_LABEL[p.role] || p.role || '—';
+        document.getElementById('viewDataNascita').textContent = formatDateIT(p.dataNascita);
+        document.getElementById('viewLuogoNascita').textContent = dash(p.luogoNascita);
+        document.getElementById('viewResidenza').textContent = dash(p.residenza);
+        const domLabel = p.domicilioComeResidenza
+            ? (dash(p.residenza) === '—' ? '—' : dash(p.residenza) + ' (come residenza)')
+            : dash(p.domicilio);
+        document.getElementById('viewDomicilio').textContent = domLabel;
+        document.getElementById('viewTelefono').textContent = dash(formatTelefonoDisplay(p));
+
+        const gradoDd = document.getElementById('viewGrado');
+        const gradoLabel = document.getElementById('gradoLabel');
+        if (!p.canEdit && (!p.grado || p.grado === '')) {
+            // Account di sistema senza grado
+            gradoLabel.style.display = 'none';
+            gradoDd.style.display = 'none';
+        } else {
+            gradoLabel.style.display = '';
+            gradoDd.style.display = '';
+            const f = GRADO_IMG_MAP[p.grado];
+            if (p.grado && f) {
+                gradoDd.innerHTML = `<img src="/immagini/gradi/${encodeURIComponent(f)}" alt=""> <span>${p.grado}</span>`;
+            } else {
+                gradoDd.textContent = p.grado || '—';
+            }
+        }
+
+        document.getElementById('btnEdit').style.display = p.canEdit ? '' : 'none';
+        document.getElementById('lockedNote').style.display = p.canEdit ? 'none' : '';
+    }
+
+    async function enterEditMode() {
+        if (!_profile?.canEdit) return;
+        if (!editGradoCs) {
+            editGradoCs = new CustomSelect(
+                document.getElementById('editGradoSel'),
+                GRADI_OPTIONS, () => {},
+                { placeholder: 'Cerca grado…', value: _profile.grado || '' }
+            );
+        }
+        if (!editDataNascitaCd) {
+            editDataNascitaCd = new CustomDate(document.getElementById('editDataNascita'), {
+                placeholder: 'gg / mm / aaaa',
+                max: new Date().toISOString().slice(0, 10),
+            });
+        }
+        if (!editLuogoNascitaLn) {
+            editLuogoNascitaLn = await LuogoNascita.create(document.getElementById('editLuogoNascita'));
+        }
+        if (!editResidenzaLn) {
+            editResidenzaLn = await LuogoGeo.create(document.getElementById('editResidenza'), {
+                prefix: 'residenza', ariaLabel: 'Tipo residenza', withAddress: true,
+            });
+        }
+        if (!editDomicilioLn) {
+            editDomicilioLn = await LuogoGeo.create(document.getElementById('editDomicilio'), {
+                prefix: 'domicilio', ariaLabel: 'Tipo domicilio', withAddress: true,
+            });
+        }
+        if (!editTelefonoTf) {
+            editTelefonoTf = await TelefonoField.create(document.getElementById('editTelefono'));
+        }
+        if (!_domicilioWired) {
+            wireDomicilioSync(EDIT_IDS);
+            _domicilioWired = true;
+        }
+        fillProfileFields(EDIT_IDS, _profile, (g) => editGradoCs.setValue(g || ''));
+        const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
+        document.getElementById('editHint').textContent = isAdmin
+            ? 'Le modifiche verranno applicate immediatamente. * campi obbligatori.'
+            : 'La richiesta di modifica verrà inviata a un amministratore per l\'approvazione. * campi obbligatori.';
+        document.getElementById('btnSave').textContent = isAdmin ? 'Salva' : 'Richiedi modifica';
+        document.getElementById('viewMode').style.display = 'none';
+        document.getElementById('btnEdit').style.display = 'none';
+        document.getElementById('editMode').style.display = 'block';
+        hidePasswordForm();
+        document.getElementById('pwdToggleWrap').style.display = 'none';
+    }
+
+    function exitEditMode() {
+        document.getElementById('editMode').style.display = 'none';
+        document.getElementById('viewMode').style.display = 'block';
+        document.getElementById('btnEdit').style.display = _profile?.canEdit ? '' : 'none';
+        document.getElementById('pwdToggleWrap').style.display = 'flex';
+    }
+
+    async function saveProfile() {
+        if (!_profile?.canEdit) return;
+        const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
+        const reqErr = validateRequiredProfile(profile);
+        if (reqErr) {
+            showMsg(reqErr, 'error');
+            return;
+        }
+        const dateErr = validateProfileDates(EDIT_IDS);
+        if (dateErr) {
+            showMsg(dateErr, 'error');
+            return;
+        }
+        const btn = document.getElementById('btnSave');
+        btn.disabled = true;
+        const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
+        const url    = isAdmin ? `/api/auth/users/${_currentUser.id}/profile` : '/api/auth/profile-change-request';
+        const method = isAdmin ? 'PATCH' : 'POST';
+        try {
+            const res  = await fetch(url, { method, headers: authHeader(), body: JSON.stringify(profile) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showMsg(data.error || 'Errore durante il salvataggio.', 'error');
+                return;
+            }
+            if (isAdmin) {
+                showMsg('Profilo aggiornato.', 'success');
+                await loadProfile();
+                exitEditMode();
+            } else {
+                showMsg('Richiesta inviata. In attesa di approvazione.', 'success');
+                exitEditMode();
+            }
+        } catch {
+            showMsg('Errore di rete. Riprovare.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function loadProfile() {
+        const res = await fetch('/api/auth/my-profile', { headers: authHeader() });
+        if (!res.ok) throw new Error('profile');
+        _profile = await res.json();
+        renderView();
+    }
+
+    // ── Campanella: gestita da nav-notifications.js ───────────────────────────
+
+    (async function () {
+        const token = getAuthToken();
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            _currentUser = await res.json();
+            if (!_currentUser.id) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                    if (payload.id) _currentUser.id = payload.id;
+                } catch { /* ignore */ }
+            }
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('navUserEmail').textContent = _currentUser.email;
+            initNavBell();
+            await loadProfile();
+        } catch {
+            clearAuth();
+            window.location.replace('/login');
+        }
+    })();
+    </script>
+</body>
+</html>

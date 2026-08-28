@@ -1,0 +1,52 @@
+==================================================
+        CRYPTO MONITOR - ISTRUZIONI DI AVVIO
+==================================================
+
+Il sistema è stato aggiornato con misure di sicurezza avanzate (HTTPS obbligatorio)
+e database SQLite centralizzato.
+
+--------------------------------------------------
+1. AVVIO SU WINDOWS (SERVER LOCALE)
+--------------------------------------------------
+- Metodo Rapido: Fai doppio clic sul file 'CryptoMonitor.exe'.
+  Verrà avviato il server e si aprirà automaticamente il browser.
+
+- Metodo Manuale (Terminale):
+  Apri il terminale nella cartella e digita: npm run dev
+
+--------------------------------------------------
+2. AVVIO SU LINUX / UBUNTU (SERVER LOCALE)
+--------------------------------------------------
+- Metodo Rapido: Apri il terminale e digita: ./crypto-monitor.sh
+  Assicurati che il file abbia i permessi di esecuzione (chmod +x crypto-monitor.sh).
+
+- Servizio di Sistema (Consigliato per Server):
+  Usa il file 'crypto-monitor.service.example' come guida per installare 
+  il software con systemd, permettendo l'avvio automatico al boot.
+
+--------------------------------------------------
+3. ACCESSO REMOTO (DA ALTRO PC)
+--------------------------------------------------
+- Da un altro PC Windows nella stessa rete:
+  Usa lo script PowerShell: .\scripts\connect-remote.ps1
+  Questo creerà un tunnel sicuro verso il server.
+
+--------------------------------------------------
+4. ACCESSO VIA BROWSER
+--------------------------------------------------
+URL: https://localhost:3000 (o porta 5870 se in remoto)
+
+NOTA: Essendo un certificato auto-firmato, il browser mostrerà un avviso
+di sicurezza la prima volta. Clicca su "Avanzate" -> "Procedi" per accedere.
+
+--------------------------------------------------
+SICUREZZA E MANUTENZIONE
+--------------------------------------------------
+- Il database è salvato nel file 'crypto-monitor.db'.
+- I backup automatici creati dal sistema OS (.sh o simili) sono compatibili.
+- Il sistema include Rate Limiting: troppi tentativi di login errati 
+  bloccheranno temporaneamente l'accesso per quell'IP.
+
+==================================================
+Sviluppato per: Arma dei Carabinieri
+==================================================
