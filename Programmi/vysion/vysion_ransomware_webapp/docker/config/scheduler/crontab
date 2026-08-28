@@ -1,0 +1,20 @@
+# https://cron.help/
+#
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7)
+# |  |  |  |  |
+# *  *  *  *  * user-name  command to be executed
+# every 10 minutes
+2,12,22,32,42,52 * * * * curl -X POST -d {} "http://webapp:3000/api/alerts/update-alerts" -H "Content-Type:application/json" >> /var/log/cron.log 2>&1
+
+# every hour
+0 * * * * curl -X POST -d {} "http://webapp:3000/api/alerts/scheduled/hourly" -H "Content-Type:application/json" >> /var/log/cron.log 2>&1
+
+# every day
+0 0 * * * curl -X POST -d {} "http://webapp:3000/api/alerts/scheduled/daily" -H "Content-Type:application/json" >> /var/log/cron.log 2>&1
+
+# every week
+0 0 * * 0 curl -X POST -d {} "http://webapp:3000/api/alerts/scheduled/weekly" -H "Content-Type:application/json" >> /var/log/cron.log 2>&1

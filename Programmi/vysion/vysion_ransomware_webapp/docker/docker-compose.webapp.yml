@@ -1,0 +1,61 @@
+services:
+    postgres:
+        image: postgres:16
+        container_name: vysion-webapp-db
+        restart: always
+        environment:
+            - POSTGRES_DB=${DATABASE_NAME}
+            - POSTGRES_USER=${DATABASE_USER}
+            - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+        ports:
+            - "127.0.0.1:5434:5432"
+        expose:
+            - 5432
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
+        networks:
+            - ransomware_network
+    webapp:
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile.webapp
+        container_name: vysion-webapp
+        restart: always
+        image: vysion-webapp
+        env_file:
+            - .env
+        ports:
+            - "0.0.0.0:3002:3000"
+        depends_on:
+            - postgres
+        environment:
+            - DATABASE_URL=${DATABASE_URL}
+            - VYSION_API_URL=${VYSION_API_URL}
+            - NEXTAUTH_URL=${NEXTAUTH_URL}
+            - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+            - VYSION_API_KEY=${VYSION_API_KEY}
+            - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+            - PORTAL_SSO_CONSUME_URL=${PORTAL_SSO_CONSUME_URL}
+        links:
+            - postgres
+        networks:
+            - ransomware_network
+
+    scheduler:
+        build:
+            context: ..
+            dockerfile: docker/Dockerfile.scheduler
+        image: vysion-scheduler
+        container_name: vysion-scheduler
+        restart: always
+        networks:
+            - ransomware_network
+
+volumes:
+    postgres_data:
+
+networks:
+    ransomware_network:
+        name: ransomware_network
+        external: true

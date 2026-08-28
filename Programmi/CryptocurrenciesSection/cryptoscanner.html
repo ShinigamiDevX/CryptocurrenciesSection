@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>CryptoScanner — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=12">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="analisi-report.css?v=13">
+    <link rel="stylesheet" href="cryptoscanner.css?v=2">
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>CryptoScanner</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title"><img src="/icons/line/file-search-alt.svg" alt=""> CryptoScanner</div>
+        <p class="page-sub">Cerca indirizzi, seed phrase e hash di transazione nei file in chiaro. Non leggere archivi/media né immagini forensi intere: carica i file estratti (o uno ZIP come contenitore).</p>
+
+        <div class="ar-card">
+            <div id="dropZone" class="ar-drop">
+                <input type="file" id="fileInput" multiple>
+                <p class="ar-drop-title">Trascina i file oppure clicca per selezionarli</p>
+                <p class="ar-drop-hint">Più file · .txt .pdf .docx .xlsx e ZIP contenitore · max 80 MB totali · max 25 MB a file</p>
+            </div>
+            <ul id="fileList" class="ar-file-list"></ul>
+            <div class="cs-opts">
+                <label class="cs-flag-hit" for="optSeeds">
+                    <input type="checkbox" id="optSeeds" checked>
+                    <span class="cs-flag" aria-hidden="true"></span>
+                    <span class="cs-flag-label">Cerca seed phrase (BIP39 / Monero)</span>
+                </label>
+                <label class="cs-flag-hit" for="optTx">
+                    <input type="checkbox" id="optTx" checked>
+                    <span class="cs-flag" aria-hidden="true"></span>
+                    <span class="cs-flag-label">Cerca hash di transazione</span>
+                </label>
+            </div>
+            <div class="ar-actions">
+                <button type="button" class="ar-btn-secondary" id="btnClear" disabled>Svuota</button>
+                <button type="button" class="ar-btn-primary" id="btnScan" disabled>Avvia scansione</button>
+            </div>
+            <div id="statusMsg" class="ar-status" style="display:none;"></div>
+        </div>
+
+        <div id="resultsWrap" class="ar-results" style="display:none;"></div>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="auth-token.js?v=2"></script>
+    <script src="nav-notifications.js?v=5"></script>
+    <script src="cryptoscanner.js?v=1"></script>
+</body>
+</html>

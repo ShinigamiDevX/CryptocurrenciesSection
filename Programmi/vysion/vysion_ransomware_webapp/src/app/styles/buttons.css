@@ -1,0 +1,44 @@
+.sidebar-btn {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    background-color: var(--color-sidebar);
+    padding: 0.5rem;
+    color: var(--color-background);
+}
+
+.sidebar-btn,
+.sidebar-btn-mobile {
+    transition-property: filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+}
+
+.sidebar-btn:enabled:hover {
+    filter: brightness(150%);
+}
+
+.sidebar-btn:disabled {
+    background-color: transparent;
+    filter: brightness(70%);
+}
+
+.sidebar-btn-mobile {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    border-radius: 0.5rem;
+    background-color: var(--color-background-secondary);
+    padding: 0.5rem;
+}
+
+.sidebar-btn-mobile:hover {
+    filter: brightness(90%);
+}
+
+.sidebar-btn-mobile:disabled {
+    background-color: transparent;
+    filter: brightness(170%);
+}

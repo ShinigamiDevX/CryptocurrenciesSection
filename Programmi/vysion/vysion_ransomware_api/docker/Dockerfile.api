@@ -1,0 +1,24 @@
+# Use the Python 3.10 base image
+FROM python:3.10
+
+# Set the working directory inside the container
+WORKDIR /code
+
+# Copy the requirements.txt file
+COPY requirements.txt /code/requirements.txt
+COPY docker/.env .
+
+#upgrade pip 
+RUN pip install --upgrade pip
+
+# Install the dependencies
+RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+
+# Copy the entire project directory
+COPY . /code
+
+# Expose the port
+EXPOSE 8000
+
+# Set the command to run the FastAPI app
+CMD ["uvicorn", "app.main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8000"]

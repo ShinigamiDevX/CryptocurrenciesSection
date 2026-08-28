@@ -24,8 +24,8 @@ const ROLE_LEVEL       = { reader: 0, user: 1, admin: 2, superadmin: 3 };
 const ALL_ROLES        = ['reader', 'user', 'admin', 'superadmin'];
 /** Schede dashboard assegnabili in invito (gestione-utenti resta solo per admin/superadmin). */
 const ASSIGNABLE_CARDS = [
-    'blockchain', 'osint', 'chainholder', 'corsi', 'cluster', 'ai',
-    'analisi-report', 'cryptomonitor', 'materiali',
+    'ai', 'analisi-report', 'apinga', 'chainholder', 'cluster', 'corsi',
+    'cryptomonitor', 'cryptoscanner', 'gelato', 'materiali', 'siena', 'terra', 'vysion', 'xpublicator',
 ];
 const STRUMENTO_EMAIL_DOMAIN = 'strumento.local';
 const CARD_HOME = {
@@ -34,7 +34,15 @@ const CARD_HOME = {
     'corsi': '/corsi',
     'cryptomonitor': 'https://192.168.4.80:5173',
     'materiali': 'https://192.168.4.80:5174',
+    'apinga': 'http://192.168.4.80:5001',
+    'cryptoscanner': '/cryptoscanner',
+    'xpublicator': '/xpublicator',
+    'gelato': 'http://192.168.4.80:5005',
+    'siena': '/siena-constructor/',
+    'terra': 'http://192.168.4.80:7860',
+    'vysion': 'http://192.168.4.80:3002',
 };
+const VYSION_URL = (process.env.VYSION_URL || 'http://192.168.4.80:3002').replace(/\/$/, '');
 const CHAINHOLDER_URL = (process.env.CHAINHOLDER_URL || 'http://192.168.1.73:3000').replace(/\/$/, '');
 const CHAINHOLDER_HOME = process.env.CHAINHOLDER_HOME || '/dashboard/requests';
 const CRYPTOMONITOR_URL = (process.env.CRYPTOMONITOR_URL || 'https://192.168.4.80:5173').replace(/\/$/, '');
@@ -63,6 +71,10 @@ function ssoRedirectUrl(tool, ticket) {
         const cb = encodeURIComponent(home);
         return `${CHAINHOLDER_URL}/portal-sso?ticket=${q}&callbackUrl=${cb}`;
     }
+    if (tool === 'vysion') {
+        const cb = encodeURIComponent(`${VYSION_URL}/dashboard`);
+        return `${VYSION_URL}/portal-sso?ticket=${q}&callbackUrl=${cb}`;
+    }
     return null;
 }
 
@@ -72,7 +84,7 @@ function userCanAccessCard(user, cardId) {
     return cardsFromStored(user.allowedCards, user.role, user.accountType).includes(cardId);
 }
 
-const SSO_TOOLS = new Set(['chainholder', 'cryptomonitor']);
+const SSO_TOOLS = new Set(['chainholder', 'cryptomonitor', 'vysion']);
 
 function isStrumentoAccount(user) {
     if (!user) return false;
@@ -124,6 +136,34 @@ function cardsFromStored(raw, role, accountType) {
 function cardsToStored(cards) {
     return JSON.stringify(cards);
 }
+
+/** Aggiunge schede nuove (es. Apinga) alle allowlist già salvate, senza toccare reader e account strumento. */
+(function grantNewAssignableCards() {
+    const NEW_CARDS = ['apinga', 'cryptoscanner', 'gelato', 'siena', 'terra', 'vysion', 'xpublicator'];
+    try {
+        const users = Users.findActive();
+        for (const user of users) {
+            if (user.accountType === 'strumento') continue;
+            if (user.role === 'reader') continue;
+            const raw = user.allowedCards;
+            if (raw == null || String(raw).trim() === '') continue;
+            let parsed;
+            try { parsed = JSON.parse(raw); } catch { continue; }
+            if (!Array.isArray(parsed)) continue;
+            const next = parsed.filter((c) => typeof c === 'string');
+            let changed = false;
+            for (const id of NEW_CARDS) {
+                if (!next.includes(id)) {
+                    next.push(id);
+                    changed = true;
+                }
+            }
+            if (changed) Users.updateAllowedCards(user.id, cardsToStored(next));
+        }
+    } catch (err) {
+        console.warn('[AUTH] Migrazione schede Apinga saltata:', err.message);
+    }
+})();
 
 function homeForCards(cards) {
     if (!Array.isArray(cards) || cards.length !== 1) return '/portal';
@@ -396,8 +436,6 @@ function applyLoginLock(user, reason) {
 
 const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
 const CARD_LABEL = {
-    blockchain: 'Tracciamento Blockchain',
-    osint: 'OSINT & Intelligence',
     chainholder: 'Chainholder',
     corsi: 'Corsi',
     cluster: 'Cluster',
@@ -405,6 +443,13 @@ const CARD_LABEL = {
     'analisi-report': 'Analisi Report',
     cryptomonitor: 'CryptoMonitor',
     materiali: 'Materiali',
+    apinga: 'Apinga',
+    cryptoscanner: 'CryptoScanner',
+    gelato: 'GELATO',
+    siena: 'SIENA Constructor',
+    terra: 'Terra',
+    vysion: 'Vysion',
+    xpublicator: 'Xpublicator',
 };
 
 /** Nome anagrafico del profilo: "COGNOME Nome", oppure solo la parte disponibile. */

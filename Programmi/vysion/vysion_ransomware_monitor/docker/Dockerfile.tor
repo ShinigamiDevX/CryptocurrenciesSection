@@ -1,0 +1,17 @@
+FROM alpine:3.16
+
+RUN adduser -D -u 1000 tor
+RUN apk add --no-cache --update tzdata curl tor && \
+    rm -rf /var/cache/apk/*
+ENV TZ="Europe/Madrid"
+
+COPY docker/config/tor/torrc /torrc
+
+USER tor
+
+ENTRYPOINT ["tor", "-f", "/torrc"]
+
+EXPOSE 9050
+
+HEALTHCHECK --interval=60s --timeout=15s --start-period=60s --retries=5 \
+    CMD curl -s --socks5-hostname http://localhost:9050 -L http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion

@@ -1,0 +1,91 @@
+@import url("./table.css");
+@import url("./buttons.css");
+@import url("./custom.css");
+@import url("./animations.css");
+@import url("./variables.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    .textarea-grow {
+        field-sizing: content;
+    }
+}
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+* {
+    text-wrap: balance;
+}
+
+body {
+    font-family: "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    scrollbar-width: thin;
+}
+
+a {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    text-wrap: pretty;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.tremor-Card-root {
+    overflow: hidden;
+}
+
+.tremor-BarList-labels {
+    flex-shrink: 0;
+}
+
+input[disabled="true"] {
+    @apply pointer-events-none cursor-not-allowed select-none opacity-50;
+}
+
+@media print {
+    @page {
+        size: auto;
+        margin: 27mm 16mm 27mm 16mm;
+    }
+
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .tremor-Card-root {
+        box-shadow: none !important;
+        border: 1px solid var(--tw-ring-color) !important;
+    }
+}

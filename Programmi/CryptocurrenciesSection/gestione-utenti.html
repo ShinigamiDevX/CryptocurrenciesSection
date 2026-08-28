@@ -1225,15 +1225,20 @@
     const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
     const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
     const ASSIGNABLE_CARDS = [
-        { id: 'blockchain', label: 'Tracciamento Blockchain', short: 'Blockchain', icon: '/icons/line/link.svg' },
-        { id: 'osint', label: 'OSINT & Intelligence', short: 'OSINT', icon: '/icons/line/search-alt.svg' },
-        { id: 'chainholder', label: 'Chainholder', short: 'Chainholder', icon: '/icons/line/folder-lock.svg' },
-        { id: 'corsi', label: 'Corsi', short: 'Corsi', icon: '/icons/line/graduation-cap.svg' },
-        { id: 'cluster', label: 'Cluster', short: 'Cluster', icon: '/icons/line/layer-group.svg' },
         { id: 'ai', label: 'AI', short: 'AI', icon: '/icons/line/robot.svg' },
         { id: 'analisi-report', label: 'Analisi Report', short: 'Analisi', icon: '/icons/line/analytics.svg' },
+        { id: 'apinga', label: 'Apinga', short: 'Apinga', icon: '/icons/line/globe.svg' },
+        { id: 'chainholder', label: 'Chainholder', short: 'Chainholder', icon: '/icons/line/folder-lock.svg' },
+        { id: 'cluster', label: 'Cluster', short: 'Cluster', icon: '/icons/line/layer-group.svg' },
+        { id: 'corsi', label: 'Corsi', short: 'Corsi', icon: '/icons/line/graduation-cap.svg' },
         { id: 'cryptomonitor', label: 'CryptoMonitor', short: 'CryptoMonitor', icon: '/icons/line/desktop.svg' },
+        { id: 'cryptoscanner', label: 'CryptoScanner', short: 'CryptoScanner', icon: '/icons/line/file-search-alt.svg' },
+        { id: 'xpublicator', label: 'Xpublicator', short: 'Xpublicator', icon: '/icons/line/key-skeleton.svg' },
+        { id: 'gelato', label: 'GELATO', short: 'GELATO', icon: '/icons/line/map-marker.svg' },
         { id: 'materiali', label: 'Materiali', short: 'Materiali', icon: '/icons/line/books.svg' },
+        { id: 'siena', label: 'SIENA Constructor', short: 'SIENA', icon: '/icons/line/envelope.svg' },
+        { id: 'terra', label: 'Terra', short: 'Terra', icon: '/icons/line/map.svg' },
+        { id: 'vysion', label: 'Vysion', short: 'Vysion', icon: '/icons/line/shield-exclamation.svg' },
     ];
     const CARD_LABEL = Object.fromEntries(ASSIGNABLE_CARDS.map(c => [c.id, c.label]));
     function defaultCardsForRole(role) {

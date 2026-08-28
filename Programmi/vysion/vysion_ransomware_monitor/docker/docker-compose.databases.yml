@@ -1,0 +1,76 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: vysion-elasticsearch
+    environment:
+      - node.name=vysion
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_USER=${ELASTICSEARCH_USER}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
+      - KIBANA_USER=${KIBANA_USER}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD}
+      - "ES_JAVA_OPTS=-Xmx1024m -Xmx1024m"
+    ulimits:
+      nproc: 65535
+      # memlock:
+      #   soft: -1
+      #   hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ../scripts/setup-elasticsearch.sh:/usr/local/bin/setup-elasticsearch.sh
+    ports:
+      - "127.0.0.1:9200:9200"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+    restart: "unless-stopped"
+    command: ["/bin/bash", "-c", "/usr/local/bin/setup-elasticsearch.sh && /usr/local/bin/docker-entrypoint.sh"]
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: vysion-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS="http://elasticsearch:9200"
+      - ELASTICSEARCH_USERNAME=${KIBANA_USER}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+    volumes:
+      - ../scripts/setup-kibana.sh:/usr/local/bin/setup-kibana.sh
+    ports:
+      - "127.0.0.1:5601:5601"
+    depends_on:
+      - elasticsearch
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "512m"
+    restart: "unless-stopped"
+    command: ["/bin/bash", "-c", "/usr/local/bin/setup-kibana.sh && /usr/local/bin/kibana-docker"]
+
+  minio:
+    image: minio/minio
+    container_name: vysion-minio
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    command: server --console-address ":9001" /data
+    restart: "unless-stopped"
+
+
+volumes:
+  elasticsearch_data:
+  minio_data:
+
+networks:
+  default:
+    name: ransomware_network
+    external: true

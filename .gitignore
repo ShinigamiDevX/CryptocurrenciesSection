@@ -1,5 +1,8 @@
 # Desktop tools — non in questa repo
 /Tools Europol/
+/Programmi/apinga/*.exe
+/Programmi/gelato/*.exe
+/Programmi/vysion/**/airflow/logs/
 
 # Helper locale Docker Desktop
 .docker-helpers/

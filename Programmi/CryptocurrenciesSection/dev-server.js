@@ -14,6 +14,8 @@ const ROOT      = __dirname;
 const AUTH_PORT = 4000;
 const CLUSTER_PORT = 3000;
 const ANALISI_PORT = 5001;
+const CRYPTOSCANNER_PORT = 5002;
+const XPUBLICATOR_PORT = 5003;
 
 // Route "pulite" come in nginx.conf
 const PAGE_ROUTES = {
@@ -27,6 +29,10 @@ const PAGE_ROUTES = {
     '/corsi-storico':   '/corsi-storico.html',
     '/corsi-gestione':  '/corsi-gestione.html',
     '/analisi-report':  '/analisi-report.html',
+    '/cryptoscanner':   '/cryptoscanner.html',
+    '/xpublicator':     '/xpublicator.html',
+    '/siena-constructor': '/siena-constructor/index.html',
+    '/siena-constructor/': '/siena-constructor/index.html',
 };
 
 const MIME = {
@@ -94,6 +100,14 @@ function handleRequest(req, res) {
     }
     if (urlPath.startsWith('/api/analisi/')) {
         proxy(req, res, ANALISI_PORT, req.url);
+        return;
+    }
+    if (urlPath.startsWith('/api/cryptoscanner/')) {
+        proxy(req, res, CRYPTOSCANNER_PORT, req.url);
+        return;
+    }
+    if (urlPath.startsWith('/api/xpublicator/')) {
+        proxy(req, res, XPUBLICATOR_PORT, req.url);
         return;
     }
     serveStatic(req, res, PAGE_ROUTES[urlPath] || urlPath);

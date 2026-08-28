@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+    provider     = "postgres"
+    url          = env("DATABASE_URL")
+    relationMode = "prisma"
+}
+
+// User roles
+enum UserRole {
+    user
+    admin
+}
+
+enum AlertType {
+    darknet
+    group
+    country
+}
+
+enum UserProvider {
+    postgres
+    ldap
+}
+
+// User model
+model User {
+    id                   Int                   @id @unique @default(autoincrement())
+    email                String                @unique @default("")
+    name                 String                @unique @default("")
+    password             String                @default("")
+    twoFactorSecret      String?
+    role                 UserRole              @default(user)
+    provider             UserProvider          @default(postgres)
+    settings             Json                  @default("{\"emailAlerts\":true,\"alertFrequency\":\"realtime\"}")
+    keywordSubscriptions KeywordSubscription[]
+    alerts               Alert[]
+    createdAt            DateTime              @default(now())
+    updatedAt            DateTime              @updatedAt
+
+    @@index([email])
+}
+
+// Keywords that users can subscribe to for alerts
+model AlertKeyword {
+    keyword       String                @unique @default("")
+    type          AlertType             @default(darknet)
+    subscriptions KeywordSubscription[]
+    alerts        Alert[]
+    createdAt     DateTime              @default(now())
+    updatedAt     DateTime              @updatedAt
+
+    @@id([keyword, type])
+    @@index([keyword, type])
+}
+
+// Relationship between users and keywords
+model KeywordSubscription {
+    id           String       @id @unique @default(cuid())
+    enabled      Boolean      @default(true)
+    userId       Int
+    user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    keyword      String
+    type         AlertType
+    alertKeyword AlertKeyword @relation(fields: [keyword], references: [keyword], onDelete: Cascade)
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
+    @@index([keyword, type])
+    @@index([userId])
+}
+
+// Alerts that are sent to users based on their subscriptions
+model Alert {
+    id           String       @id @unique @default(cuid())
+    keyword      String
+    type         AlertType
+    message      String       @default("")
+    htmlMessage  String       @default("")
+    read         Boolean      @default(false)
+    newHits      Int          @default(1)
+    timeRange    BigInt       @default(0)
+    userId       Int
+    user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    alertKeyword AlertKeyword @relation(fields: [keyword], references: [keyword], onDelete: Cascade)
+    createdAt    DateTime     @default(now())
+
+    @@index([keyword, type])
+    @@index([userId])
+}

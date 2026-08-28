@@ -49,21 +49,30 @@
         const nav = sidebar.querySelector('#globalSidebarNav');
         nav.innerHTML = '';
         nav.appendChild(createLink('/portal', 'dashboard', 'home', 'Dashboard', 'Panoramica'));
-        nav.appendChild(createLink('#', 'blockchain', 'link', 'Tracciamento', 'Blockchain', { placeholder: 'Tracciamento Blockchain: in arrivo.' }));
-        nav.appendChild(createLink('#', 'osint', 'search-alt', 'OSINT', 'Intelligence', { placeholder: 'OSINT & Intelligence: in arrivo.' }));
-        nav.appendChild(createLink('http://192.168.1.73:3000/login?callbackUrl=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests', 'chainholder', 'folder-lock', 'Chainholder', 'Docs & archivio', { external: true, sso: 'chainholder' }));
-        nav.appendChild(createLink('/corsi', 'corsi', 'graduation-cap', 'Corsi', 'Formazione'));
-        nav.appendChild(createLink('https://192.168.4.80:3444', 'cluster', 'layer-group', 'Cluster', 'Reactor', { external: true }));
         nav.appendChild(createLink('#', 'ai', 'robot', 'AI', 'Assistente', { placeholder: 'AI: in arrivo.' }));
         nav.appendChild(createLink('/analisi-report', 'analisi-report', 'analytics', 'Analisi', 'Report'));
+        nav.appendChild(createLink('http://192.168.4.80:5001', 'apinga', 'globe', 'Apinga', 'OSINT', { external: true }));
+        nav.appendChild(createLink('http://192.168.1.73:3000/dashboard/requests', 'chainholder', 'folder-lock', 'Chainholder', 'Docs & archivio', { external: true, sso: 'chainholder' }));
+        nav.appendChild(createLink('https://192.168.4.80:3444', 'cluster', 'layer-group', 'Cluster', 'Reactor', { external: true }));
+        nav.appendChild(createLink('/corsi', 'corsi', 'graduation-cap', 'Corsi', 'Formazione'));
         nav.appendChild(createLink('https://192.168.4.80:5173', 'cryptomonitor', 'desktop', 'CryptoMonitor', 'Monitoraggio', { external: true, sso: 'cryptomonitor' }));
+        nav.appendChild(createLink('/cryptoscanner', 'cryptoscanner', 'file-search-alt', 'CryptoScanner', 'File scan'));
+        nav.appendChild(createLink('/xpublicator', 'xpublicator', 'key-skeleton', 'Xpublicator', 'xpub → address'));
+        nav.appendChild(createLink('http://192.168.4.80:5005', 'gelato', 'map-marker', 'GELATO', 'Geo & foto', { external: true }));
         nav.appendChild(createLink('https://192.168.4.80:5174', 'materiali', 'books', 'Materiali', 'Archivio', { external: true }));
+        nav.appendChild(createLink('/siena-constructor/', 'siena', 'envelope', 'SIENA Constructor', 'Messaggi', { external: true }));
+        nav.appendChild(createLink('http://192.168.4.80:7860', 'terra', 'map', 'Terra', 'Geolocalizza foto', { external: true }));
+        nav.appendChild(createLink('http://192.168.4.80:3002', 'vysion', 'shield-exclamation', 'Vysion', 'Ransomware leak', { external: true, sso: 'vysion' }));
         nav.appendChild(createLink('/profilo', 'profilo', 'user-circle', 'Profilo', 'Il mio account'));
 
         const isSuper = user.role === 'superadmin';
         const isAdmin = user.role === 'admin' || isSuper;
         const isStrumento = user.accountType === 'strumento';
-        if (isAdmin && !isStrumento) nav.appendChild(createLink('/gestione-utenti', 'gestione-utenti', 'users-alt', 'Gestione', 'Utenti'));
+        if (isAdmin && !isStrumento) {
+            const adminLink = createLink('/gestione-utenti', 'gestione-utenti', 'users-alt', 'Gestione Utenti', 'Admin');
+            adminLink.classList.add('is-admin');
+            nav.appendChild(adminLink);
+        }
 
         // Apply card-level visibility rules similar to the portal allowlist.
         const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);

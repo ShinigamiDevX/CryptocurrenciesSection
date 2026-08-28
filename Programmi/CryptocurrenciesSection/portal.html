@@ -12,7 +12,7 @@
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
     <link rel="stylesheet" href="light-theme.css?v=4">
     <script src="light-theme.js?v=1"></script>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=9">
     <style>
         /* Campanella: regole critiche (evita layout rotto se CSS in cache) */
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
@@ -115,6 +115,47 @@
         html.light-theme .card.is-soon { border-color: rgba(200,130,20,0.35); }
         html.light-theme .card.is-soon .btn-outline { color: #B86A00; border-color: rgba(200,130,20,0.4); }
 
+        .card.is-admin {
+            position: relative;
+            border-color: rgba(167, 120, 255, 0.55);
+            background: linear-gradient(180deg, rgba(123, 94, 167, 0.28), var(--color-surface));
+            box-shadow: 0 0 0 1px rgba(167, 120, 255, 0.2), 0 12px 36px rgba(123, 94, 167, 0.28);
+        }
+        .card.is-admin:hover {
+            border-color: rgba(200, 168, 255, 0.85);
+            box-shadow: 0 0 0 1px rgba(200, 168, 255, 0.35), 0 16px 40px rgba(123, 94, 167, 0.38);
+        }
+        .card-admin-badge {
+            position: absolute;
+            top: 0.85rem;
+            right: 0.85rem;
+            padding: 0.22rem 0.55rem;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #f4edff;
+            background: linear-gradient(135deg, #9B6DFF, #7B5EA7);
+            box-shadow: 0 0 0 1px rgba(167, 120, 255, 0.35);
+        }
+        .card.is-admin .btn-outline {
+            border-color: rgba(167, 120, 255, 0.55);
+            color: #D4B8FF;
+        }
+        html.light-theme .card.is-admin {
+            border-color: rgba(123, 70, 190, 0.45) !important;
+            background: linear-gradient(180deg, rgba(123, 94, 167, 0.14), rgba(255, 255, 255, 0.92)) !important;
+            box-shadow: 0 8px 32px rgba(123, 94, 167, 0.18) !important;
+        }
+        html.light-theme .card.is-admin:hover {
+            border-color: rgba(123, 70, 190, 0.7) !important;
+        }
+        html.light-theme .card.is-admin .btn-outline {
+            color: #6B3BB0;
+            border-color: rgba(123, 70, 190, 0.5);
+        }
+
         /* ── Auth overlay ─────────────────────────────────────── */
         #authOverlay {
             position: fixed; inset: 0; background: #030E1C; z-index: 9999;
@@ -207,68 +248,97 @@
             <p id="welcomeSub" style="text-align: left; margin: 0; max-width: none; white-space: nowrap; font-size: 0.95rem;">Accesso riservato al personale autorizzato. Seleziona un'area di lavoro.</p>
         </section>
         <div class="cards" id="dashboardCards">
-            <div class="card is-soon" data-card="blockchain" data-ready="0">
-                <span class="card-soon-badge">In arrivo</span>
-                <div class="icon"><img src="/icons/line/link.svg" alt=""></div>
-                <h3>Tracciamento Blockchain</h3>
-                <p>Analisi del flusso di transazioni su blockchain. Visualizzazione grafica dei percorsi wallet.</p>
-                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;" aria-disabled="true">Non disponibile</a>
-            </div>
-            <div class="card is-soon" data-card="osint" data-ready="0">
-                <span class="card-soon-badge">In arrivo</span>
-                <div class="icon"><img src="/icons/line/search-alt.svg" alt=""></div>
-                <h3>OSINT & Intelligence</h3>
-                <p>Ricerca e correlazione di identità, exchange, indirizzi IP e metadati associati a wallet e transazioni sospette.</p>
-                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;" aria-disabled="true">Non disponibile</a>
-            </div>
-            <div class="card" data-card="chainholder">
-                <div class="icon"><img src="/icons/line/folder-lock.svg" alt=""></div>
-                <h3>Chainholder</h3>
-                <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
-                <a href="http://192.168.1.73:3000/login?callbackUrl=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests" data-sso-tool="chainholder" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
-            </div>
-            <div class="card" data-card="corsi">
-                <div class="icon"><img src="/icons/line/graduation-cap.svg" alt=""></div>
-                <h3>Corsi</h3>
-                <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
-                <a href="/corsi" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
-            </div>
-            <div class="card" data-card="cluster">
-                <div class="icon"><img src="/icons/line/layer-group.svg" alt=""></div>
-                <h3>Cluster</h3>
-                <p>Clusterizzazione dei report forniti dagli Exchange.</p>
-                <a href="https://192.168.4.80:3444" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
-            </div>
             <div class="card is-soon" data-card="ai" data-ready="0">
                 <span class="card-soon-badge">In arrivo</span>
                 <div class="icon"><img src="/icons/line/robot.svg" alt=""></div>
                 <h3>AI</h3>
                 <p>Assistenza intelligente per analisi, ricerche e supporto operativo sulle attività del portale.</p>
-                <a href="#" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;" aria-disabled="true">Non disponibile</a>
+                <a href="#" class="btn btn-outline" aria-disabled="true">Non disponibile</a>
             </div>
             <div class="card" data-card="analisi-report">
                 <div class="icon"><img src="/icons/line/analytics.svg" alt=""></div>
                 <h3>Analisi Report</h3>
                 <p>Carica CSV, Excel o PDF: profilo, transazioni wallet, IP di accesso e riassunto con grafici.</p>
-                <a href="/analisi-report" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+                <a href="/analisi-report" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="apinga">
+                <div class="icon"><img src="/icons/line/globe.svg" alt=""></div>
+                <h3>Apinga</h3>
+                <p>OSINT e data enrichment su IP, URL, email, malware e API di intelligence (GUI e API locale).</p>
+                <a href="http://192.168.4.80:5001" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="chainholder">
+                <div class="icon"><img src="/icons/line/folder-lock.svg" alt=""></div>
+                <h3>Chainholder</h3>
+                <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
+                <a href="http://192.168.1.73:3000/dashboard/requests" data-sso-tool="chainholder" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="cluster">
+                <div class="icon"><img src="/icons/line/layer-group.svg" alt=""></div>
+                <h3>Cluster</h3>
+                <p>Clusterizzazione dei report forniti dagli Exchange per Chainalysis e TRM.</p>
+                <a href="https://192.168.4.80:3444" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="corsi">
+                <div class="icon"><img src="/icons/line/graduation-cap.svg" alt=""></div>
+                <h3>Corsi</h3>
+                <p>Accesso all'area relativa ai corsi di formazione per altri Reparti e materiali didattici.</p>
+                <a href="/corsi" class="btn btn-outline">Apri strumento</a>
             </div>
             <div class="card" data-card="cryptomonitor">
                 <div class="icon"><img src="/icons/line/desktop.svg" alt=""></div>
                 <h3>CryptoMonitor</h3>
                 <p>Monitoraggio operativo delle attività crypto su servizio dedicato esterno al portale.</p>
-                <a href="https://192.168.4.80:5173" data-sso-tool="cryptomonitor" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+                <a href="https://192.168.4.80:5173" data-sso-tool="cryptomonitor" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="cryptoscanner">
+                <div class="icon"><img src="/icons/line/file-search-alt.svg" alt=""></div>
+                <h3>CryptoScanner</h3>
+                <p>Scansione di file in chiaro per indirizzi crypto, seed phrase e hash di transazione.</p>
+                <a href="/cryptoscanner" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="xpublicator">
+                <div class="icon"><img src="/icons/line/key-skeleton.svg" alt=""></div>
+                <h3>Xpublicator</h3>
+                <p>Derivazione indirizzi da xpub/ypub/zpub, ricerca del path e conversione tra formati di chiave.</p>
+                <a href="/xpublicator" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="gelato">
+                <div class="icon"><img src="/icons/line/map-marker.svg" alt=""></div>
+                <h3>GELATO</h3>
+                <p>Geolocalizzazione e timeline da metadati foto, GPX e file di posizione.</p>
+                <a href="http://192.168.4.80:5005" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
             <div class="card" data-card="materiali">
                 <div class="icon"><img src="/icons/line/books.svg" alt=""></div>
                 <h3>Materiali</h3>
                 <p>Accesso all’archivio materiali e risorse operative sul servizio dedicato esterno.</p>
-                <a href="https://192.168.4.80:5174" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+                <a href="https://192.168.4.80:5174" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
-            <div class="card" data-card="gestione-utenti" style="display:none;">
+            <div class="card" data-card="siena">
+                <div class="icon"><img src="/icons/line/envelope.svg" alt=""></div>
+                <h3>SIENA Constructor</h3>
+                <p>Redazione strutturata di messaggi SIENA in inglese: persone, veicoli, documenti e altri oggetti.</p>
+                <a href="/siena-constructor/" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="terra">
+                <div class="icon"><img src="/icons/line/map.svg" alt=""></div>
+                <h3>Terra</h3>
+                <p>Geolocalizzazione di foto: stima Paese, città e coordinate con mappa e livello di confidenza.</p>
+                <a href="http://192.168.4.80:7860" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="vysion">
+                <div class="icon"><img src="/icons/line/shield-exclamation.svg" alt=""></div>
+                <h3>Vysion</h3>
+                <p>Monitoraggio siti leak ransomware: gruppi, vittime e screenshot raccolti via Tor.</p>
+                <a href="http://192.168.4.80:3002" data-sso-tool="vysion" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card is-admin" data-card="gestione-utenti" style="display:none;">
+                <span class="card-admin-badge">Admin</span>
                 <div class="icon"><img src="/icons/line/users-alt.svg" alt=""></div>
                 <h3>Gestione Utenti</h3>
                 <p>Inviti, ruoli, profili e richieste di modifica. Area riservata ad amministratori e super admin.</p>
-                <a href="/gestione-utenti" class="btn btn-outline" style="margin-top:1rem;display:inline-block;font-size:0.85rem;padding:0.4rem 1rem;">Apri strumento</a>
+                <a href="/gestione-utenti" class="btn btn-outline">Apri strumento</a>
             </div>
         </div>
     </main>

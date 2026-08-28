@@ -1,0 +1,16 @@
+services:
+  vysion-api:
+    image: vysion-api 
+    container_name: vysion-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 8000
+    ports:
+      - "127.0.0.1:8000:8000"
+
+networks:
+  default:
+    name: ransomware_network
+    external: true

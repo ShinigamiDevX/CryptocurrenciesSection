@@ -1,0 +1,33 @@
+.bg-yellow-custom {
+    background-color: #f6ff92;
+}
+
+.bg-amber-custom {
+    background-color: #ffc82f;
+}
+
+.bg-orange-custom {
+    background-color: #f16a16;
+}
+
+.bg-red-custom {
+    background-color: #e7331a;
+}
+
+.bg-gray-custom {
+    background-color: #7d7d7d;
+}
+
+.border-right-black {
+    border-right: solid rgb(108, 108, 108);
+}
+
+.card-bar-table tr:last-child {
+    --tw-bg-opacity: 1;
+    background-color: rgba(244, 244, 245, var(--tw-bg-opacity));
+    border-top: 1px solid #e1e1e1;
+}
+
+.no-scroll {
+    overflow: hidden;
+}

@@ -568,6 +568,7 @@ section p {
     margin-top: 3rem;
     text-align: left;
     justify-content: center;
+    align-items: stretch;
 }
 
 .card {
@@ -576,6 +577,10 @@ section p {
     border-radius: calc(var(--radius) * 1.5);
     padding: 2rem;
     transition: border-color var(--transition), transform var(--transition);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .card:hover {
@@ -607,6 +612,24 @@ section p {
     color: var(--color-muted);
     line-height: 1.6;
     margin: 0;
+    flex: 1 1 auto;
+    padding-bottom: 1.75rem;
+}
+
+.card > .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    width: max-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-top: auto;
+    margin-left: 0;
+    margin-right: auto;
+    font-size: 0.85rem;
+    padding: 0.4rem 1rem;
+    text-align: center;
 }
 
 /* ===========================
@@ -674,5 +697,10 @@ footer {
     .btn-outline {
         margin-left: 0;
         margin-top: 0.75rem;
+    }
+
+    .card > .btn {
+        margin-top: auto;
+        margin-left: 0;
     }
 }

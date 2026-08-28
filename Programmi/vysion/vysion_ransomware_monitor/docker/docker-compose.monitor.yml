@@ -1,0 +1,128 @@
+x-airflow-common: &airflow-common
+    image: vysion-airflow
+    env_file:
+        - .env
+    environment: &airflow-common-env
+        AIRFLOW__CORE__EXECUTOR: LocalExecutor
+        AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5433/airflow
+        AIRFLOW__CORE__FERNET_KEY: ""
+        AIRFLOW__CORE__DAG_RUN_CONF_OVERRIDES_PARAMS: "true"
+        AIRFLOW__CORE__ENABLE_XCOM_PICKLING: "true"
+        AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+        AIRFLOW__WEBSERVER__SHOW_TRIGGER_FORM_IF_NO_PARAMS: "true"
+        AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+        TOR_SOCKS_PROXY: "tor:9050"
+        ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST}
+        ELASTICSEARCH_USER: ${ELASTICSEARCH_USER}
+        ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD}
+        MINIO_HOST: ${MINIO_HOST}
+        MINIO_USER: ${MINIO_USER}
+        MINIO_PASSWORD: ${MINIO_PASSWORD}
+        SHODAN_API_KEY: ${SHODAN_API_KEY}
+    user: "${AIRFLOW_UID}:0"
+    volumes:
+        - ./config/airflow/dags:/opt/airflow/dags
+        - ./config/airflow/logs:/opt/airflow/logs
+        - ./config/airflow/plugins:/opt/airflow/plugins
+    depends_on:
+        - airflow-db
+    restart: unless-stopped
+    networks:
+        - ransomware_network
+
+services:
+    autoheal:
+        image: willfarrell/autoheal:1.2.0
+        container_name: vysion-autoheal
+        environment:
+            AUTOHEAL_CONTAINER_LABEL: autoheal
+            AUTOHEAL_INTERVAL: 120
+            AUTOHEAL_DEFAULT_STOP_TIMEOUT: 60
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+        network_mode: none
+        restart: unless-stopped
+
+    tor:
+        image: vysion-tor
+        container_name: vysion-tor
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "512m"
+        labels:
+            - "autoheal=true"
+        # ports:
+        #   - 9050:9050
+        networks:
+            - ransomware_network
+        restart: unless-stopped
+
+    airflow-db:
+        image: postgres:16
+        container_name: vysion-airflow-db
+        command: -p 5433
+        environment:
+            POSTGRES_USER: airflow
+            POSTGRES_PASSWORD: airflow
+            POSTGRES_DB: airflow
+        ports:
+            - "127.0.0.1:5433:5433"
+        volumes:
+            - postgres-db-volume:/var/lib/postgresql/data
+        restart: always
+        networks:
+            - ransomware_network
+
+    airflow-webserver:
+        <<: *airflow-common
+        container_name: vysion-airflow-webserver
+        command: webserver
+        ports:
+            - "127.0.0.1:8080:8080"
+        restart: always
+        depends_on:
+            - airflow-db
+            - airflow-init
+
+    airflow-scheduler:
+        <<: *airflow-common
+        container_name: vysion-airflow-scheduler
+        command: scheduler
+        restart: always
+        depends_on:
+            - airflow-db
+            - airflow-init
+        deploy:
+            resources:
+                limits:
+                    memory: 6G
+
+    airflow-init:
+        <<: *airflow-common
+        restart: "on-failure"
+        entrypoint: /bin/bash
+        command:
+            - -c
+            - |
+                mkdir -p /sources/logs /sources/dags /sources/plugins
+                chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+                exec /entrypoint airflow version
+        environment:
+            <<: *airflow-common-env
+            _AIRFLOW_DB_MIGRATE: "true"
+            _AIRFLOW_WWW_USER_CREATE: "true"
+            _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USER}
+            _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD}
+            _PIP_ADDITIONAL_REQUIREMENTS: ""
+        user: "0:0"
+        volumes:
+            - ./config/airflow/:/sources
+
+volumes:
+    postgres-db-volume:
+
+networks:
+    ransomware_network:
+        name: ransomware_network
+        external: true

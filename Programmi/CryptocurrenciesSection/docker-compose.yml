@@ -10,6 +10,8 @@ services:
       - cluster
       - auth
       - analisi
+      - cryptoscanner
+      - xpublicator
     volumes:
       - ./:/usr/share/nginx/html:ro
 
@@ -63,5 +65,27 @@ services:
       - IPQS_API_KEY=${IPQS_API_KEY:-}
       - SPUR_API_TOKEN=${SPUR_API_TOKEN:-}
       - IPGEOLOCATION_API_KEY=${IPGEOLOCATION_API_KEY:-}
+    depends_on:
+      - auth
+
+  cryptoscanner:
+    build:
+      context: ./cryptoscanner
+      dockerfile: Dockerfile
+    container_name: cryptovault-cryptoscanner
+    restart: unless-stopped
+    environment:
+      - AUTH_VERIFY_URL=http://auth:4000/api/auth/verify
+    depends_on:
+      - auth
+
+  xpublicator:
+    build:
+      context: ./xpublicator
+      dockerfile: Dockerfile
+    container_name: cryptovault-xpublicator
+    restart: unless-stopped
+    environment:
+      - AUTH_VERIFY_URL=http://auth:4000/api/auth/verify
     depends_on:
       - auth

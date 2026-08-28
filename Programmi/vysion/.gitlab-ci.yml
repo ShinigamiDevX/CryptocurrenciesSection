@@ -1,0 +1,157 @@
+# EACTDA - Provider: Byron Labs - Tool: VYSION
+#
+#
+# The images used are pulled from the Docker hub
+# https://hub.docker.com/
+# Use the proper image according what it uses the tool project during the development.
+#
+# Useful links:
+# * https://docs.gitlab.com/ee/ci/introduction/
+# * https://docs.gitlab.com/ee/ci/yaml/index.html#stages
+# * https://docs.gitlab.com/ee/development/cicd/templates.html
+# * https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates
+
+# This statement allows to define defaults that will be taken for all the stages unless it is specified otherwise in the stage
+default:
+  # image: python:3.10.11-windowsservercore
+  tags: 
+    - dev-runner # The tag to specify the gitlab-runner which will run this pipeline
+
+# Pipeline execution
+workflow:
+  rules:
+    # Applicable for all the branches dedicated to the releases or the development
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH =~ /^(release|hackathon)\/\w+([-]\w+)*/
+      when: always
+    # # Applicable for all the branches dedicated to the development - Not working, issues with manual keyword in GitLab
+    # - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH =~ /^(hackathon|feature|hotfix|bugfix)\/\w+([-]\w+)*/
+    #  when: manual
+    # Applicable for non-specified branches (e.g. documentation branches, etc)
+    - when: never
+
+#Define stages of the project. This template will use three stages, that can be applied
+stages:
+  - Build
+  - Static analysis
+  - Test
+  - Dependency analysis
+
+# TODO we need to know how to compile the tool.
+dockerbuild:
+  stage: Build
+  image:
+    name: python:3.10.11
+  script:
+    - python --version ; pip --version
+
+# Analysis of the source code
+sonarqube:
+  stage: Static analysis
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+  script:
+    - sonar-scanner -Dproject.settings=sonar-project.properties
+  allow_failure: true
+
+# TODO we need to know how to run the tests of the tool.
+pytest:
+  stage: Test
+  image:
+    name: python:3.10.11
+  script:
+    - python --version ; pip --version
+
+# SBOM generation
+
+## Job to generate sboms for the python modules
+# ! If it is going to be used Syft on each folder, it should be known that for Python is necessary to have previously installed all the dependencies
+# ! on a virtual environment, located in the input folder
+cyclone_dx:python_modules:
+  stage: Dependency analysis
+  image:
+    name: python:3.10.11
+  script:
+    - pip install cyclonedx-bom
+    - cd $CI_PROJECT_DIR/vysion_ransomware_api ; cyclonedx-py requirements -o sbom.xml --of XML requirements.txt
+    - cd $CI_PROJECT_DIR/vysion_ransomware_monitor ; cyclonedx-py requirements -o sbom.xml --of XML requirements.txt
+  artifacts:
+    paths:
+    - $CI_PROJECT_DIR/vysion_ransomware_api/sbom.xml
+    - $CI_PROJECT_DIR/vysion_ransomware_monitor/sbom.xml
+    expire_in: 1 week
+
+## Job to generate sboms for the nodejs modules
+# ! We use Syft instead of cyclonedx-npm because this tool has returned some errors when it has been used.
+syft:nodejs_modules:
+  stage: Dependency analysis
+  image:
+    name: alpine:latest
+  script:
+    - apk add curl
+    - curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.7.0
+    - cd $CI_PROJECT_DIR/vysion_ransomware_webapp ; syft . -o cyclonedx-xml > sbom.xml
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/vysion_ransomware_webapp/sbom.xml
+    expire_in: 1 week
+
+
+## Job to unify the sboms of the python modules
+# ! We convert the final SBOM to cyclonedx 1.4 for support with SbomIPRChecker and DependencyTrack
+# ! The empty entrypoint is necessary for those images that by default execute a service or a unique command.
+cyclone_dx_cli:unify_sbom:
+  stage: Dependency analysis
+  image:
+    name: cyclonedx/cyclonedx-cli:latest
+    entrypoint: [""]
+  script:
+    - >
+      cyclonedx merge --input-files 
+      $CI_PROJECT_DIR/vysion_ransomware_api/sbom.xml 
+      $CI_PROJECT_DIR/vysion_ransomware_monitor/sbom.xml
+      $CI_PROJECT_DIR/vysion_ransomware_webapp/sbom.xml
+      --input-format xml --output-format xml --output-file vx_sbom.xml 
+    - cyclonedx convert --input-file vx_sbom.xml --output-format xml --output-version v1_4 --output-file sbom.xml
+  needs: ['cyclone_dx:python_modules', 'syft:nodejs_modules']
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/vysion_ransomware_api/sbom.xml
+      - $CI_PROJECT_DIR/vysion_ransomware_monitor/sbom.xml
+      - $CI_PROJECT_DIR/vysion_ransomware_webapp/sbom.xml
+      - sbom.xml
+    expire_in: 1 week
+    
+# Analysis of vulnerabilities with DependencyTrack
+dependencytrack:
+  stage: Dependency analysis
+  image:
+    name: alpine:latest
+  script:
+    - apk add curl
+    - 'curl -X POST -H "X-Api-Key: $DEPTRACK_API_KEY" -H "Content-Type: multipart/form-data" -F "project=$DEPTRACK_PROJECT_ID" -x "" -F "bom=@sbom.xml" http://$DEPTRACK_HOST_URL/api/v1/bom'
+  needs: ['cyclone_dx_cli:unify_sbom']
+  artifacts:
+    paths:
+      - sbom.xml
+    expire_in: 1 week
+
+# Analysis of intellectual property rights with sbomiprchecker
+sbomiprchecker:
+  stage: Dependency analysis
+  image:
+    name: python:3.10.11
+  script:
+    - python --version ; pip --version
+    - pip install virtualenv
+    - virtualenv sipr_venv
+    - source sipr_venv/bin/activate
+    - git -c http.sslVerify=false clone --depth 1 --branch SbomIPRChecker-1.0.5-alpha https://SbomCheckerCloneToken:$INTERNAL_CLONE_SIPRC_TOKEN@$SIPRC_CLONE_URL ; cd SbomChecker
+    - pip install . ; cd ..
+    - SbomIPRChecker --no-gui -l -report=HTML sbom.xml licensed_sbom.xml
+  needs: ['cyclone_dx_cli:unify_sbom']
+  timeout: 4h
+  artifacts:
+    paths:
+      - licensed_sbom.xml
+      - sbom.xml
+      - sbom-report.html

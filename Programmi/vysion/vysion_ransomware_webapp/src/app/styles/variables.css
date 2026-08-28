@@ -1,0 +1,36 @@
+@tailwind base;
+
+@layer base {
+    :root {
+        /* Colors */
+        --color-background: #fcfcfc;
+        --color-background-secondary: #f9fafb;
+
+        --color-primary: #02061f;
+        --color-secondary: #85768b;
+        --color-accent: #d09b0e;
+        --color-accent-secondary: #59bdde;
+
+        --color-text-primary: #020617;
+        --color-text-secondary: #374151;
+
+        --color-sidebar: #070d47;
+
+        /* Paddings */
+        --padding: 1rem;
+        /* Sizes */
+        --size-footer: 4rem;
+        --size-container: calc(100svh - calc(var(--padding) * 4) - var(--size-footer));
+        --size-table-title: 2.75rem;
+        --size-table-thread: 2.5rem;
+        --size-table: calc(var(--size-container) - var(--size-table-title) - var(--size-table-thread));
+
+        @media screen and (min-width: 640px) {
+            --size-footer: 2.5rem;
+        }
+
+        @media screen and (min-width: 640px) {
+            --size-footer: 2.25rem;
+        }
+    }
+}

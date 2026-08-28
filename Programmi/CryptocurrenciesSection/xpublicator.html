@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Xpublicator — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=12">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="analisi-report.css?v=13">
+    <link rel="stylesheet" href="cryptoscanner.css?v=2">
+    <link rel="stylesheet" href="xpublicator.css?v=1">
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Xpublicator</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head"><strong>Notifiche</strong></div>
+        <div class="nav-bell-list" id="navBellList"><div class="nav-bell-empty">Nessuna notifica.</div></div>
+    </div>
+
+    <main>
+        <div class="page-title"><img src="/icons/line/key-skeleton.svg" alt=""> Xpublicator</div>
+        <p class="page-sub">Deriva indirizzi da xpub/ypub/zpub (BIP-32), cerca il path, converti i formati o leggi i metadati della chiave. Motore Kripos/NC3 1.3.</p>
+
+        <div class="ar-card">
+            <div class="xp-modes" id="modeBar">
+                <button type="button" class="xp-mode active" data-mode="derive">Deriva indirizzi</button>
+                <button type="button" class="xp-mode" data-mode="find">Cerca path</button>
+                <button type="button" class="xp-mode" data-mode="convert">Converti formati</button>
+                <button type="button" class="xp-mode" data-mode="info">Info chiave</button>
+            </div>
+            <div class="xp-field">
+                <label class="xp-label" for="xpubInput">Chiavi estese</label>
+                <textarea class="xp-area" id="xpubInput" placeholder="Una xpub, ypub o zpub per riga" spellcheck="false"></textarea>
+            </div>
+            <div id="deriveOpts">
+                <div class="xp-field">
+                    <label class="xp-label" for="pathInput">Path relativo alla chiave</label>
+                    <input class="xp-input" id="pathInput" value="x/0-10/0-20" spellcheck="false">
+                    <p class="xp-hint">Esempio: x/0-10/0-20 oppure x/0,1/0-20. Massimo 4000 indirizzi. Chiavi hardenite non supportate.</p>
+                </div>
+                <div class="cs-opts">
+                    <label class="cs-flag-hit"><input type="checkbox" class="addrType" value="p2pkh" checked><span class="cs-flag"></span><span class="cs-flag-label">P2PKH (1…)</span></label>
+                    <label class="cs-flag-hit"><input type="checkbox" class="addrType" value="p2sh" checked><span class="cs-flag"></span><span class="cs-flag-label">P2SH (3…)</span></label>
+                    <label class="cs-flag-hit"><input type="checkbox" class="addrType" value="p2wpkh" checked><span class="cs-flag"></span><span class="cs-flag-label">P2WPKH (bc1…)</span></label>
+                    <label class="cs-flag-hit"><input type="checkbox" class="addrType" value="eth" checked><span class="cs-flag"></span><span class="cs-flag-label">Ethereum (0x…)</span></label>
+                    <label class="cs-flag-hit"><input type="checkbox" id="optAll"><span class="cs-flag"></span><span class="cs-flag-label">Anche i nodi intermedi</span></label>
+                    <label class="cs-flag-hit"><input type="checkbox" id="optNoEth"><span class="cs-flag"></span><span class="cs-flag-label">ETH senza checksum</span></label>
+                </div>
+            </div>
+            <div class="xp-field" id="findWrap" style="display:none;">
+                <label class="xp-label" for="findInput">Indirizzi da cercare</label>
+                <textarea class="xp-area" id="findInput" placeholder="Uno o più indirizzi, uno per riga" spellcheck="false"></textarea>
+            </div>
+            <div class="ar-actions">
+                <button type="button" class="ar-btn-secondary" id="btnClear">Svuota</button>
+                <button type="button" class="ar-btn-primary" id="btnRun">Esegui</button>
+            </div>
+            <div id="statusMsg" class="ar-status" style="display:none;"></div>
+        </div>
+
+        <div id="resultsWrap" class="ar-results" style="display:none;"></div>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="auth-token.js?v=2"></script>
+    <script src="nav-notifications.js?v=5"></script>
+    <script src="xpublicator.js?v=1"></script>
+</body>
+</html>

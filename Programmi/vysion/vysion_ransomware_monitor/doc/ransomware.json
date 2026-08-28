@@ -1,0 +1,123 @@
+PUT _index_template/ransomware_template_1
+{
+  "index_patterns": [
+    "ransomware-*"
+  ],
+  "template": {
+    "mappings": {
+      "properties": {
+        "companyName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "companyLink": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "bussinessAddress": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "bussinessTLD": {
+          "type": "keyword"
+        },
+        "url": {
+          "type": "keyword"
+        },
+        "path": {
+          "type": "keyword"
+        },
+        "urlSignature": {
+          "type": "keyword"
+        },
+        "postSignature": {
+          "type": "keyword"
+        },
+        "network": {
+          "type": "keyword"
+        },
+        "networkProtocol": {
+          "type": "keyword"
+        },
+        "text": {
+          "type": "text"
+        },
+        "ransomwarePost": {
+          "type": "keyword"
+        },
+        "ransomwareGroup": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "detectionDate": {
+          "type": "date"
+        },
+        "deadlineDate": {
+          "type": "date"
+        },
+        "ingestionDate": {
+          "type": "date"
+        },
+        "pageTitle": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "ignore_above": 256,
+              "type": "keyword"
+            }
+          }
+        },
+        "html": {
+          "type": "text"
+        },
+        "css": {
+          "type": "keyword"
+        },
+        "country": {
+          "type": "keyword"
+        },
+        "ssdeep": {
+          "type": "keyword"
+        },
+        "sha1sum": {
+          "type": "keyword"
+        },
+        "sha256sum": {
+          "type": "keyword"
+        },
+        "objectName": {
+          "type": "keyword"
+        },
+        "minioCluster": {
+          "type": "keyword"
+        },
+        "bucketName": {
+          "type": "keyword"
+        },
+        "etag": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}
