@@ -287,8 +287,14 @@ html.light-theme .profile-head h3 {
 
 html.light-theme label,
 html.light-theme .edit-field label,
-html.light-theme .view-dl dt {
-    color: #8B5E00 !important;
+html.light-theme .view-dl dt,
+html.light-theme .dl-grid dt {
+    color: #7A5A28 !important;
+}
+
+html.light-theme .view-dl dd,
+html.light-theme .dl-grid dd {
+    color: #1A1008 !important;
 }
 
 html.light-theme input,
@@ -350,6 +356,37 @@ html.light-theme .btn-edit {
 html.light-theme .grado-badge,
 html.light-theme .check-label {
     color: #8B5E00 !important;
+}
+
+html.light-theme .profile-head .role-badge,
+html.light-theme .badge-admin {
+    background: rgba(18, 98, 168, 0.16) !important;
+    color: #0B4F8A !important;
+    border: 1px solid rgba(18, 98, 168, 0.35) !important;
+}
+
+html.light-theme .badge-user {
+    background: rgba(12, 120, 70, 0.12) !important;
+    color: #0A6B3C !important;
+    border: 1px solid rgba(12, 120, 70, 0.28) !important;
+}
+
+html.light-theme .badge-docente {
+    background: rgba(176, 96, 0, 0.12) !important;
+    color: #8A4A00 !important;
+    border: 1px solid rgba(176, 96, 0, 0.32) !important;
+}
+
+html.light-theme .badge-locked {
+    background: rgba(180, 36, 48, 0.12) !important;
+    color: #A01828 !important;
+    border: 1px solid rgba(180, 36, 48, 0.3) !important;
+}
+
+html.light-theme .badge-hidden {
+    background: rgba(140, 80, 0, 0.12) !important;
+    color: #7A4500 !important;
+    border: 1px solid rgba(140, 80, 0, 0.3) !important;
 }
 
 html.light-theme .profile-card {

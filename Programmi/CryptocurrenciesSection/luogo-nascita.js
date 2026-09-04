@@ -300,12 +300,14 @@ class LuogoGeo {
         let geo = '';
         if (this._tipo === 'IT') {
             if (this._comune) {
-                geo = this._provincia ? `${this._comune} (${this._provincia})` : this._comune;
+                const c = LuogoGeo.titleCase(this._comune);
+                const p = String(this._provincia || '').trim().toUpperCase();
+                geo = p ? `${c} (${p})` : c;
             }
         } else if (this._tipo === 'ESTERO') {
             if (this._stato) {
                 const found = this.data.stati.find(s => s.sigla === this._stato);
-                geo = found ? found.nome : this._stato;
+                geo = LuogoGeo.titleCase(found ? found.nome : this._stato);
             }
         }
         if (this.withAddress) {

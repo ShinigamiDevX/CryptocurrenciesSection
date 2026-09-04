@@ -15,6 +15,9 @@ services:
       - li-tools
     volumes:
       - ./:/usr/share/nginx/html:ro
+      # Overlay: nasconde DB/secret e cluster.env anche se nginx conf sbaglia
+      - ./deploy/web-block/auth-data:/usr/share/nginx/html/auth/data:ro
+      - ./deploy/web-block/empty.env:/usr/share/nginx/html/cluster.env:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ../../certs/cert.pem:/etc/nginx/ssl/cert.pem:ro
       - ../../certs/key.pem:/etc/nginx/ssl/key.pem:ro

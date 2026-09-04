@@ -10,7 +10,7 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=3">
+    <link rel="stylesheet" href="light-theme.css?v=14">
     <script src="light-theme.js?v=1"></script>
     <link rel="stylesheet" href="style.css?v=7">
     <link rel="stylesheet" href="custom-select.css?v=8">
@@ -107,6 +107,11 @@
             transition: color 0.2s, border-color 0.2s;
         }
         .tab-btn.active { color: #00C8FF; border-bottom-color: #00C8FF; }
+        html.light-theme .tab-btn { color: #5A4A30; }
+        html.light-theme .tab-btn.active { color: #CC5000; border-bottom-color: #FF7A00; }
+        html.light-theme .page-sub,
+        html.light-theme .tab-section-hint,
+        html.light-theme .cards-pick-hint { color: #6A5A40; }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
 
@@ -283,6 +288,71 @@
         .badge-docente { background:rgba(255,184,77,0.14); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
         .badge-locked { background:rgba(255,71,87,0.16); color:#FF6B7A; border:1px solid rgba(255,71,87,0.35); }
         .badge-hidden { background:rgba(255,184,77,0.16); color:#FFB84D; border:1px solid rgba(255,184,77,0.35); }
+        html.light-theme .badge-admin {
+            background: rgba(18, 98, 168, 0.14);
+            color: #0B4F8A;
+            border: 1px solid rgba(18, 98, 168, 0.28);
+        }
+        html.light-theme .badge-user {
+            background: rgba(12, 120, 70, 0.12);
+            color: #0A6B3C;
+            border: 1px solid rgba(12, 120, 70, 0.28);
+        }
+        html.light-theme .badge-docente {
+            background: rgba(176, 96, 0, 0.12);
+            color: #8A4A00;
+            border: 1px solid rgba(176, 96, 0, 0.32);
+        }
+        html.light-theme .badge-locked {
+            background: rgba(180, 36, 48, 0.12);
+            color: #A01828;
+            border: 1px solid rgba(180, 36, 48, 0.3);
+        }
+        html.light-theme .badge-hidden {
+            background: rgba(140, 80, 0, 0.12);
+            color: #7A4500;
+            border: 1px solid rgba(140, 80, 0, 0.3);
+        }
+        html.light-theme .bulk-chip-filter {
+            background: rgba(255, 255, 255, 0.92);
+            border-color: rgba(120, 90, 40, 0.28);
+            color: #2C1A00;
+        }
+        html.light-theme .bulk-chip-filter:hover {
+            border-color: rgba(204, 80, 0, 0.45);
+            background: rgba(255, 122, 0, 0.08);
+            color: #2C1A00;
+        }
+        html.light-theme .bulk-chip-filter.is-on {
+            background: rgba(255, 122, 0, 0.16);
+            border-color: rgba(204, 80, 0, 0.5);
+            color: #8A3A00;
+        }
+        html.light-theme .bulk-chip-filter.is-docente {
+            border-color: rgba(176, 96, 0, 0.4);
+            color: #8A4A00;
+        }
+        html.light-theme .bulk-chip-filter.is-docente:hover {
+            background: rgba(176, 96, 0, 0.1);
+            color: #6E3A00;
+        }
+        html.light-theme .bulk-chip-filter.is-docente.is-on {
+            background: rgba(176, 96, 0, 0.16);
+            border-color: rgba(176, 96, 0, 0.5);
+            color: #6E3A00;
+        }
+        html.light-theme .bulk-chip-filter.is-hidden-users {
+            border-color: rgba(180, 36, 48, 0.35);
+            color: #A01828;
+        }
+        html.light-theme .bulk-chip-filter.is-hidden-users:hover,
+        html.light-theme .bulk-chip-filter.is-hidden-users.is-on {
+            background: rgba(180, 36, 48, 0.1);
+            color: #8A1220;
+        }
+        html.light-theme .bulk-card-head.is-docente label { color: #8A4A00; }
+        html.light-theme .bulk-clear-filters { color: #CC5000; }
+        html.light-theme .grado-badge { color: #6A4A20; }
         .tab-section-title {
             font-size: 0.78rem;
             font-weight: 600;
@@ -937,7 +1007,7 @@
             <button class="tab-btn" data-tab="invite" onclick="switchTab('invite')">Invita</button>
             <button class="tab-btn" data-tab="bulk" onclick="switchTab('bulk')" id="tabBtnBulk" style="display:none;">Autorizzazioni</button>
             <button class="tab-btn" data-tab="approvals" onclick="switchTab('approvals')">Approvazioni <span id="reqBadge" style="background:#FF4757;color:#fff;border-radius:10px;font-size:0.7rem;padding:0.1rem 0.45rem;margin-left:0.2rem;display:none;">0</span></button>
-            <button class="tab-btn" data-tab="hidden" onclick="switchTab('hidden')">Eliminati</button>
+            <button class="tab-btn" data-tab="hidden" onclick="switchTab('hidden')" id="tabBtnHidden" style="display:none;">Eliminati</button>
         </div>
 
         <!-- Tab: Utenti -->
@@ -986,7 +1056,7 @@
         <!-- Tab: Profili strumento (solo Super Admin) -->
         <div class="tab-panel" id="tab-strumenti">
             <div class="feedback" id="strumentiMsg"></div>
-            <p class="tab-section-hint">Account per monitor e kiosk: solo username e password, ruolo Reader, accesso limitato agli strumenti selezionati. Non compaiono nella lista utenti.</p>
+            <p class="tab-section-hint">Account per monitor e kiosk: solo username e password, sola lettura, accesso limitato agli strumenti selezionati. Non compaiono nella lista utenti. Creazione riservata al Super Admin.</p>
             <div class="invite-row" style="flex-wrap:wrap;align-items:flex-end;">
                 <div class="field-group">
                     <label>Nome utente</label>
@@ -1223,7 +1293,7 @@
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
     const ROLE_LEVEL = { reader: 0, user: 1, admin: 2, superadmin: 3 };
-    const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+    const ROLE_LABEL = { reader: 'Sola lettura', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
     const ASSIGNABLE_CARDS = [
         { id: 'ai', label: 'AI', short: 'AI', icon: '/icons/line/robot.svg' },
         { id: 'analisi-report', label: 'Analisi Report', short: 'Analisi', icon: '/icons/line/analytics.svg' },
@@ -1243,7 +1313,6 @@
     ];
     const CARD_LABEL = Object.fromEntries(ASSIGNABLE_CARDS.map(c => [c.id, c.label]));
     function defaultCardsForRole(role) {
-        if (role === 'reader') return ['corsi'];
         return ASSIGNABLE_CARDS.map(c => c.id);
     }
     function renderCardsGrid(containerId, selected, namePrefix) {
@@ -1315,7 +1384,6 @@
         return (el && el.value) || 'user';
     }
     const INVITE_ROLE_META = {
-        reader:     { short: 'Reader',     sub: 'Solo lettura',       icon: 'eye' },
         user:       { short: 'Utente',     sub: 'Accesso operativo',  icon: 'user' },
         admin:      { short: 'Admin',      sub: 'Gestione utenti',    icon: 'shield' },
         superadmin: { short: 'Super Admin', sub: 'Controllo totale',  icon: 'shield-check' },
@@ -1382,6 +1450,11 @@
     let _editDomicilioWired = false;
 
     document.addEventListener('DOMContentLoaded', async () => {
+        // Schede invito/modifica subito: non dipendono dall'auth
+        renderCardsGrid('inviteCardsGrid', defaultCardsForRole('user'), 'inviteCard');
+        renderCardsGrid('editCardsGrid', defaultCardsForRole('user'), 'editCard');
+        renderInviteRoleGrid('user');
+
         renderBulkCardFilterChips();
         const bulkSortEl = document.getElementById('bulkSortSelect');
         if (bulkSortEl) {
@@ -1400,9 +1473,6 @@
                 { placeholder: 'Ordina per', value: 'grado', searchable: false, small: true }
             );
         }
-        renderCardsGrid('inviteCardsGrid', defaultCardsForRole('user'), 'inviteCard');
-        renderCardsGrid('editCardsGrid', defaultCardsForRole('user'), 'editCard');
-        renderInviteRoleGrid('user');
         // Select grado nella modale di modifica
         editGradoCs = new CustomSelect(
             document.getElementById('editGradoSel'),
@@ -1488,18 +1558,25 @@
                     : (RUOLI_OPTIONS.find(r => (ROLE_LEVEL[r.value] || 0) <= myLevel)?.value || 'user')
             );
             if (_currentUser.role === 'superadmin') {
-                const bulkBtn = document.getElementById('tabBtnBulk');
-                if (bulkBtn) bulkBtn.style.display = '';
                 const strBtn = document.getElementById('tabBtnStrumenti');
                 if (strBtn) strBtn.style.display = '';
+                const hiddenBtn = document.getElementById('tabBtnHidden');
+                if (hiddenBtn) hiddenBtn.style.display = '';
                 renderCardsGrid('strumentoCardsGrid', [], 'strumentoCard');
+            }
+            const bulkBtn = document.getElementById('tabBtnBulk');
+            if (bulkBtn) bulkBtn.style.display = '';
+            renderBulkCardFilterChips();
+            if (!document.querySelector('#inviteCardsGrid input[name="inviteCard"]')) {
+                renderCardsGrid('inviteCardsGrid', defaultCardsForRole('user'), 'inviteCard');
             }
             refreshRequestsBadge();
             loadUsers();
             if (location.hash === '#profiles' || location.hash === '#approvals') switchTab('approvals');
             if (location.hash === '#invite') switchTab('invite');
-            if (location.hash === '#hidden') switchTab('hidden');
-            if (location.hash === '#bulk' && _currentUser.role === 'superadmin') switchTab('bulk');
+            if (location.hash === '#hidden' && _currentUser.role === 'superadmin') switchTab('hidden');
+            if (location.hash === '#bulk') switchTab('bulk');
+            if (location.hash === '#strumenti' && _currentUser.role === 'superadmin') switchTab('strumenti');
         } catch {
             clearAuth();
             window.location.replace('/login');
@@ -1535,6 +1612,8 @@
 
     // ── Tab ───────────────────────────────────────────────────────────────────
     function switchTab(tab) {
+        if (tab === 'hidden' && _currentUser?.role !== 'superadmin') tab = 'users';
+        if (tab === 'strumenti' && _currentUser?.role !== 'superadmin') tab = 'users';
         document.querySelectorAll('.tab-btn').forEach((btn) => {
             btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
         });
@@ -1644,12 +1723,18 @@
         const isSuperadmin   = u.role === 'superadmin';
         const isFounder      = u.email === 'portalecrypto@proton.me';
         const targetLevel    = ROLE_LEVEL[u.role] ?? 0;
-        const canToggleVis   = !isSelf && !isSuperadmin && targetLevel < myLevel;
-        const canEditProfile = _currentUser.role === 'superadmin'
-            ? !isFounder
-            : (!isSelf && !isFounder && !isSuperadmin && targetLevel < myLevel && u.visible !== false);
-        const canResetPw     = _currentUser.role === 'superadmin' && !isSelf && !isFounder;
-        const canUnlock      = _currentUser.role === 'superadmin' && !isSuperadmin && !!u.loginLocked;
+        const isSA          = _currentUser.role === 'superadmin';
+        const canDelete     = !isSelf && !isSuperadmin && targetLevel < myLevel && list !== 'hidden';
+        const canRestore    = isSA && !isSelf && !isSuperadmin && targetLevel < myLevel && list === 'hidden';
+        const canEditProfile = !isFounder && (
+            isSA
+                ? true
+                : (!isSuperadmin && targetLevel < myLevel && u.visible !== false)
+        ) && (list !== 'hidden' || isSA);
+        // Admin può modificare anche se stesso (come SA)
+        const canEditSelfOrOther = canEditProfile || (isSelf && !isFounder && list !== 'hidden');
+        const canResetPw     = isSA && !isSelf && !isFounder;
+        const canUnlock      = !isSuperadmin && !!u.loginLocked && targetLevel < myLevel;
         const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
         const displayNome = isFounder
             ? 'Super Admin'
@@ -1658,11 +1743,11 @@
             ? '<span class="grado-badge">—</span>'
             : `${gradoImgTag(u.grado)}<span class="grado-badge">${u.grado || '—'}</span>`;
         const emailJs = String(u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const visBtn = canToggleVis
-            ? (list === 'hidden'
-                ? `<button class="btn-unlock" onclick="toggleUserVisibility('${u.id}','${emailJs}',true)">Ripristina</button>`
-                : `<button class="btn-del" onclick="toggleUserVisibility('${u.id}','${emailJs}',false)">Elimina</button>`)
-            : '';
+        const visBtn = canRestore
+            ? `<button class="btn-unlock" onclick="toggleUserVisibility('${u.id}','${emailJs}',true)">Ripristina</button>`
+            : (canDelete
+                ? `<button class="btn-del" onclick="toggleUserVisibility('${u.id}','${emailJs}',false)">Elimina</button>`
+                : '');
         const hiddenAtCell = list === 'hidden'
             ? `<td style="color:#5ABBC8;font-size:0.8rem">${u.hiddenAt ? new Date(u.hiddenAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>`
             : '';
@@ -1674,7 +1759,7 @@
             <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
             ${hiddenAtCell}
             <td class="actions-cell" onclick="event.stopPropagation()">
-                ${canEditProfile ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
+                ${canEditSelfOrOther ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
                 ${canUnlock ? `<button class="btn-unlock" onclick="unlockUserLogin('${u.id}')">Sblocca</button>` : ''}
                 ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${emailJs}')">Reset password</button>` : ''}
                 ${visBtn}
@@ -1778,11 +1863,13 @@
     function bulkAssignableUsers() {
         const dir = _bulkSort.dir === 'asc' ? 1 : -1;
         const key = _bulkSort.key;
+        const myLevel = ROLE_LEVEL[_currentUser?.role] ?? 0;
         return _usersCache.filter((u) =>
             u.role !== 'superadmin'
             && u.accountType !== 'strumento'
             && u.email !== 'portalecrypto@proton.me'
             && u.id !== _currentUser.id
+            && (ROLE_LEVEL[u.role] ?? 0) < myLevel
         ).sort((a, b) => {
             let cmp = 0;
             if (key === 'grado') {
@@ -1941,7 +2028,8 @@
 
     function renderBulkUsersList() {
         const table = document.getElementById('bulkMatrix');
-        if (!table || !_currentUser || _currentUser.role !== 'superadmin') return;
+        if (!table || !_currentUser) return;
+        if (_currentUser.role !== 'superadmin' && _currentUser.role !== 'admin') return;
         const users = bulkAssignableUsers();
         const edits = snapshotBulkEdits();
         if (!users.length) {
@@ -2043,14 +2131,16 @@
     function renderBulkCardFilterChips() {
         const el = document.getElementById('bulkFilterCards');
         if (!el) return;
-        el.innerHTML = ['reader', 'user', 'admin'].map((role) => `
+        el.innerHTML = ['user', 'admin'].map((role) => `
             <button type="button" class="bulk-chip-filter is-role-${role}" data-filter-role="${role}" aria-pressed="false" title="Mostra solo: ${escapeHtml(ROLE_LABEL[role])}">${escapeHtml(ROLE_LABEL[role])}</button>
         `).join('')
             + `<button type="button" class="bulk-chip-filter is-docente" data-filter-docente="1" aria-pressed="false" title="Categoria Docente">Docente</button>`
             + ASSIGNABLE_CARDS.map((c) => `
             <button type="button" class="bulk-chip-filter" data-filter-card="${escapeHtml(c.id)}" aria-pressed="false" title="${escapeHtml(c.label)}">${escapeHtml(c.short)}</button>
         `).join('')
-            + `<button type="button" class="bulk-chip-filter is-hidden-users" data-filter-hidden="1" aria-pressed="false" title="Mostra anche gli utenti eliminati">Eliminati</button>`;
+            + (_currentUser?.role === 'superadmin'
+                ? `<button type="button" class="bulk-chip-filter is-hidden-users" data-filter-hidden="1" aria-pressed="false" title="Mostra anche gli utenti eliminati">Eliminati</button>`
+                : '');
         if (!el.dataset.wired) {
             el.dataset.wired = '1';
             el.addEventListener('click', (e) => {
@@ -2166,20 +2256,18 @@
             renderUsersTable();
             renderHiddenUsersTable();
             renderStrumentiTable();
-            if (_currentUser && _currentUser.role === 'superadmin') renderBulkUsersList();
+            if (_currentUser && (_currentUser.role === 'superadmin' || _currentUser.role === 'admin')) {
+                renderBulkUsersList();
+            }
         } catch {
             tbody.innerHTML = '<tr><td colspan="6" style="color:#FF6B7A">Errore caricamento.</td></tr>';
         }
     }
 
     function toggleUserVisibility(id, email, visible) {
-        const ask = _currentUser.role === 'superadmin'
-            ? (visible
-                ? `Ripristinare ${email}? L'utente tornerà visibile e riceverà una nuova password temporanea.`
-                : `Eliminare ${email}? L'utente non sarà visibile e le credenziali verranno revocate.`)
-            : (visible
-                ? `Richiedere il ripristino di ${email}? Servirà l'approvazione del Super Admin.`
-                : `Richiedere l'eliminazione di ${email}? L'utente non sarà visibile e le credenziali verranno revocate dopo l'approvazione del Super Admin.`);
+        const ask = visible
+            ? `Ripristinare ${email}? L'utente tornerà visibile e riceverà una nuova password temporanea.`
+            : `Eliminare ${email}? L'utente non sarà visibile e le credenziali verranno revocate.`;
         showConfirm(ask, async () => {
             const res = await fetch('/api/auth/users/' + id + '/visibility', {
                 method: 'PATCH',
@@ -2189,10 +2277,7 @@
             const d = await res.json().catch(() => ({}));
             const msgId = visible ? 'hiddenMsg' : 'usersMsg';
             if (!res.ok) { showMsg(msgId, d.error || 'Errore.', 'error'); return; }
-            if (d.pending) {
-                showMsg(msgId, d.message || 'Richiesta inviata, in attesa del Super Admin.', 'success');
-                refreshRequestsBadge();
-            } else if (visible) {
+            if (visible) {
                 let text = d.emailSent
                     ? 'Utente ripristinato. È stata inviata una password temporanea.'
                     : 'Utente ripristinato.';
@@ -2267,12 +2352,7 @@
         showConfirm(`Cambiare il ruolo di ${email} in ${ROLE_LABEL[newRole]||newRole}?`, async () => {
             const res = await fetch('/api/auth/users/' + id, { method: 'PATCH', headers: authHeader(), body: JSON.stringify({ role: newRole }) });
             const d   = await res.json();
-            if (res.ok && d.pending) {
-                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
-                refreshAarTabBadge();
-            } else {
-                showMsg('usersMsg', res.ok ? `Ruolo aggiornato a ${ROLE_LABEL[newRole]||newRole}.` : (d.error||'Errore.'), res.ok ? 'success' : 'error');
-            }
+            showMsg('usersMsg', res.ok ? `Ruolo aggiornato a ${ROLE_LABEL[newRole]||newRole}.` : (d.error||'Errore.'), res.ok ? 'success' : 'error');
             loadUsers();
         }, () => loadUsers());
     }
@@ -2381,10 +2461,15 @@
         document.getElementById('viewDataNascita').textContent = isFounder ? '—' : formatDateIT(u.dataNascita);
         document.getElementById('viewLuogoNascita').textContent = isFounder ? '—' : dash(u.luogoNascita);
         document.getElementById('viewResidenza').textContent = isFounder ? '—' : dash(u.residenza);
-        const domLabel = isFounder ? '—' : (u.domicilioComeResidenza
-            ? (dash(u.residenza) === '—' ? '—' : dash(u.residenza) + ' (come residenza)')
-            : dash(u.domicilio));
-        document.getElementById('viewDomicilio').textContent = domLabel;
+        const showDom = !isFounder
+            && !u.domicilioComeResidenza
+            && !!String(u.domicilio || '').trim()
+            && String(u.domicilio).trim() !== String(u.residenza || '').trim();
+        const domDd = document.getElementById('viewDomicilio');
+        const domDt = domDd?.previousElementSibling;
+        domDd.textContent = showDom ? dash(u.domicilio) : '—';
+        if (domDt) domDt.style.display = showDom ? '' : 'none';
+        domDd.style.display = showDom ? '' : 'none';
         document.getElementById('viewTelefono').textContent = isFounder ? '—' : dash(formatTelefonoDisplay(u));
 
         const badgeCls = (u.role === 'superadmin' || u.role === 'admin') ? 'badge-admin' : 'badge-user';
@@ -2413,7 +2498,8 @@
                 : '';
             const why = u.loginLockedReason === 'otp_fail' ? '3 OTP errati' : '3 invii OTP';
             lockDd.innerHTML = `<span class="badge badge-locked">Bloccato</span> ${until ? 'fino alle ' + until : ''} (${why})`;
-            unlockBtn.style.display = (_currentUser.role === 'superadmin' && u.role !== 'superadmin') ? '' : 'none';
+            unlockBtn.style.display = (u.role !== 'superadmin'
+                && (ROLE_LEVEL[u.role] ?? 0) < (ROLE_LEVEL[_currentUser.role] ?? 0)) ? '' : 'none';
         } else {
             lockDd.textContent = 'Attivo';
             unlockBtn.style.display = 'none';
@@ -2452,7 +2538,6 @@
         document.getElementById('editUserId').value = userId;
         _editOriginalRole = u.role || 'user';
         const isStrumento = isStrumentoUser(u);
-        const isSA = _currentUser.role === 'superadmin';
 
         if (!isStrumento) {
             if (!editLuogoNascitaLn) {
@@ -2465,10 +2550,10 @@
             fillProfileFields(EDIT_IDS, u, (g) => { if (editGradoCs) editGradoCs.setValue(g || ''); });
         }
 
-        document.getElementById('editFullProfileWrap').style.display = (isSA && !isStrumento) ? '' : 'none';
+        document.getElementById('editFullProfileWrap').style.display = (!isStrumento) ? '' : 'none';
         document.getElementById('editModalTitle').textContent = isStrumento
             ? ('Strumenti — ' + (u.username || u.displayName || 'monitor'))
-            : (isSA ? 'Modifica profilo' : 'Modifica accesso');
+            : 'Modifica profilo';
         renderCardsGrid('editCardsGrid', u.cards || (isStrumento ? [] : defaultCardsForRole(u.role)), 'editCard');
         const authLocked = u.visible === false;
         const canDoc = !isStrumento && roleCanBeDocente(u.role);
@@ -2488,7 +2573,7 @@
             }
         }
 
-        const canRole = isSA && !isStrumento && canChangeUserRole(u);
+        const canRole = !isStrumento && canChangeUserRole(u);
         document.getElementById('editRoleWrap').style.display = canRole ? '' : 'none';
         if (canRole && editRoleCs) {
             const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
@@ -2498,7 +2583,7 @@
 
         document.getElementById('editMsg').style.display = 'none';
         document.getElementById('editModal').style.display = 'flex';
-        if (isSA && !isStrumento) setTimeout(() => document.getElementById('editNome').focus(), 100);
+        if (!isStrumento) setTimeout(() => document.getElementById('editNome').focus(), 100);
     }
     function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
 
@@ -2545,32 +2630,9 @@
             return;
         }
 
-        const newRole = (isSA && canChangeUserRole(u) && editRoleCs) ? (editRoleCs.getValue() || u.role) : u.role;
+        const newRole = (canChangeUserRole(u) && editRoleCs) ? (editRoleCs.getValue() || u.role) : u.role;
         const docente = roleCanBeDocente(newRole) && !!document.getElementById('editDocente')?.checked;
         const profilePayload = authLocked ? {} : { cards, docente };
-
-        if (!isSA) {
-            const res = await fetch(`/api/auth/users/${id}/profile`, {
-                method: 'PATCH',
-                headers: authHeader(),
-                body: JSON.stringify({ cards, docente }),
-            });
-            const d = await res.json().catch(() => ({}));
-            if (res.ok && d.pending) {
-                closeEditModal();
-                showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
-                refreshAarTabBadge();
-            } else if (res.ok) {
-                closeEditModal();
-                showMsg('usersMsg', 'Accesso aggiornato.', 'success');
-                loadUsers();
-            } else {
-                msgEl.className = 'feedback error';
-                msgEl.textContent = d.error || 'Errore.';
-                msgEl.style.display = 'block';
-            }
-            return;
-        }
 
         const profile = collectProfileFields(EDIT_IDS, () => editGradoCs ? editGradoCs.getValue() : '');
         const reqErr = validateRequiredProfile(profile);
@@ -2588,7 +2650,6 @@
             return;
         }
 
-        // Cambio ruolo (se consentito e diverso)
         if (canChangeUserRole(u) && newRole && newRole !== _editOriginalRole) {
             const roleRes = await fetch('/api/auth/users/' + id, {
                 method: 'PATCH',
@@ -2602,26 +2663,6 @@
                 msgEl.style.display = 'block';
                 return;
             }
-            if (roleData.pending) {
-                // Profilo può comunque essere aggiornato; avvisa sul ruolo in attesa
-                const res = await fetch(`/api/auth/users/${id}/profile`, {
-                    method: 'PATCH',
-                    headers: authHeader(),
-                    body: JSON.stringify({ ...profile, ...profilePayload }),
-                });
-                const d = await res.json().catch(() => ({}));
-                closeEditModal();
-                if (res.ok && d.pending) {
-                    showMsg('usersMsg', (roleData.message || 'Cambio ruolo in approvazione.') + ' ' + (d.message || ''), 'success');
-                } else if (res.ok) {
-                    showMsg('usersMsg', (roleData.message || 'Cambio ruolo in approvazione.') + ' Profilo aggiornato.', 'success');
-                } else {
-                    showMsg('usersMsg', roleData.message || 'Cambio ruolo in approvazione. Errore sul profilo: ' + (d.error || ''), 'error');
-                }
-                refreshAarTabBadge();
-                loadUsers();
-                return;
-            }
         }
 
         const res = await fetch(`/api/auth/users/${id}/profile`, {
@@ -2629,21 +2670,19 @@
             headers: authHeader(),
             body: JSON.stringify({ ...profile, ...profilePayload }),
         });
-        const d = await res.json();
-        if (res.ok && d.pending) {
-            closeEditModal();
-            showMsg('usersMsg', d.message || 'Richiesta inviata, in attesa di approvazione.', 'success');
-            refreshAarTabBadge();
-        }
-        else if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) {
             closeEditModal();
             const roleNote = (newRole && newRole !== _editOriginalRole)
                 ? ` Ruolo aggiornato a ${ROLE_LABEL[newRole] || newRole}.`
                 : '';
             showMsg('usersMsg', 'Profilo aggiornato.' + roleNote, 'success');
             loadUsers();
+        } else {
+            msgEl.className = 'feedback error';
+            msgEl.textContent = d.error || 'Errore.';
+            msgEl.style.display = 'block';
         }
-        else { msgEl.className='feedback error'; msgEl.textContent=d.error||'Errore.'; msgEl.style.display='block'; }
     }
 
     // ── Approvazioni (profilo + azioni admin, elenco unico) ──────────────────
@@ -2652,7 +2691,8 @@
             r.dataNascita ? `Nascita: ${formatDateIT(r.dataNascita)}` : null,
             r.luogoNascita ? `Luogo: ${r.luogoNascita}` : null,
             r.residenza ? `Residenza: ${r.residenza}` : null,
-            r.domicilioComeResidenza ? 'Domicilio: come residenza' : (r.domicilio ? `Domicilio: ${r.domicilio}` : null),
+            (!r.domicilioComeResidenza && r.domicilio && r.domicilio !== r.residenza)
+                ? `Domicilio: ${r.domicilio}` : null,
             r.telefono ? `Tel: ${formatTelefonoDisplay(r)}` : null,
         ].filter(Boolean).join(' · ');
         const pcrName = [r.cognome, r.nome].filter(Boolean).map((s, i) => i === 0 ? String(s).toUpperCase() : s).join(' ') || r.userEmail;

@@ -283,12 +283,6 @@
         }
         .btn-reorder-reset.visible { display: inline-block; }
         .btn-reorder-reset:hover { background: rgba(255, 71, 87, 0.1); }
-        .reorder-hint {
-            font-size: 0.8rem;
-            color: #5ABBC8;
-            display: none;
-        }
-        .reorder-hint.visible { display: block; }
         #dashboardCards .card { position: relative; }
         #dashboardCards.reorder-mode .card[data-card] {
             cursor: grab;
@@ -441,7 +435,6 @@
                 <button type="button" class="card-search-clear" id="cardSearchClear" title="Pulisci" aria-label="Pulisci ricerca">×</button>
                 <span class="card-search-icon" aria-hidden="true"></span>
             </div>
-            <span class="reorder-hint" id="reorderHint">Trascina le schede per cambiare l'ordine, poi premi Fine.</span>
             <button type="button" class="btn-reorder-reset" id="resetOrderBtn">Ripristina ordine originale</button>
             <button type="button" class="btn-reorder" id="reorderBtn">Modifica ordine</button>
         </div>
@@ -567,6 +560,7 @@
     <script src="auth-token.js?v=2"></script>
     <script src="portal-sso.js?v=2"></script>
     <script src="nav-notifications.js?v=5"></script>
+    <script src="portal-onboarding.js?v=10"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -607,6 +601,7 @@
                 } catch { /* titolo di default */ }
             }
             initNavBell();
+            if (typeof PortalOnboarding !== 'undefined') PortalOnboarding.maybeShow(_currentUser);
         } catch {
             clearAuth();
             window.location.replace('/login');
@@ -640,9 +635,11 @@
 
     function updateResetOrderButton() {
         const btn = document.getElementById('resetOrderBtn');
+        const grid = document.getElementById('dashboardCards');
         if (!btn) return;
+        const inReorder = !!(grid && grid.classList.contains('reorder-mode'));
         const modified = !cardOrdersEqual(currentVisibleCardOrder(), defaultVisibleCardOrder());
-        btn.classList.toggle('visible', modified);
+        btn.classList.toggle('visible', inReorder && modified);
         requestAnimationFrame(syncCardsToolbarAlign);
     }
 
@@ -862,7 +859,6 @@
         const grid = document.getElementById('dashboardCards');
         const btn = document.getElementById('reorderBtn');
         const resetBtn = document.getElementById('resetOrderBtn');
-        const hint = document.getElementById('reorderHint');
         if (!grid || !btn) return;
 
         grid.querySelectorAll('.card[data-card]').forEach((card) => {
@@ -912,7 +908,6 @@
             grid.classList.toggle('reorder-mode', on);
             btn.classList.toggle('active', on);
             btn.textContent = on ? 'Fine' : 'Modifica ordine';
-            if (hint) hint.classList.toggle('visible', on);
             grid.querySelectorAll('.card[data-card]').forEach((card) => {
                 const visible = card.dataset.allowed === '1';
                 card.draggable = on && visible;
@@ -934,7 +929,6 @@
 
         if (resetBtn) {
             resetBtn.addEventListener('click', async () => {
-                if (reorderMode) setReorderMode(false);
                 applyDefaultCardOrder();
                 await persistCardOrder(user, []);
                 updateResetOrderButton();

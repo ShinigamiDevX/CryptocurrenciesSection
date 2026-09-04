@@ -9,9 +9,20 @@ const DB_PATH  = path.join(DATA_DIR, 'portal.db');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
+// WAL su bind mount Docker Desktop (Windows/macOS) può perdere scritture al restart.
+// DELETE + FULL: più sicuro per portal.db montato da ./auth/data.
+db.pragma('journal_mode = DELETE');
+db.pragma('synchronous = FULL');
+db.pragma('busy_timeout = 5000');
 // Necessario perché SQLite applichi le FOREIGN KEY e le ON DELETE dichiarate sotto.
 db.pragma('foreign_keys = ON');
+
+function closeDb() {
+    try { db.close(); } catch { /* già chiuso */ }
+}
+process.on('SIGINT', () => { closeDb(); process.exit(0); });
+process.on('SIGTERM', () => { closeDb(); process.exit(0); });
+process.on('exit', closeDb);
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 db.exec(`
@@ -268,6 +279,12 @@ USER_EXTRA_COLS.forEach(([col, def]) => {
     catch { /* già presente */ }
 });
 
+// Flag onboarding: nuovo → 0; utenti già presenti → 1 (non forzare il readme)
+try {
+    db.exec(`ALTER TABLE users ADD COLUMN onboardingDismissed INTEGER NOT NULL DEFAULT 0`);
+    db.exec(`UPDATE users SET onboardingDismissed = 1`);
+} catch { /* già presente */ }
+
 try {
     db.exec(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
@@ -355,6 +372,7 @@ const fromRow = (r) => r ? {
     otpSendCount: Number(r.otpSendCount) || 0,
     username: r.username ? String(r.username) : null,
     accountType: r.accountType === 'strumento' ? 'strumento' : 'user',
+    onboardingDismissed: toBool(r.onboardingDismissed),
 } : null;
 
 function geoBlock(p, prefix, { withAddress = false } = {}) {
@@ -373,29 +391,164 @@ function geoBlock(p, prefix, { withAddress = false } = {}) {
     return out;
 }
 
+/** Iniziale maiuscola, resto minuscolo (per parola; gestisce spazi e apostrofi). */
+function titleCaseIt(s) {
+    return String(s || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLocaleLowerCase('it')
+        .replace(/(^|[\s'/.-])(\S)/g, (_, a, b) => a + b.toLocaleUpperCase('it'));
+}
+
+function normalizeProvincia(sigla) {
+    return String(sigla || '').trim().toUpperCase();
+}
+
+/** Normalizza stringa già composta tipo "COMUNE (pr)" → "Comune (PR)". */
+function normalizePlaceLabel(s) {
+    const t = String(s || '').trim().replace(/\s+/g, ' ');
+    if (!t) return '';
+    const m = /^(.+?)\s*\(([A-Za-z]{2})\)\s*$/.exec(t);
+    if (m) return `${titleCaseIt(m[1])} (${m[2].toUpperCase()})`;
+    return titleCaseIt(t);
+}
+
+/** "VIA X 12, COMUNE (bt)" → "Via X 12, Comune (BT)". */
+function normalizeAddressLabel(s) {
+    const t = String(s || '').trim().replace(/\s+/g, ' ');
+    if (!t) return '';
+    const m = /^(.+?),\s*(.+)$/.exec(t);
+    if (m) return `${titleCaseIt(m[1])}, ${normalizePlaceLabel(m[2])}`;
+    return normalizePlaceLabel(t);
+}
+
+function composePlaceFromParts(tipo, comune, provincia, stato, fallbackDisplay) {
+    if (tipo === 'IT') {
+        const c = titleCaseIt(comune);
+        const p = normalizeProvincia(provincia);
+        if (c) return p ? `${c} (${p})` : c;
+    } else if (tipo === 'ESTERO') {
+        const st = titleCaseIt(stato);
+        if (st) return st;
+    }
+    return normalizePlaceLabel(fallbackDisplay);
+}
+
+function composeAddressFromParts(indirizzo, civico, geo) {
+    const addr = [titleCaseIt(indirizzo), String(civico || '').trim()].filter(Boolean).join(' ');
+    if (addr && geo) return `${addr}, ${geo}`;
+    if (addr) return addr;
+    return geo || '';
+}
+
 function profileDefaults(p = {}) {
     const comeRes = !!p.domicilioComeResidenza;
-    const luogo = geoBlock(p, 'luogoNascita');
-    const residenza = geoBlock(p, 'residenza', { withAddress: true });
-    const domicilio = comeRes ? {
-        domicilio: residenza.residenza,
-        domicilioTipo: residenza.residenzaTipo,
-        domicilioProvincia: residenza.residenzaProvincia,
-        domicilioComune: residenza.residenzaComune,
-        domicilioStato: residenza.residenzaStato,
-        domicilioIndirizzo: residenza.residenzaIndirizzo,
-        domicilioCivico: residenza.residenzaCivico,
-    } : geoBlock(p, 'domicilio', { withAddress: true });
+    const nome = titleCaseIt(p.nome);
+    const cognome = titleCaseIt(p.cognome);
+
+    const luogoRaw = geoBlock(p, 'luogoNascita');
+    const luogoNascitaComune = titleCaseIt(luogoRaw.luogoNascitaComune);
+    const luogoNascitaProvincia = normalizeProvincia(luogoRaw.luogoNascitaProvincia);
+    const luogoNascitaStato = titleCaseIt(luogoRaw.luogoNascitaStato);
+    const luogoNascita = composePlaceFromParts(
+        luogoRaw.luogoNascitaTipo,
+        luogoNascitaComune,
+        luogoNascitaProvincia,
+        luogoNascitaStato,
+        luogoRaw.luogoNascita
+    );
+
+    const resRaw = geoBlock(p, 'residenza', { withAddress: true });
+    const residenzaComune = titleCaseIt(resRaw.residenzaComune);
+    const residenzaProvincia = normalizeProvincia(resRaw.residenzaProvincia);
+    const residenzaStato = titleCaseIt(resRaw.residenzaStato);
+    const residenzaIndirizzo = titleCaseIt(resRaw.residenzaIndirizzo);
+    const residenzaCivico = String(resRaw.residenzaCivico || '').trim();
+    const residenzaGeo = composePlaceFromParts(
+        resRaw.residenzaTipo,
+        residenzaComune,
+        residenzaProvincia,
+        residenzaStato,
+        ''
+    );
+    const residenzaFinal = (residenzaIndirizzo || residenzaCivico || residenzaGeo)
+        ? composeAddressFromParts(residenzaIndirizzo, residenzaCivico, residenzaGeo)
+        : normalizeAddressLabel(resRaw.residenza);
+
+    let domicilioBlock;
+    if (comeRes) {
+        domicilioBlock = {
+            domicilio: residenzaFinal,
+            domicilioTipo: resRaw.residenzaTipo,
+            domicilioProvincia: residenzaProvincia,
+            domicilioComune: residenzaComune,
+            domicilioStato: residenzaStato,
+            domicilioIndirizzo: residenzaIndirizzo,
+            domicilioCivico: residenzaCivico,
+        };
+    } else {
+        const domRaw = geoBlock(p, 'domicilio', { withAddress: true });
+        const domicilioComune = titleCaseIt(domRaw.domicilioComune);
+        const domicilioProvincia = normalizeProvincia(domRaw.domicilioProvincia);
+        const domicilioStato = titleCaseIt(domRaw.domicilioStato);
+        const domicilioIndirizzo = titleCaseIt(domRaw.domicilioIndirizzo);
+        const domicilioCivico = String(domRaw.domicilioCivico || '').trim();
+        const domicilioGeo = composePlaceFromParts(
+            domRaw.domicilioTipo,
+            domicilioComune,
+            domicilioProvincia,
+            domicilioStato,
+            ''
+        );
+        const domicilioFinal = (domicilioIndirizzo || domicilioCivico || domicilioGeo)
+            ? composeAddressFromParts(domicilioIndirizzo, domicilioCivico, domicilioGeo)
+            : normalizeAddressLabel(domRaw.domicilio);
+        domicilioBlock = {
+            domicilio: domicilioFinal,
+            domicilioTipo: domRaw.domicilioTipo,
+            domicilioProvincia,
+            domicilioComune,
+            domicilioStato,
+            domicilioIndirizzo,
+            domicilioCivico,
+        };
+    }
+
+    // Se coincide con la residenza, tratta come «come residenza»
+    const sameAsResidenza = comeRes
+        || (!!residenzaFinal && domicilioBlock.domicilio === residenzaFinal);
+    if (sameAsResidenza) {
+        domicilioBlock = {
+            domicilio: residenzaFinal,
+            domicilioTipo: resRaw.residenzaTipo,
+            domicilioProvincia: residenzaProvincia,
+            domicilioComune: residenzaComune,
+            domicilioStato: residenzaStato,
+            domicilioIndirizzo: residenzaIndirizzo,
+            domicilioCivico: residenzaCivico,
+        };
+    }
+
     const telefonoPrefisso = String(p.telefonoPrefisso || '+39').trim() || '+39';
     return {
-        nome: p.nome || '',
-        cognome: p.cognome || '',
+        nome,
+        cognome,
         grado: p.grado || '',
         dataNascita: p.dataNascita || '',
-        ...luogo,
-        ...residenza,
-        ...domicilio,
-        domicilioComeResidenza: comeRes ? 1 : 0,
+        luogoNascita,
+        luogoNascitaTipo: luogoRaw.luogoNascitaTipo,
+        luogoNascitaProvincia,
+        luogoNascitaComune,
+        luogoNascitaStato,
+        residenza: residenzaFinal,
+        residenzaTipo: resRaw.residenzaTipo,
+        residenzaProvincia,
+        residenzaComune,
+        residenzaStato,
+        residenzaIndirizzo,
+        residenzaCivico,
+        ...domicilioBlock,
+        domicilioComeResidenza: sameAsResidenza ? 1 : 0,
         telefono: p.telefono || '',
         telefonoPrefisso,
     };
@@ -492,6 +645,7 @@ const Users = {
     updateAllowedCards: (id, allowedCards) => db.prepare('UPDATE users SET allowedCards = ? WHERE id = ?').run(allowedCards || '', id),
     updateCardOrder: (id, cardOrder) => db.prepare('UPDATE users SET cardOrder = ? WHERE id = ?').run(cardOrder || '', id),
     updateDocente: (id, docente) => db.prepare('UPDATE users SET docente = ? WHERE id = ?').run(docente ? 1 : 0, id),
+    setOnboardingDismissed: (id, dismissed) => db.prepare('UPDATE users SET onboardingDismissed = ? WHERE id = ?').run(dismissed ? 1 : 0, id),
     updateProfile: (id, profile) => {
         const p = profileDefaults(profile);
         return db.prepare(`

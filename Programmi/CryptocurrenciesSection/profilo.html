@@ -10,7 +10,7 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=3">
+    <link rel="stylesheet" href="light-theme.css?v=14">
     <script src="light-theme.js?v=1"></script>
     <link rel="stylesheet" href="style.css?v=7">
     <link rel="stylesheet" href="custom-select.css?v=8">
@@ -149,6 +149,41 @@
         .grado-row { display: flex; align-items: center; gap: 0.6rem; }
         .grado-row img { width: 36px; height: 36px; object-fit: contain; }
 
+        html.light-theme .page-title { color: #CC5000; }
+        html.light-theme .page-sub { color: #6A5A40; }
+        html.light-theme .profile-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(204, 80, 0, 0.22);
+        }
+        html.light-theme .profile-head h3 { color: #2C1A00; }
+        html.light-theme .profile-head .role-badge {
+            background: rgba(18, 98, 168, 0.14);
+            color: #0B4F8A;
+            border: 1px solid rgba(18, 98, 168, 0.3);
+        }
+        html.light-theme .dl-grid dt {
+            color: #7A5A28;
+        }
+        html.light-theme .dl-grid dd {
+            color: #1A1008;
+        }
+        html.light-theme .edit-field label { color: #7A5A28; }
+        html.light-theme .edit-field input {
+            background: #fff8ed;
+            border-color: #ffd090;
+            color: #1A1008;
+        }
+        html.light-theme .check-label { color: #2C1A00; }
+        html.light-theme .locked-note {
+            color: #6A4A20;
+            background: rgba(255, 122, 0, 0.08);
+            border-color: rgba(204, 80, 0, 0.25);
+        }
+        html.light-theme .btn-cancel {
+            color: #8A4A00;
+            border-color: rgba(204, 80, 0, 0.35);
+        }
+
         .edit-field { margin-bottom: 1rem; }
         .edit-field label {
             display: block; font-size: 0.78rem; font-weight: 600; color: #7ACCE0;
@@ -272,20 +307,20 @@
                     <dd id="viewEmail">—</dd>
                     <dt>Nome</dt>
                     <dd id="viewNome">—</dd>
-                    <dt>Cognome</dt>
-                    <dd id="viewCognome">—</dd>
-                    <dt id="gradoLabel">Grado</dt>
-                    <dd id="viewGrado" class="grado-row">—</dd>
-                    <dt>Data di nascita</dt>
-                    <dd id="viewDataNascita">—</dd>
-                    <dt>Luogo di nascita</dt>
-                    <dd id="viewLuogoNascita">—</dd>
-                    <dt>Residenza</dt>
-                    <dd id="viewResidenza">—</dd>
-                    <dt>Domicilio</dt>
-                    <dd id="viewDomicilio">—</dd>
-                    <dt>Telefono</dt>
-                    <dd id="viewTelefono">—</dd>
+                    <dt class="profile-extra">Cognome</dt>
+                    <dd class="profile-extra" id="viewCognome">—</dd>
+                    <dt class="profile-extra" id="gradoLabel">Grado</dt>
+                    <dd id="viewGrado" class="grado-row profile-extra">—</dd>
+                    <dt class="profile-extra">Data di nascita</dt>
+                    <dd class="profile-extra" id="viewDataNascita">—</dd>
+                    <dt class="profile-extra">Luogo di nascita</dt>
+                    <dd class="profile-extra" id="viewLuogoNascita">—</dd>
+                    <dt class="profile-extra">Residenza</dt>
+                    <dd class="profile-extra" id="viewResidenza">—</dd>
+                    <dt class="profile-extra">Domicilio</dt>
+                    <dd class="profile-extra" id="viewDomicilio">—</dd>
+                    <dt class="profile-extra">Telefono</dt>
+                    <dd class="profile-extra" id="viewTelefono">—</dd>
                 </dl>
             </div>
 
@@ -340,8 +375,9 @@
                 </div>
             </div>
 
-            <div id="pwdToggleWrap" class="edit-actions" style="justify-content:flex-start;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
+            <div id="pwdToggleWrap" class="edit-actions" style="justify-content:flex-start;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);gap:0.6rem;flex-wrap:wrap;">
                 <button type="button" class="btn-cancel" id="btnShowPwd" onclick="showPasswordForm()">Modifica password</button>
+                <button type="button" class="btn-cancel" id="btnShowOnboarding" style="display:none;" onclick="reopenOnboarding()">Guida portale</button>
             </div>
 
             <div id="pwdSection" style="display:none;margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
@@ -392,6 +428,7 @@
     <script src="profile-fields.js?v=5"></script>
     <script src="nav-notifications.js?v=5"></script>
     <script src="password-toggle.js?v=1"></script>
+    <script src="portal-onboarding.js?v=10"></script>
     <script>
     let _currentUser = null;
     let _profile = null;
@@ -402,7 +439,7 @@
     let editDomicilioLn = null;
     let editTelefonoTf = null;
     let _domicilioWired = false;
-    const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+    const ROLE_LABEL = { reader: 'Sola lettura', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
     const EDIT_IDS = {
         nome: 'editNome',
         cognome: 'editCognome',
@@ -518,31 +555,35 @@
         document.getElementById('viewDataNascita').textContent = formatDateIT(p.dataNascita);
         document.getElementById('viewLuogoNascita').textContent = dash(p.luogoNascita);
         document.getElementById('viewResidenza').textContent = dash(p.residenza);
-        const domLabel = p.domicilioComeResidenza
-            ? (dash(p.residenza) === '—' ? '—' : dash(p.residenza) + ' (come residenza)')
-            : dash(p.domicilio);
-        document.getElementById('viewDomicilio').textContent = domLabel;
         document.getElementById('viewTelefono').textContent = dash(formatTelefonoDisplay(p));
 
         const gradoDd = document.getElementById('viewGrado');
-        const gradoLabel = document.getElementById('gradoLabel');
-        if (!p.canEdit && (!p.grado || p.grado === '')) {
-            // Account di sistema senza grado
-            gradoLabel.style.display = 'none';
-            gradoDd.style.display = 'none';
+        const f = GRADO_IMG_MAP[p.grado];
+        if (p.grado && f) {
+            gradoDd.innerHTML = `<img src="/immagini/gradi/${encodeURIComponent(f)}" alt=""> <span>${p.grado}</span>`;
         } else {
-            gradoLabel.style.display = '';
-            gradoDd.style.display = '';
-            const f = GRADO_IMG_MAP[p.grado];
-            if (p.grado && f) {
-                gradoDd.innerHTML = `<img src="/immagini/gradi/${encodeURIComponent(f)}" alt=""> <span>${p.grado}</span>`;
-            } else {
-                gradoDd.textContent = p.grado || '—';
-            }
+            gradoDd.textContent = p.grado || '—';
         }
 
+        // Profilo di sistema (Super Admin fondatore): solo email, nome, password
+        const compact = !p.canEdit;
+        document.querySelectorAll('#viewMode .profile-extra').forEach((el) => {
+            el.style.display = compact ? 'none' : '';
+        });
+
+        // Domicilio: solo se diverso dalla residenza
+        const showDom = !compact
+            && !p.domicilioComeResidenza
+            && !!String(p.domicilio || '').trim()
+            && String(p.domicilio).trim() !== String(p.residenza || '').trim();
+        const domDd = document.getElementById('viewDomicilio');
+        const domDt = domDd?.previousElementSibling;
+        domDd.textContent = showDom ? dash(p.domicilio) : '—';
+        if (domDt) domDt.style.display = showDom ? '' : 'none';
+        domDd.style.display = showDom ? '' : 'none';
+
         document.getElementById('btnEdit').style.display = p.canEdit ? '' : 'none';
-        document.getElementById('lockedNote').style.display = p.canEdit ? 'none' : '';
+        document.getElementById('lockedNote').style.display = 'none';
     }
 
     async function enterEditMode() {
@@ -645,6 +686,26 @@
         if (!res.ok) throw new Error('profile');
         _profile = await res.json();
         renderView();
+        const guideBtn = document.getElementById('btnShowOnboarding');
+        if (guideBtn && typeof PortalOnboarding !== 'undefined') {
+            const role = _profile.role || _currentUser.role;
+            const show = !!PortalOnboarding.roleKey(role)
+                && role !== 'superadmin'
+                && (_currentUser.accountType !== 'strumento');
+            guideBtn.style.display = show ? '' : 'none';
+        }
+    }
+
+    function reopenOnboarding() {
+        const role = (_profile && _profile.role) || (_currentUser && _currentUser.role);
+        if (typeof PortalOnboarding === 'undefined' || !PortalOnboarding.roleKey(role)) return;
+        const nome = (_profile && (_profile.nome || '').trim())
+            || (role === 'superadmin' ? 'Super Admin' : '');
+        PortalOnboarding.show(role, {
+            fromProfile: true,
+            nome,
+            docente: !!(_currentUser && _currentUser.docente),
+        });
     }
 
     // ── Campanella: gestita da nav-notifications.js ───────────────────────────

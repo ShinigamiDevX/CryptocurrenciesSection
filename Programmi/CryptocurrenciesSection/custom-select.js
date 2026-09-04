@@ -433,7 +433,6 @@ const GRADI_OPTIONS = [
 ].map(o => ({ ...o, img: GRADO_IMG_MAP[o.value] ? `/immagini/gradi/${encodeURIComponent(GRADO_IMG_MAP[o.value])}` : undefined }));
 
 const RUOLI_OPTIONS = [
-    { value: 'reader',     label: 'Reader' },
     { value: 'user',       label: 'Utente' },
     { value: 'admin',      label: 'Amministratore' },
     { value: 'superadmin', label: 'Super Admin' },

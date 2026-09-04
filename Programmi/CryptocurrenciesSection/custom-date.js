@@ -1,7 +1,7 @@
 /**
  * CustomDate — Calendario personalizzato (tema portale)
  *
- * - Digitabile con maschera gg/mm/aaaa (slash automatici)
+ * - Digitabile con maschera gg.mm.aaaa (punti automatici)
  * - Icona apre il calendario
  * - Livelli: giorni → mesi (click titolo) → anni
  *
@@ -86,7 +86,7 @@ class CustomDate {
         this.el = typeof el === 'string' ? document.querySelector(el) : el;
         if (!this.el) return;
         this.onChange = cfg.onChange || (() => {});
-        this.placeholder = cfg.placeholder || 'gg / mm / aaaa';
+        this.placeholder = cfg.placeholder || 'gg.mm.aaaa';
         this.max = cfg.max || '';
         this._value = this._normalize(cfg.value || '');
         this._isOpen = false;
@@ -202,20 +202,20 @@ class CustomDate {
     _formatIT(iso) {
         if (!iso) return '';
         const [y, m, d] = iso.split('-');
-        return `${d}/${m}/${y}`;
+        return `${d}.${m}.${y}`;
     }
 
-    _maskDigits(digits, addTrailingSlash) {
+    _maskDigits(digits, addTrailingDot) {
         const d = String(digits || '').replace(/\D/g, '').slice(0, 8);
         let out = '';
         if (d.length <= 2) {
             out = d;
-            if (addTrailingSlash && d.length === 2) out += '/';
+            if (addTrailingDot && d.length === 2) out += '.';
         } else if (d.length <= 4) {
-            out = d.slice(0, 2) + '/' + d.slice(2);
-            if (addTrailingSlash && d.length === 4) out += '/';
+            out = d.slice(0, 2) + '.' + d.slice(2);
+            if (addTrailingDot && d.length === 4) out += '.';
         } else {
-            out = d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4);
+            out = d.slice(0, 2) + '.' + d.slice(2, 4) + '.' + d.slice(4);
         }
         return out;
     }
@@ -225,7 +225,7 @@ class CustomDate {
     }
 
     _parseIT(masked) {
-        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(masked || '').trim());
+        const m = /^(\d{2})[./](\d{2})[./](\d{4})$/.exec(String(masked || '').trim());
         if (!m) return '';
         const dd = Number(m[1]), mm = Number(m[2]), yyyy = Number(m[3]);
         if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';

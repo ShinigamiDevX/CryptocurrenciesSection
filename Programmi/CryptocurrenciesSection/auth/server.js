@@ -20,8 +20,9 @@ const SUPERADMIN_EMAIL = 'portalecrypto@proton.me';
 const SUPERADMIN_NOME  = 'Super Admin';
 const SUPERADMIN_COGNOME = '';
 const PORTAL_URL       = (process.env.PORTAL_URL || 'https://cryptosection.chainholder.dev').replace(/\/$/, '');
-const ROLE_LEVEL       = { reader: 0, user: 1, admin: 2, superadmin: 3 };
-const ALL_ROLES        = ['reader', 'user', 'admin', 'superadmin'];
+const ROLE_LEVEL       = { reader: 0, user: 1, admin: 2, superadmin: 3 }; // reader: solo profili strumento / legacy
+/** Ruoli assegnabili a utenti umani (inviti / cambio ruolo). */
+const ALL_ROLES        = ['user', 'admin', 'superadmin'];
 /** Schede dashboard assegnabili in invito (gestione-utenti resta solo per admin/superadmin). */
 const ASSIGNABLE_CARDS = [
     'ai', 'analisi-report', 'apinga', 'chainholder', 'cluster', 'corsi',
@@ -106,7 +107,6 @@ function normalizeUsername(raw) {
 }
 
 function defaultCardsForRole(role) {
-    if (role === 'reader') return ['corsi'];
     return ASSIGNABLE_CARDS.slice();
 }
 
@@ -153,14 +153,14 @@ function cardOrderToStored(order) {
     return JSON.stringify(Array.isArray(order) ? order : []);
 }
 
-/** Aggiunge schede nuove (es. Apinga) alle allowlist già salvate, senza toccare reader e account strumento. */
+/** Aggiunge schede nuove alle allowlist già salvate, senza toccare account strumento. */
 (function grantNewAssignableCards() {
     const NEW_CARDS = ['apinga', 'cryptoscanner', 'gelato', 'li-tools', 'siena', 'terra', 'vysion', 'xpublicator'];
     try {
         const users = Users.findActive();
         for (const user of users) {
             if (user.accountType === 'strumento') continue;
-            if (user.role === 'reader') continue;
+            if (user.role === 'reader') continue; // legacy / non migrato
             const raw = user.allowedCards;
             if (raw == null || String(raw).trim() === '') continue;
             let parsed;
@@ -178,6 +178,20 @@ function cardOrderToStored(order) {
         }
     } catch (err) {
         console.warn('[AUTH] Migrazione schede Apinga saltata:', err.message);
+    }
+})();
+
+/** Ex-reader umani → user (i profili strumento restano reader / sola lettura). */
+(function migrateHumanReadersToUser() {
+    try {
+        for (const user of Users.findActive()) {
+            if (user.accountType === 'strumento') continue;
+            if (user.role !== 'reader') continue;
+            Users.updateRole(user.id, 'user');
+            console.log('[AUTH] Migrato ex-reader → user:', user.email);
+        }
+    } catch (err) {
+        console.warn('[AUTH] Migrazione reader→user saltata:', err.message);
     }
 })();
 
@@ -450,7 +464,7 @@ function applyLoginLock(user, reason) {
     return updated;
 }
 
-const ROLE_LABEL = { reader: 'Reader', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
+const ROLE_LABEL = { reader: 'Sola lettura', user: 'Utente', admin: 'Admin', superadmin: 'Super Admin' };
 const CARD_LABEL = {
     chainholder: 'Chainholder',
     corsi: 'Corsi',
@@ -497,7 +511,7 @@ function formatDateIT(iso) {
     const s = String(iso || '').trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || '—';
     const [y, m, d] = s.split('-');
-    return `${d}/${m}/${y}`;
+    return `${d}.${m}.${y}`;
 }
 
 function formatTelDisplay(p) {
@@ -521,8 +535,14 @@ function profileDiffLines(before, after) {
     push('Data di nascita', formatDateIT(before.dataNascita), formatDateIT(after.dataNascita));
     push('Luogo di nascita', before.luogoNascita, after.luogoNascita);
     push('Residenza', before.residenza, after.residenza);
-    const beforeDom = before.domicilioComeResidenza ? 'come residenza' : (before.domicilio || '');
-    const afterDom = after.domicilioComeResidenza ? 'come residenza' : (after.domicilio || '');
+    const beforeDom = before.domicilioComeResidenza
+        || String(before.domicilio || '').trim() === String(before.residenza || '').trim()
+        ? ''
+        : (before.domicilio || '');
+    const afterDom = after.domicilioComeResidenza
+        || String(after.domicilio || '').trim() === String(after.residenza || '').trim()
+        ? ''
+        : (after.domicilio || '');
     push('Domicilio', beforeDom, afterDom);
     push('Telefono', formatTelDisplay(before), formatTelDisplay(after));
     return lines;
@@ -547,15 +567,21 @@ function profileSnapshot(p) {
         p.dataNascita ? `nato/a il ${formatDateIT(p.dataNascita)}` : '',
         p.luogoNascita ? `luogo: ${p.luogoNascita}` : '',
         p.residenza ? `residenza: ${p.residenza}` : '',
-        p.domicilioComeResidenza ? 'domicilio: come residenza' : (p.domicilio ? `domicilio: ${p.domicilio}` : ''),
+        p.domicilioComeResidenza
+            || !p.domicilio
+            || String(p.domicilio).trim() === String(p.residenza || '').trim()
+            ? ''
+            : `domicilio: ${p.domicilio}`,
         formatTelDisplay(p) ? `tel: ${formatTelDisplay(p)}` : '',
     ].filter(Boolean);
     return parts.join(' · ');
 }
 
 // ── Approvazioni azioni admin ─────────────────────────────────────────────────
-// Il Super Admin agisce direttamente; gli admin hanno bisogno dell'approvazione
-// del Super Admin oppure di ADMIN_APPROVALS_NEEDED altri admin.
+// Le azioni admin/superadmin su altri utenti sono dirette (tranne ripristino /
+// reset password / creazione strumento, riservati al Super Admin).
+// Le richieste pendenti restano gestibili per compatibilità con dati legacy.
+// Le modifiche profilo degli utenti (ruolo user) passano da profile_change_requests.
 const ADMIN_APPROVALS_NEEDED = 2;
 const ACTION_LABEL = { delete: 'Visibilità utente', visibility: 'Visibilità utente', role: 'Cambio ruolo', profile: 'Modifica profilo' };
 
@@ -733,7 +759,7 @@ if (!JWT_SECRET) {
 
 async function sendInviteEmail(toEmail, inviteToken, assignedRole) {
     const link=`${PORTAL_URL}/register?token=${inviteToken}`;
-    const rLabel={reader:'Reader',user:'Utente',admin:'Admin',superadmin:'Super Admin'}[assignedRole]||assignedRole;
+    const rLabel={reader:'Sola lettura',user:'Utente',admin:'Admin',superadmin:'Super Admin'}[assignedRole]||assignedRole;
     const html=`<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Sei stato invitato</h2><p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Ruolo: <strong>${rLabel}</strong>. Link valido <strong>15 minuti</strong>.</p><a href="${link}" style="display:inline-block;margin-top:20px;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;">Registrati</a><p style="color:#a0aec0;font-size:0.8rem;margin-top:16px;word-break:break-all;">${link}</p></td></tr></table></td></tr></table></body></html>`;
     if (transporter) { await smtpSend({from:SMTP_FROM,to:toEmail,subject:`[CryptocurrenciesSection] Invito come ${rLabel}`,html}); console.log(`[AUTH] Email invito → ${toEmail}`); }
     else { console.log(`[AUTH] Invito (${rLabel}) per ${toEmail}: email non inviata (SMTP non configurato).`); }
@@ -1048,7 +1074,18 @@ app.get('/api/auth/verify', authenticate,(req,res)=>{
         cardOrder: cardOrderFromStored(user.cardOrder),
         docente: accountType === 'strumento' ? false : normalizeDocente(user.role, user.docente),
         canManageCorsi: accountType === 'strumento' ? false : userCan(user, 'corsi.manage'),
+        onboardingDismissed: accountType === 'strumento' ? true : !!user.onboardingDismissed,
     });
+});
+
+/** Conferma lettura guida portale; opzionalmente non mostrarla più agli accessi successivi. */
+app.post('/api/auth/onboarding-dismiss', authenticate, (req, res) => {
+    const user = Users.findById(req.user.id);
+    if (!isAccountUsable(user)) return res.status(401).json({ error: 'Sessione non valida.' });
+    if (isStrumentoAccount(user)) return res.status(403).json({ error: 'Non applicabile.' });
+    const permanent = !!(req.body && req.body.permanent);
+    if (permanent) Users.setOnboardingDismissed(user.id, true);
+    res.json({ success: true, onboardingDismissed: permanent || !!user.onboardingDismissed });
 });
 
 /** Ordine personalizzato delle schede sul portale. */
@@ -1446,11 +1483,12 @@ app.post('/api/auth/strumenti', authenticate, requireSuperadmin, async (req, res
     });
 });
 
-app.post('/api/auth/users/bulk-cards', authenticate, requireSuperadmin, (req, res) => {
+app.post('/api/auth/users/bulk-cards', authenticate, requireAdmin, (req, res) => {
     const raw = Array.isArray(req.body && req.body.updates) ? req.body.updates : [];
     if (!raw.length) return res.status(400).json({ error: 'Nessuna modifica da salvare.' });
 
     const actor = Users.findById(req.user.id) || req.user;
+    const myLevel = ROLE_LEVEL[req.user.role] ?? 0;
     const prepared = [];
     for (const item of raw) {
         const id = String((item && item.userId) || '').trim();
@@ -1458,6 +1496,7 @@ app.post('/api/auth/users/bulk-cards', authenticate, requireSuperadmin, (req, re
         const user = Users.findById(id);
         if (!user || user.revokedAt || user.role === 'superadmin' || isLockedProfile(user.email)) continue;
         if (isStrumentoAccount(user)) continue;
+        if ((ROLE_LEVEL[user.role] ?? 0) >= myLevel) continue;
         if (!isUserVisible(user)) {
             return res.status(403).json({
                 error: `Le autorizzazioni di ${user.email} non si possono modificare: utente non visibile.`,
@@ -1526,30 +1565,12 @@ app.patch('/api/auth/users/:id/visibility', authenticate, requireAdmin, async (r
     if (isUserVisible(user) === wantVisible) {
         return res.json({ success: true, visible: wantVisible, unchanged: true });
     }
-    const label = wantVisible ? 'visibile' : 'non visibile';
-    if (req.user.role === 'superadmin') {
-        const result = await applyVisibility(user, wantVisible);
-        return res.json({ success: true, ...result });
+    // Ripristino utenti eliminati: solo Super Admin
+    if (wantVisible && req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Solo il Super Admin può ripristinare gli utenti eliminati.' });
     }
-    if (AdminActionRequests.findPendingByTarget(user.id, 'visibility')) {
-        return res.status(409).json({ error: 'Esiste già una richiesta di visibilità in attesa per questo utente.' });
-    }
-    const requester = Users.findById(req.user.id) || req.user;
-    createAdminActionRequest(
-        'visibility',
-        user,
-        { visible: wantVisible },
-        wantVisible
-            ? `ripristinare l'account ${subjectLabel(user)} (nuove credenziali)`
-            : `eliminare l'account ${subjectLabel(user)} (nascondere e revocare le credenziali)`,
-        requester
-    );
-    res.json({
-        pending: true,
-        message: wantVisible
-            ? `Richiesta inviata: l'utente sarà ripristinato dopo l'approvazione del Super Admin.`
-            : `Richiesta inviata: l'utente sarà eliminato (non visibile, credenziali revocate) dopo l'approvazione del Super Admin.`,
-    });
+    const result = await applyVisibility(user, wantVisible);
+    return res.json({ success: true, ...result });
 });
 
 app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
@@ -1559,12 +1580,9 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
     if (user.revokedAt) return res.status(403).json({error:'Utente revocato.'});
     if (user.role==='superadmin') return res.status(403).json({error:'I superadmin non possono essere modificati.'});
-    if (req.user.role!=='superadmin') {
-        return res.status(403).json({error:'Solo il Super Admin può modificare il ruolo.'});
-    }
     if (req.user.id===user.id) return res.status(403).json({error:'Non puoi modificare il tuo ruolo.'});
     if (isStrumentoAccount(user)) {
-        return res.status(403).json({ error: 'I profili strumento restano Reader. Modifica solo gli strumenti assegnati.' });
+        return res.status(403).json({ error: 'I profili strumento restano in sola lettura. Modifica solo gli strumenti assegnati.' });
     }
     if (ROLE_LEVEL[newRole]>ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Non puoi assegnare un ruolo superiore al tuo.'});
     if (ROLE_LEVEL[user.role]>=ROLE_LEVEL[req.user.role]) return res.status(403).json({error:'Permessi insufficienti.'});
@@ -1582,21 +1600,24 @@ app.patch('/api/auth/users/:id', authenticate, requireAdmin,(req,res)=>{
     res.json({success:true,role:newRole});
 });
 
-/** Superadmin: sblocca un account bloccato per troppi tentativi OTP (prima delle 2 ore). */
-app.post('/api/auth/users/:id/unlock-login', authenticate, requireSuperadmin, (req, res) => {
+/** Sblocca un account bloccato per troppi tentativi OTP (prima delle 2 ore). */
+app.post('/api/auth/users/:id/unlock-login', authenticate, requireAdmin, (req, res) => {
     let user = Users.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Utente non trovato.' });
     if (user.revokedAt) return res.status(403).json({ error: 'Utente revocato.' });
     if (user.role === 'superadmin') {
         return res.status(403).json({ error: 'Il Super Admin non può essere sbloccato in anticipo: attendere le 2 ore.' });
     }
+    const myLevel = ROLE_LEVEL[req.user.role] ?? 0;
+    const targetLevel = ROLE_LEVEL[user.role] ?? 0;
+    if (targetLevel >= myLevel) return res.status(403).json({ error: 'Permessi insufficienti.' });
     user = expireLoginLockIfNeeded(user);
     Users.clearLoginLock(user.id);
     notifyUser(
         user.id,
         'login_unlocked',
         'Accesso sbloccato',
-        'Il Super Admin ha sbloccato il tuo account. Puoi accedere di nuovo.',
+        'Un amministratore ha sbloccato il tuo account. Puoi accedere di nuovo.',
         '/login.html'
     );
     res.json({ success: true });
@@ -1680,7 +1701,7 @@ app.post('/api/auth/change-password', authenticate, async(req,res)=>{
     res.json({success:true,token});
 });
 
-// ── PATCH /api/auth/users/:id/profile  (superadmin: tutto; admin: solo schede/docente) ─
+// ── PATCH /api/auth/users/:id/profile  (admin/SA: diretto; strumento: solo SA) ─
 app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
     const user=Users.findById(req.params.id);
     if (!user) return res.status(404).json({error:'Utente non trovato.'});
@@ -1720,68 +1741,31 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
         hasDocente = false;
     }
 
-    if (req.user.role!=='superadmin') {
-        if (req.user.id === user.id) {
-            const parsedSelf = parseProfileBody(req.body);
-            if (parsedSelf.error) return res.status(400).json({error: parsedSelf.error});
-            if (AdminActionRequests.findPendingByTarget(user.id,'profile')) {
-                return res.status(409).json({error:'Esiste già una richiesta di modifica in attesa per questo utente.'});
-            }
-            const changes = profileDiffLines(user, parsedSelf.profile);
-            const requester = Users.findById(req.user.id) || req.user;
-            createAdminActionRequest(
-                'profile', user,
-                { profile: parsedSelf.profile, cards: null, docente: null },
-                `modifica del proprio profilo. ${summarizeChanges(changes)}`,
-                requester
-            );
-            return res.json({
-                pending: true,
-                message: `Richiesta inviata: la modifica sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
-            });
-        }
+    // Admin/SA: azione diretta (stessi poteri, con vincolo di livello)
+    if (req.user.id !== user.id) {
         const myLevel = ROLE_LEVEL[req.user.role] ?? 0;
         const targetLevel = ROLE_LEVEL[user.role] ?? 0;
         if (user.role === 'superadmin' || targetLevel >= myLevel) {
             return res.status(403).json({error:'Permessi insufficienti.'});
         }
-        if (!hasCards && !hasDocente) {
-            return res.status(400).json({error:'Nessuna modifica consentita.'});
-        }
-        if (AdminActionRequests.findPendingByTarget(user.id,'profile')) {
-            return res.status(409).json({error:'Esiste già una richiesta di modifica in attesa per questo utente.'});
-        }
-        const changes = [];
-        const cardsLine = cardsDiffLine(beforeCards, selectedCards || beforeCards);
-        if (cardsLine) changes.push(cardsLine);
-        if (hasDocente && normalizeDocente(user.role, user.docente) !== normalizeDocente(user.role, req.body.docente)) {
-            changes.push(normalizeDocente(user.role, req.body.docente) ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
-        }
-        if (!changes.length) {
-            return res.json({ success: true, unchanged: true });
-        }
-        const requester = Users.findById(req.user.id) || req.user;
-        createAdminActionRequest(
-            'profile', user,
-            {
-                profile: null,
-                cards: selectedCards,
-                docente: hasDocente ? !!req.body.docente : null,
-            },
-            `modifica accesso di ${subjectLabel(user)}. ${summarizeChanges(changes)}`,
-            requester
-        );
-        return res.json({
-            pending: true,
-            message: `Richiesta inviata: la modifica sarà applicata dopo l'approvazione del Super Admin o di altri ${ADMIN_APPROVALS_NEEDED} admin.`,
-        });
     }
 
     const parsed = parseProfileBody(req.body);
-    if (parsed.error) return res.status(400).json({error: parsed.error});
+    // Admin può aggiornare solo cards/docente senza anagrafica completa
+    const hasProfileFields = !!(
+        String((req.body || {}).nome || '').trim()
+        || String((req.body || {}).cognome || '').trim()
+        || String((req.body || {}).grado || '').trim()
+    );
+    if (hasProfileFields && parsed.error) return res.status(400).json({error: parsed.error});
+    if (!hasProfileFields && !hasCards && !hasDocente) {
+        return res.status(400).json({error:'Nessuna modifica consentita.'});
+    }
 
     let afterCards = beforeCards;
-    Users.updateProfile(user.id, parsed.profile);
+    if (hasProfileFields && !parsed.error) {
+        Users.updateProfile(user.id, parsed.profile);
+    }
     if (hasCards) {
         Users.updateAllowedCards(user.id, cardsToStored(selectedCards));
         afterCards = selectedCards;
@@ -1793,24 +1777,26 @@ app.patch('/api/auth/users/:id/profile', authenticate, requireAdmin,(req,res)=>{
     }
     if (user.id !== req.user.id) {
         const actor = Users.findById(req.user.id) || req.user;
-        const changes = profileDiffLines(user, parsed.profile);
+        const changes = hasProfileFields && !parsed.error ? profileDiffLines(user, parsed.profile) : [];
         const cardsLine = cardsDiffLine(beforeCards, afterCards);
         if (cardsLine) changes.push(cardsLine);
         if (!!normalizeDocente(user.role, user.docente) !== afterDocente) {
             changes.push(afterDocente ? 'Categoria Docente: attivata' : 'Categoria Docente: rimossa');
         }
-        notifyUser(
-            user.id,
-            'profile_updated',
-            'Profilo aggiornato da un amministratore',
-            `${actorLabel(actor)} ha modificato i tuoi dati. ${summarizeChanges(changes)}`,
-            '/profilo'
-        );
+        if (changes.length) {
+            notifyUser(
+                user.id,
+                'profile_updated',
+                'Profilo aggiornato da un amministratore',
+                `${actorLabel(actor)} ha modificato i tuoi dati. ${summarizeChanges(changes)}`,
+                '/profilo'
+            );
+        }
     }
     const updated = Users.findById(user.id);
     res.json({
         success: true,
-        cards: cardsFromStored(updated.allowedCards, updated.role),
+        cards: cardsFromStored(updated.allowedCards, updated.role, updated.accountType),
         docente: normalizeDocente(updated.role, updated.docente),
     });
 });
