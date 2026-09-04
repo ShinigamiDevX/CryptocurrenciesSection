@@ -177,6 +177,35 @@ function filterStderr(raw) {
         .join('\n').trim();
 }
 
+// KuCoin/Binance fanno molte chiamate Chainalysis: 5 minuti non bastano.
+const PYTHON_JOB_TIMEOUT_MS = 45 * 60 * 1000;
+
+function pythonExecOptions(cwd, env) {
+    return {
+        cwd,
+        env: { ...env, PYTHONUNBUFFERED: '1' },
+        timeout: PYTHON_JOB_TIMEOUT_MS,
+        maxBuffer: 32 * 1024 * 1024,
+        windowsHide: true,
+    };
+}
+
+function pythonJobErrorMessage(error, stdout, stderr) {
+    if (stderr && stderr.includes('[PASSWORD_REQUIRED]')) return { passwordRequired: true };
+    if (stderr && stderr.includes('[PASSWORD_ERRATA]')) return { passwordWrong: true };
+    const filtered = filterStderr(stderr) || filterStderr(stdout);
+    const msg = String((error && error.message) || '');
+    if (msg.includes('maxBuffer')) {
+        return { text: 'Output Python troppo grande durante l\'elaborazione.' };
+    }
+    if (error && (error.killed || error.signal === 'SIGTERM' || msg.includes('ETIMEDOUT'))) {
+        return {
+            text: 'Elaborazione interrotta: lo script ha superato il tempo massimo mentre interrogava Chainalysis. Riprova: i file con molte transazioni richiedono diversi minuti.',
+        };
+    }
+    return { text: filtered || 'Errore sconosciuto durante l\'elaborazione.' };
+}
+
 async function processUploadJob(jobId, { uploadedFile, originalFilename, exchange, service, password, outputCsv, clusterScript, downloadName }) {
     const pythonPath = pythonExecutable();
     const command = `"${pythonPath}" "${clusterScript}" "${uploadedFile}" "${outputCsv}"`;
@@ -188,7 +217,7 @@ async function processUploadJob(jobId, { uploadedFile, originalFilename, exchang
     emitJobProgress(jobId, { progress: 0, message: 'Avvio script Python...', phase: 'python' });
 
     const { error, stdout, stderr } = await new Promise(resolve => {
-        exec(command, { cwd: path.dirname(clusterScript), env: execEnv, timeout: 300000 }, (err, out, serr) => {
+        exec(command, pythonExecOptions(path.dirname(clusterScript), execEnv), (err, out, serr) => {
             resolve({ error: err, stdout: out, stderr: serr });
         });
     });
@@ -198,13 +227,13 @@ async function processUploadJob(jobId, { uploadedFile, originalFilename, exchang
     console.log('DEBUG: stderr =', stderr);
 
     if (error) {
-        if (stderr && stderr.includes('[PASSWORD_REQUIRED]')) {
+        const parsed = pythonJobErrorMessage(error, stdout, stderr);
+        if (parsed.passwordRequired) {
             emitJobProgress(jobId, { done: true, requiresPassword: true, uploadedFile: originalFilename, exchange });
-        } else if (stderr && stderr.includes('[PASSWORD_ERRATA]')) {
+        } else if (parsed.passwordWrong) {
             emitJobProgress(jobId, { done: true, passwordError: true, uploadedFile: originalFilename, exchange });
         } else {
-            const errMsg = filterStderr(stderr) || filterStderr(stdout) || 'Errore sconosciuto durante l\'elaborazione.';
-            emitJobProgress(jobId, { done: true, error: 'Errore durante l\'elaborazione: ' + errMsg });
+            emitJobProgress(jobId, { done: true, error: 'Errore durante l\'elaborazione: ' + parsed.text });
         }
         finalizeJob(jobId);
         return;
@@ -453,12 +482,13 @@ app.post('/reprocess-with-password', express.json(), (req, res) => {
     const command = `"${pythonPath}" "${clusterScript}" "${uploadedFilePath}" "${outputCsv}"`;
     const execEnv = { ...process.env, EXCEL_PASSWORD: password };
     if (service === 'trm') execEnv.OUTPUT_SERVICE = 'trm';
-    exec(command, { cwd: path.dirname(clusterScript), env: execEnv, timeout: 300000 }, (error, stdout, stderr) => {
+    exec(command, pythonExecOptions(path.dirname(clusterScript), execEnv), (error, stdout, stderr) => {
         if (error) {
-            if (stderr && stderr.includes('[PASSWORD_ERRATA]')) {
+            const parsed = pythonJobErrorMessage(error, stdout, stderr);
+            if (parsed.passwordWrong) {
                 return res.status(200).json({ passwordError: true, uploadedFile, exchange });
             }
-            return res.status(500).send('Errore durante l\'elaborazione: ' + stderr);
+            return res.status(500).send('Errore durante l\'elaborazione: ' + parsed.text);
         }
         if (fs.existsSync(outputCsv)) {
             res.download(outputCsv, downloadName, (err) => {

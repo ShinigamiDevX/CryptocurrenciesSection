@@ -595,7 +595,7 @@ function portalSsoRole(portalRole) {
 }
 
 function consumePortalTicket(ticket) {
-    const consumeUrl = process.env.PORTAL_SSO_CONSUME_URL || 'https://192.168.4.80:5200/api/auth/sso/consume';
+    const consumeUrl = process.env.PORTAL_SSO_CONSUME_URL || 'https://cryptosection.chainholder.dev/api/auth/sso/consume';
     const body = JSON.stringify({ ticket, tool: 'cryptomonitor' });
     return new Promise((resolve, reject) => {
         const u = new URL(consumeUrl);

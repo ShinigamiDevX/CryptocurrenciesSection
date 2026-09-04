@@ -19,13 +19,13 @@ const SECRET_FILE      = path.join(DATA_DIR, 'secret.key');
 const SUPERADMIN_EMAIL = 'portalecrypto@proton.me';
 const SUPERADMIN_NOME  = 'Super Admin';
 const SUPERADMIN_COGNOME = '';
-const PORTAL_URL       = (process.env.PORTAL_URL || 'https://192.168.4.80:5200').replace(/\/$/, '');
+const PORTAL_URL       = (process.env.PORTAL_URL || 'https://cryptosection.chainholder.dev').replace(/\/$/, '');
 const ROLE_LEVEL       = { reader: 0, user: 1, admin: 2, superadmin: 3 };
 const ALL_ROLES        = ['reader', 'user', 'admin', 'superadmin'];
 /** Schede dashboard assegnabili in invito (gestione-utenti resta solo per admin/superadmin). */
 const ASSIGNABLE_CARDS = [
     'ai', 'analisi-report', 'apinga', 'chainholder', 'cluster', 'corsi',
-    'cryptomonitor', 'cryptoscanner', 'gelato', 'materiali', 'siena', 'terra', 'vysion', 'xpublicator',
+    'cryptomonitor', 'cryptoscanner', 'gelato', 'li-tools', 'materiali', 'siena', 'terra', 'vysion', 'xpublicator',
 ];
 const STRUMENTO_EMAIL_DOMAIN = 'strumento.local';
 const CARD_HOME = {
@@ -38,6 +38,7 @@ const CARD_HOME = {
     'cryptoscanner': '/cryptoscanner',
     'xpublicator': '/xpublicator',
     'gelato': 'http://192.168.4.80:5005',
+    'li-tools': '/li-tools',
     'siena': '/siena-constructor/',
     'terra': 'http://192.168.4.80:7860',
     'vysion': 'http://192.168.4.80:3002',
@@ -137,9 +138,24 @@ function cardsToStored(cards) {
     return JSON.stringify(cards);
 }
 
+function cardOrderFromStored(raw) {
+    if (raw == null || String(raw).trim() === '') return [];
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim());
+    } catch {
+        return [];
+    }
+}
+
+function cardOrderToStored(order) {
+    return JSON.stringify(Array.isArray(order) ? order : []);
+}
+
 /** Aggiunge schede nuove (es. Apinga) alle allowlist già salvate, senza toccare reader e account strumento. */
 (function grantNewAssignableCards() {
-    const NEW_CARDS = ['apinga', 'cryptoscanner', 'gelato', 'siena', 'terra', 'vysion', 'xpublicator'];
+    const NEW_CARDS = ['apinga', 'cryptoscanner', 'gelato', 'li-tools', 'siena', 'terra', 'vysion', 'xpublicator'];
     try {
         const users = Users.findActive();
         for (const user of users) {
@@ -446,6 +462,7 @@ const CARD_LABEL = {
     apinga: 'Apinga',
     cryptoscanner: 'CryptoScanner',
     gelato: 'GELATO',
+    'li-tools': 'LI Tools',
     siena: 'SIENA Constructor',
     terra: 'Terra',
     vysion: 'Vysion',
@@ -658,11 +675,33 @@ async function executeAdminAction(r) {
 const SMTP_HOST = process.env.SMTP_HOST, SMTP_PORT = parseInt(process.env.SMTP_PORT||'587',10);
 const SMTP_SECURE = process.env.SMTP_SECURE==='true', SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS, SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
-let transporter = null;
-if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    transporter = nodemailer.createTransport({ host:SMTP_HOST, port:SMTP_PORT, secure:SMTP_SECURE, auth:{user:SMTP_USER,pass:SMTP_PASS}, tls:{rejectUnauthorized:false} });
-    console.log(`[AUTH] SMTP: ${SMTP_HOST}:${SMTP_PORT}`);
-} else { console.log('[AUTH] SMTP non configurato.'); }
+
+function createSmtpTransport() {
+    return nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
+        tls: { rejectUnauthorized: false },
+        pool: false,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
+    });
+}
+
+async function smtpSend(mail) {
+    const t = createSmtpTransport();
+    try {
+        await t.sendMail(mail);
+    } finally {
+        t.close();
+    }
+}
+
+const transporter = (SMTP_HOST && SMTP_USER && SMTP_PASS) ? true : null;
+if (transporter) console.log(`[AUTH] SMTP: ${SMTP_HOST}:${SMTP_PORT}`);
+else console.log('[AUTH] SMTP non configurato.');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR,{recursive:true});
 let JWT_SECRET = process.env.JWT_SECRET;
@@ -696,7 +735,7 @@ async function sendInviteEmail(toEmail, inviteToken, assignedRole) {
     const link=`${PORTAL_URL}/register?token=${inviteToken}`;
     const rLabel={reader:'Reader',user:'Utente',admin:'Admin',superadmin:'Super Admin'}[assignedRole]||assignedRole;
     const html=`<!DOCTYPE html><html lang="it"><body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:40px 0;"><tr><td align="center"><table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;"><tr><td style="background:#030E1C;padding:28px 32px;"><span style="color:#00C8FF;font-size:1.2rem;font-weight:700;">CryptocurrenciesSection</span></td></tr><tr><td style="padding:32px;"><h2 style="color:#1a2a3a;margin:0 0 12px;">Sei stato invitato</h2><p style="color:#4a5568;line-height:1.6;margin:0 0 8px;">Ruolo: <strong>${rLabel}</strong>. Link valido <strong>15 minuti</strong>.</p><a href="${link}" style="display:inline-block;margin-top:20px;padding:14px 28px;background:#00C8FF;color:#030E1C;text-decoration:none;border-radius:8px;font-weight:700;">Registrati</a><p style="color:#a0aec0;font-size:0.8rem;margin-top:16px;word-break:break-all;">${link}</p></td></tr></table></td></tr></table></body></html>`;
-    if (transporter) { await transporter.sendMail({from:SMTP_FROM,to:toEmail,subject:`[CryptocurrenciesSection] Invito come ${rLabel}`,html}); console.log(`[AUTH] Email invito → ${toEmail}`); }
+    if (transporter) { await smtpSend({from:SMTP_FROM,to:toEmail,subject:`[CryptocurrenciesSection] Invito come ${rLabel}`,html}); console.log(`[AUTH] Email invito → ${toEmail}`); }
     else { console.log(`[AUTH] Invito (${rLabel}) per ${toEmail}: email non inviata (SMTP non configurato).`); }
 }
 
@@ -708,7 +747,7 @@ async function sendPasswordResetEmail(toEmail, tempPassword) {
         console.log(`[AUTH] Reset password per ${toEmail}: email non inviata (SMTP non configurato).`);
         return false;
     }
-    await transporter.sendMail({
+    await smtpSend({
         from: SMTP_FROM,
         to: toEmail,
         subject: '[CryptocurrenciesSection] Password resettata',
@@ -745,7 +784,7 @@ async function sendForgotPasswordEmail(toEmail, resetToken) {
         console.log(`[AUTH] Forgot-password per ${toEmail}: email non inviata (SMTP non configurato).`);
         return false;
     }
-    await transporter.sendMail({
+    await smtpSend({
         from: SMTP_FROM,
         to: toEmail,
         subject: '[CryptocurrenciesSection] Reset password',
@@ -803,16 +842,16 @@ function otpEmailHtml(otp) {
 async function sendVerificationOtpEmail(toEmail, otp) {
     const html = otpEmailHtml(otp);
     if (transporter) {
-        await transporter.sendMail({
+        await smtpSend({
             from: SMTP_FROM,
             to: toEmail,
             subject: '[CryptocurrenciesSection] Codice di verifica',
             html,
         });
-        console.log(`[AUTH] OTP email → ${toEmail}`);
+        console.error(`[AUTH] OTP email → ${toEmail}`);
         return true;
     }
-    console.log(`[AUTH] OTP per ${toEmail}: non inviato (SMTP non configurato).`);
+    console.error(`[AUTH] OTP per ${toEmail}: non inviato (SMTP non configurato).`);
     return false;
 }
 
@@ -824,8 +863,8 @@ async function issueLoginOtp(user) {
     try {
         emailSent = await sendVerificationOtpEmail(user.email, otp);
     } catch (e) {
-        console.error('[AUTH] OTP login email:', e.message);
-        throw e;
+        console.error('[AUTH] OTP login email:', e.message || e);
+        emailSent = false;
     }
     const challenge = jwt.sign(
         { id: user.id, email: user.email, purpose: 'login_otp' },
@@ -1006,9 +1045,24 @@ app.get('/api/auth/verify', authenticate,(req,res)=>{
         originalRole: user.role,
         accountType,
         cards: cardsFromStored(user.allowedCards, user.role, accountType),
+        cardOrder: cardOrderFromStored(user.cardOrder),
         docente: accountType === 'strumento' ? false : normalizeDocente(user.role, user.docente),
         canManageCorsi: accountType === 'strumento' ? false : userCan(user, 'corsi.manage'),
     });
+});
+
+/** Ordine personalizzato delle schede sul portale. */
+app.post('/api/auth/card-order', authenticate, (req, res) => {
+    const user = Users.findById(req.user.id);
+    if (!isAccountUsable(user)) return res.status(401).json({ error: 'Sessione non valida.' });
+    const order = Array.isArray((req.body || {}).order) ? (req.body || {}).order : null;
+    if (!order) return res.status(400).json({ error: 'Ordine non valido.' });
+    const cleaned = [];
+    for (const id of order) {
+        if (typeof id === 'string' && id.trim() && !cleaned.includes(id.trim())) cleaned.push(id.trim());
+    }
+    Users.updateCardOrder(user.id, cardOrderToStored(cleaned));
+    res.json({ ok: true, cardOrder: cleaned });
 });
 
 /** Strumenti con login proprio: ticket monouso dopo login+OTP del portale. */

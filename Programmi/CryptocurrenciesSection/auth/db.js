@@ -261,6 +261,7 @@ const USER_EXTRA_COLS = [
     ['hiddenAt', 'TEXT'],
     ['username', 'TEXT'],
     ['accountType', "TEXT NOT NULL DEFAULT 'user'"],
+    ['cardOrder', "TEXT NOT NULL DEFAULT ''"],
 ];
 USER_EXTRA_COLS.forEach(([col, def]) => {
     try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); }
@@ -489,6 +490,7 @@ const Users = {
     /** Aggiorna il ruolo e invalida i JWT precedenti (tokenVersion++), come per il cambio password. */
     updateRole: (id, role) => db.prepare('UPDATE users SET role = ?, tokenVersion = tokenVersion + 1 WHERE id = ?').run(role, id),
     updateAllowedCards: (id, allowedCards) => db.prepare('UPDATE users SET allowedCards = ? WHERE id = ?').run(allowedCards || '', id),
+    updateCardOrder: (id, cardOrder) => db.prepare('UPDATE users SET cardOrder = ? WHERE id = ?').run(cardOrder || '', id),
     updateDocente: (id, docente) => db.prepare('UPDATE users SET docente = ? WHERE id = ?').run(docente ? 1 : 0, id),
     updateProfile: (id, profile) => {
         const p = profileDefaults(profile);

@@ -59,6 +59,7 @@
         nav.appendChild(createLink('/cryptoscanner', 'cryptoscanner', 'file-search-alt', 'CryptoScanner', 'File scan'));
         nav.appendChild(createLink('/xpublicator', 'xpublicator', 'key-skeleton', 'Xpublicator', 'xpub → address'));
         nav.appendChild(createLink('http://192.168.4.80:5005', 'gelato', 'map-marker', 'GELATO', 'Geo & foto', { external: true }));
+        nav.appendChild(createLink('/li-tools', 'li-tools', 'file-network', 'LI Tools', 'ETSI HI3'));
         nav.appendChild(createLink('https://192.168.4.80:5174', 'materiali', 'books', 'Materiali', 'Archivio', { external: true }));
         nav.appendChild(createLink('/siena-constructor/', 'siena', 'envelope', 'SIENA Constructor', 'Messaggi', { external: true }));
         nav.appendChild(createLink('http://192.168.4.80:7860', 'terra', 'map', 'Terra', 'Geolocalizza foto', { external: true }));

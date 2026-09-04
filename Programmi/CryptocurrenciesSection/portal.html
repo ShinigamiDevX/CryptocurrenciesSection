@@ -156,6 +156,194 @@
             border-color: rgba(123, 70, 190, 0.5);
         }
 
+        .cards-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin: 0.25rem 0 -1.25rem;
+            padding: 0;
+            box-sizing: border-box;
+            max-width: none;
+        }
+        .card-search-wrap {
+            flex: 1 1 14rem;
+            min-width: 12rem;
+            max-width: 26rem;
+            margin-right: auto;
+            position: relative;
+        }
+        .card-search-wrap input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0.55rem 2.6rem 0.55rem 0.9rem;
+            background: rgba(0,200,255,0.06);
+            border: 1px solid rgba(0,200,255,0.28);
+            border-radius: 8px;
+            color: #C8F0E8;
+            font-size: 0.9rem;
+            font-weight: 400;
+            font-family: inherit;
+        }
+        .card-search-wrap input.has-value {
+            padding-right: 4.2rem;
+        }
+        .card-search-wrap input::placeholder {
+            color: #7ACCE0;
+            opacity: 1;
+            font-weight: 400;
+        }
+        .card-search-wrap input:focus {
+            outline: none;
+            border-color: #00C8FF;
+            box-shadow: 0 0 0 3px rgba(0,200,255,0.15);
+            color: #C8F0E8;
+        }
+        .card-search-icon {
+            position: absolute;
+            right: 0.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1.05rem;
+            height: 1.05rem;
+            pointer-events: none;
+            background-color: #7ACCE0;
+            -webkit-mask: url('/icons/line/search.svg') center / contain no-repeat;
+            mask: url('/icons/line/search.svg') center / contain no-repeat;
+        }
+        .card-search-clear {
+            position: absolute;
+            right: 2.15rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1.6rem;
+            height: 1.6rem;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #7ACCE0;
+            cursor: pointer;
+            display: none;
+            font-size: 1.1rem;
+            line-height: 1;
+            font-weight: 400;
+        }
+        .card-search-clear.visible { display: inline-flex; align-items: center; justify-content: center; }
+        .card-search-clear:hover { color: #00C8FF; background: rgba(0,200,255,0.1); }
+        #cardSearchEmpty {
+            display: none;
+            text-align: center;
+            color: #5ABBC8;
+            font-size: 0.95rem;
+            margin: 2.5rem auto 0;
+            max-width: 28rem;
+        }
+        #cardSearchEmpty.visible { display: block; }
+        html.light-theme .card-search-wrap input {
+            background: rgba(255,255,255,0.9);
+            border-color: rgba(123, 70, 190, 0.35);
+            color: #2a1f3d;
+            font-weight: 400;
+        }
+        html.light-theme .card-search-wrap input::placeholder { color: #6a5a80; opacity: 1; font-weight: 400; }
+        html.light-theme .card-search-wrap input:focus { color: #2a1f3d; }
+        html.light-theme .card-search-icon { background-color: #6a5a80; }
+        html.light-theme .card-search-clear { color: #6a5a80; }
+        html.light-theme .card-search-clear:hover { color: #6B3BB0; background: rgba(123, 70, 190, 0.1); }
+        html.light-theme #cardSearchEmpty { color: #5a4a6e; }
+        .btn-reorder {
+            padding: 0.55rem 1rem;
+            background: rgba(0,200,255,0.08);
+            border: 1px solid rgba(0,200,255,0.3);
+            border-radius: 8px;
+            color: #00C8FF;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .btn-reorder:hover { background: rgba(0,200,255,0.14); }
+        .btn-reorder.active {
+            background: linear-gradient(135deg, #00C8FF 0%, #00E676 100%);
+            border-color: transparent;
+            color: #030E1C;
+        }
+        .btn-reorder-reset {
+            display: none;
+            padding: 0.55rem 1rem;
+            background: transparent;
+            border: 1px solid rgba(255, 71, 87, 0.45);
+            border-radius: 8px;
+            color: #FF8A95;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .btn-reorder-reset.visible { display: inline-block; }
+        .btn-reorder-reset:hover { background: rgba(255, 71, 87, 0.1); }
+        .reorder-hint {
+            font-size: 0.8rem;
+            color: #5ABBC8;
+            display: none;
+        }
+        .reorder-hint.visible { display: block; }
+        #dashboardCards .card { position: relative; }
+        #dashboardCards.reorder-mode .card[data-card] {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        #dashboardCards.reorder-mode .card[data-card]:active { cursor: grabbing; }
+        #dashboardCards.reorder-mode .card[data-card].dragging {
+            opacity: 0.3;
+            border-style: dashed;
+            transform: none;
+        }
+        #dashboardCards.reorder-mode .card[data-card].drag-over {
+            border-color: rgba(0,230,118,0.7);
+            box-shadow: 0 0 0 2px rgba(0,230,118,0.25);
+        }
+        #dashboardCards.reorder-mode .card a.btn { pointer-events: none; }
+        #dashboardCards.reorder-mode .card:hover { transform: none; }
+        .card-drag-handle {
+            display: none;
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            width: 1.35rem;
+            height: 1.35rem;
+            color: rgba(90,187,200,0.75);
+            pointer-events: none;
+        }
+        #dashboardCards.reorder-mode .card .card-drag-handle { display: block; }
+        .card-drag-ghost {
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 10000;
+            margin: 0;
+            pointer-events: none;
+            opacity: 1;
+            background: #07182c;
+            border: 2px solid rgba(0, 200, 255, 0.85);
+            box-shadow:
+                0 0 0 1px rgba(0, 230, 118, 0.25),
+                0 22px 56px rgba(0, 0, 0, 0.7),
+                0 0 28px rgba(0, 200, 255, 0.28);
+            transform: none;
+            will-change: left, top;
+        }
+        html.light-theme .card-drag-ghost {
+            background: #ffffff;
+            border-color: rgba(123, 70, 190, 0.75);
+            box-shadow:
+                0 0 0 1px rgba(123, 70, 190, 0.2),
+                0 22px 56px rgba(0, 0, 0, 0.22),
+                0 0 20px rgba(123, 70, 190, 0.18);
+        }
+
         /* ── Auth overlay ─────────────────────────────────────── */
         #authOverlay {
             position: fixed; inset: 0; background: #030E1C; z-index: 9999;
@@ -247,6 +435,16 @@
             <h2 id="welcomeTitle" style="font-size: 1.6rem; text-align: left;">Benvenuto nel portale operativo</h2>
             <p id="welcomeSub" style="text-align: left; margin: 0; max-width: none; white-space: nowrap; font-size: 0.95rem;">Accesso riservato al personale autorizzato. Seleziona un'area di lavoro.</p>
         </section>
+        <div class="cards-toolbar">
+            <div class="card-search-wrap">
+                <input type="search" id="cardSearch" placeholder="Cerca..." autocomplete="off" spellcheck="false">
+                <button type="button" class="card-search-clear" id="cardSearchClear" title="Pulisci" aria-label="Pulisci ricerca">×</button>
+                <span class="card-search-icon" aria-hidden="true"></span>
+            </div>
+            <span class="reorder-hint" id="reorderHint">Trascina le schede per cambiare l'ordine, poi premi Fine.</span>
+            <button type="button" class="btn-reorder-reset" id="resetOrderBtn">Ripristina ordine originale</button>
+            <button type="button" class="btn-reorder" id="reorderBtn">Modifica ordine</button>
+        </div>
         <div class="cards" id="dashboardCards">
             <div class="card is-soon" data-card="ai" data-ready="0">
                 <span class="card-soon-badge">In arrivo</span>
@@ -309,6 +507,12 @@
                 <p>Geolocalizzazione e timeline da metadati foto, GPX e file di posizione.</p>
                 <a href="http://192.168.4.80:5005" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
+            <div class="card" data-card="li-tools">
+                <div class="icon"><img src="/icons/line/file-network.svg" alt=""></div>
+                <h3>LI Tools</h3>
+                <p>Parser ETSI LI HI3 (PCAP/WAV/testo) e conversione PCAP → HI3 per Lawful Interception.</p>
+                <a href="/li-tools" class="btn btn-outline">Apri strumento</a>
+            </div>
             <div class="card" data-card="materiali">
                 <div class="icon"><img src="/icons/line/books.svg" alt=""></div>
                 <h3>Materiali</h3>
@@ -341,6 +545,7 @@
                 <a href="/gestione-utenti" class="btn btn-outline">Apri strumento</a>
             </div>
         </div>
+        <p id="cardSearchEmpty">Nessuno strumento corrisponde alla ricerca.</p>
     </main>
 
     <footer>
@@ -376,6 +581,8 @@
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.displayName || _currentUser.email || '';
             applyDashboardCards(_currentUser);
+            setupCardSearch();
+            setupCardReorder(_currentUser);
             if (typeof bindPortalSsoLinks === 'function') bindPortalSsoLinks();
             const welcomeTitle = document.getElementById('welcomeTitle');
             const welcomeSub = document.getElementById('welcomeSub');
@@ -413,6 +620,41 @@
         });
     }
 
+    /** Ordine HTML originale delle schede (prima di eventuali personalizzazioni). */
+    const DEFAULT_CARD_ORDER = Array.from(
+        document.querySelectorAll('#dashboardCards .card[data-card]')
+    ).map((c) => c.getAttribute('data-card'));
+
+    function defaultVisibleCardOrder() {
+        return DEFAULT_CARD_ORDER.filter((id) => {
+            const el = document.querySelector('#dashboardCards .card[data-card="' + id + '"]');
+            return el && el.dataset.allowed === '1';
+        });
+    }
+
+    function cardOrdersEqual(a, b) {
+        if (!a || !b || a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+        return true;
+    }
+
+    function updateResetOrderButton() {
+        const btn = document.getElementById('resetOrderBtn');
+        if (!btn) return;
+        const modified = !cardOrdersEqual(currentVisibleCardOrder(), defaultVisibleCardOrder());
+        btn.classList.toggle('visible', modified);
+        requestAnimationFrame(syncCardsToolbarAlign);
+    }
+
+    function applyDefaultCardOrder() {
+        const grid = document.getElementById('dashboardCards');
+        if (!grid) return;
+        DEFAULT_CARD_ORDER.forEach((id) => {
+            const card = grid.querySelector('.card[data-card="' + id + '"]');
+            if (card) grid.appendChild(card);
+        });
+    }
+
     /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin.
      *  Super Admin: tutte le schede. */
     function applyDashboardCards(user) {
@@ -426,8 +668,364 @@
             if (id === 'gestione-utenti') show = isAdmin && !isStrumento;
             else if (isStrumento) show = allowed.has(id);
             else show = isSuper || allowed.has(id);
-            card.style.display = show ? '' : 'none';
+            card.dataset.allowed = show ? '1' : '0';
         });
+        applySavedCardOrder(user);
+        applyCardSearchFilter();
+        updateResetOrderButton();
+        requestAnimationFrame(syncCardsToolbarAlign);
+    }
+
+    function cardSearchHaystack(card) {
+        const parts = [
+            card.getAttribute('data-card') || '',
+            (card.querySelector('h3') || {}).textContent || '',
+            (card.querySelector('p') || {}).textContent || '',
+            (card.querySelector('.card-soon-badge') || {}).textContent || '',
+            (card.querySelector('.card-admin-badge') || {}).textContent || '',
+        ];
+        return parts.join(' ').toLowerCase();
+    }
+
+    function applyCardSearchFilter() {
+        const input = document.getElementById('cardSearch');
+        const clearBtn = document.getElementById('cardSearchClear');
+        const empty = document.getElementById('cardSearchEmpty');
+        const q = ((input && input.value) || '').trim().toLowerCase();
+        if (clearBtn) clearBtn.classList.toggle('visible', !!q);
+        if (input) input.classList.toggle('has-value', !!q);
+        let shown = 0;
+        document.querySelectorAll('#dashboardCards .card[data-card]').forEach((card) => {
+            const allowed = card.dataset.allowed === '1';
+            const match = !q || cardSearchHaystack(card).includes(q);
+            const show = allowed && match;
+            card.style.display = show ? '' : 'none';
+            if (show) shown += 1;
+        });
+        if (empty) empty.classList.toggle('visible', !!q && shown === 0);
+        requestAnimationFrame(syncCardsToolbarAlign);
+    }
+
+    function setupCardSearch() {
+        const input = document.getElementById('cardSearch');
+        const clearBtn = document.getElementById('cardSearchClear');
+        if (!input) return;
+        input.addEventListener('input', applyCardSearchFilter);
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                applyCardSearchFilter();
+                input.focus();
+            });
+        }
+    }
+
+    function cardOrderStorageKey(user) {
+        return 'portalCardOrder:' + (user && user.id ? user.id : 'anon');
+    }
+
+    function readLocalCardOrder(user) {
+        try {
+            const raw = localStorage.getItem(cardOrderStorageKey(user));
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function writeLocalCardOrder(user, order) {
+        try {
+            if (!order || !order.length) localStorage.removeItem(cardOrderStorageKey(user));
+            else localStorage.setItem(cardOrderStorageKey(user), JSON.stringify(order));
+        } catch {}
+    }
+
+    function preferredCardOrder(user) {
+        const server = Array.isArray(user.cardOrder) ? user.cardOrder : [];
+        if (server.length) return server;
+        return readLocalCardOrder(user);
+    }
+
+    function applySavedCardOrder(user) {
+        const grid = document.getElementById('dashboardCards');
+        if (!grid) return;
+        const order = preferredCardOrder(user);
+        if (!order.length) {
+            applyDefaultCardOrder();
+            return;
+        }
+        const rank = new Map(order.map((id, i) => [id, i]));
+        const cards = Array.from(grid.querySelectorAll('.card[data-card]'));
+        cards.sort((a, b) => {
+            const ia = rank.has(a.dataset.card) ? rank.get(a.dataset.card) : 9999;
+            const ib = rank.has(b.dataset.card) ? rank.get(b.dataset.card) : 9999;
+            if (ia !== ib) return ia - ib;
+            return 0;
+        });
+        cards.forEach((card) => grid.appendChild(card));
+    }
+
+    function currentVisibleCardOrder() {
+        return Array.from(document.querySelectorAll('#dashboardCards .card[data-card]'))
+            .filter((c) => c.dataset.allowed === '1')
+            .map((c) => c.getAttribute('data-card'));
+    }
+
+    async function persistCardOrder(user, order) {
+        writeLocalCardOrder(user, order);
+        user.cardOrder = order;
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            await fetch('/api/auth/card-order', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ order }),
+            });
+        } catch {}
+    }
+
+    function syncCardsToolbarAlign() {
+        const grid = document.getElementById('dashboardCards');
+        const toolbar = document.querySelector('.cards-toolbar');
+        if (!grid || !toolbar) return;
+        const visible = Array.from(grid.querySelectorAll('.card[data-card]'))
+            .filter((c) => c.style.display !== 'none');
+        if (!visible.length) {
+            toolbar.style.width = '';
+            toolbar.style.marginLeft = '';
+            return;
+        }
+        const left = Math.min(...visible.map((c) => c.getBoundingClientRect().left));
+        const right = Math.max(...visible.map((c) => c.getBoundingClientRect().right));
+        toolbar.style.width = Math.round(right - left) + 'px';
+        toolbar.style.marginLeft = '0';
+        const delta = left - toolbar.getBoundingClientRect().left;
+        toolbar.style.marginLeft = Math.round(delta) + 'px';
+    }
+
+    function insertionReferenceFromPoint(grid, dragEl, clientX, clientY) {
+        const others = Array.from(grid.querySelectorAll('.card[data-card]'))
+            .filter((c) => c !== dragEl && c.style.display !== 'none');
+        if (!others.length) return null;
+
+        const rowMate = (card) => {
+            const r = card.getBoundingClientRect();
+            return clientY >= r.top - 12 && clientY <= r.bottom + 12;
+        };
+        let row = others.filter(rowMate);
+        if (!row.length) {
+            // Riga più vicina verticalmente
+            let best = null;
+            let bestDist = Infinity;
+            others.forEach((card) => {
+                const r = card.getBoundingClientRect();
+                const mid = (r.top + r.bottom) / 2;
+                const d = Math.abs(clientY - mid);
+                if (d < bestDist) { bestDist = d; best = mid; }
+            });
+            row = others.filter((card) => {
+                const r = card.getBoundingClientRect();
+                return Math.abs(((r.top + r.bottom) / 2) - best) < 20;
+            });
+        }
+        row.sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+
+        // A destra dell'ultima scheda della riga → dopo di essa
+        const last = row[row.length - 1];
+        const lastR = last.getBoundingClientRect();
+        if (clientX >= lastR.left + lastR.width * 0.55) {
+            let ref = last.nextSibling;
+            while (ref && ref === dragEl) ref = ref.nextSibling;
+            return ref;
+        }
+        // A sinistra della prima → prima di essa
+        const first = row[0];
+        const firstR = first.getBoundingClientRect();
+        if (clientX <= firstR.left + firstR.width * 0.45) return first;
+
+        for (const card of row) {
+            const r = card.getBoundingClientRect();
+            if (clientX < r.left + r.width / 2) return card;
+        }
+        let ref = last.nextSibling;
+        while (ref && ref === dragEl) ref = ref.nextSibling;
+        return ref;
+    }
+
+    function setupCardReorder(user) {
+        const grid = document.getElementById('dashboardCards');
+        const btn = document.getElementById('reorderBtn');
+        const resetBtn = document.getElementById('resetOrderBtn');
+        const hint = document.getElementById('reorderHint');
+        if (!grid || !btn) return;
+
+        grid.querySelectorAll('.card[data-card]').forEach((card) => {
+            if (card.querySelector('.card-drag-handle')) return;
+            const handle = document.createElement('span');
+            handle.className = 'card-drag-handle';
+            handle.setAttribute('aria-hidden', 'true');
+            handle.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg>';
+            card.appendChild(handle);
+        });
+
+        let reorderMode = false;
+        let dragEl = null;
+        let dragGhost = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let blankDragImg = null;
+
+        function getBlankDragImage() {
+            if (blankDragImg) return blankDragImg;
+            blankDragImg = document.createElement('canvas');
+            blankDragImg.width = 1;
+            blankDragImg.height = 1;
+            return blankDragImg;
+        }
+
+        function clearDragGhost() {
+            if (dragGhost && dragGhost.parentNode) dragGhost.parentNode.removeChild(dragGhost);
+            dragGhost = null;
+        }
+
+        function moveDragGhost(clientX, clientY) {
+            if (!dragGhost) return;
+            dragGhost.style.left = Math.round(clientX - dragOffsetX) + 'px';
+            dragGhost.style.top = Math.round(clientY - dragOffsetY) + 'px';
+        }
+
+        function setReorderMode(on) {
+            reorderMode = on;
+            if (on) {
+                const search = document.getElementById('cardSearch');
+                if (search && search.value) {
+                    search.value = '';
+                    applyCardSearchFilter();
+                }
+            }
+            grid.classList.toggle('reorder-mode', on);
+            btn.classList.toggle('active', on);
+            btn.textContent = on ? 'Fine' : 'Modifica ordine';
+            if (hint) hint.classList.toggle('visible', on);
+            grid.querySelectorAll('.card[data-card]').forEach((card) => {
+                const visible = card.dataset.allowed === '1';
+                card.draggable = on && visible;
+            });
+            updateResetOrderButton();
+            requestAnimationFrame(syncCardsToolbarAlign);
+        }
+
+        btn.addEventListener('click', async () => {
+            if (reorderMode) {
+                const order = currentVisibleCardOrder();
+                setReorderMode(false);
+                await persistCardOrder(user, order);
+                updateResetOrderButton();
+            } else {
+                setReorderMode(true);
+            }
+        });
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', async () => {
+                if (reorderMode) setReorderMode(false);
+                applyDefaultCardOrder();
+                await persistCardOrder(user, []);
+                updateResetOrderButton();
+                requestAnimationFrame(syncCardsToolbarAlign);
+            });
+        }
+
+        grid.addEventListener('dragstart', (e) => {
+            if (!reorderMode) return;
+            const card = e.target.closest('.card[data-card]');
+            if (!card || card.style.display === 'none') return;
+            dragEl = card;
+            card.classList.add('dragging');
+            clearDragGhost();
+            const rect = card.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+            try {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', card.dataset.card || '');
+                e.dataTransfer.setDragImage(getBlankDragImage(), 0, 0);
+            } catch {}
+            const ghost = card.cloneNode(true);
+            ghost.classList.remove('dragging', 'drag-over');
+            ghost.classList.add('card-drag-ghost', 'card');
+            ghost.removeAttribute('draggable');
+            ghost.style.width = card.offsetWidth + 'px';
+            ghost.style.height = card.offsetHeight + 'px';
+            document.body.appendChild(ghost);
+            dragGhost = ghost;
+            moveDragGhost(e.clientX, e.clientY);
+        });
+
+        grid.addEventListener('dragend', () => {
+            if (dragEl) dragEl.classList.remove('dragging');
+            grid.querySelectorAll('.card.drag-over').forEach((c) => c.classList.remove('drag-over'));
+            clearDragGhost();
+            dragEl = null;
+            updateResetOrderButton();
+            requestAnimationFrame(syncCardsToolbarAlign);
+        });
+
+        function onDragMove(e) {
+            if (!reorderMode || !dragEl) return;
+            e.preventDefault();
+            moveDragGhost(e.clientX, e.clientY);
+            const ref = insertionReferenceFromPoint(grid, dragEl, e.clientX, e.clientY);
+            if (ref === dragEl) return;
+            if (ref == null) {
+                if (dragEl.nextSibling) grid.appendChild(dragEl);
+            } else if (dragEl.nextSibling !== ref) {
+                grid.insertBefore(dragEl, ref);
+            }
+            grid.querySelectorAll('.card.drag-over').forEach((c) => c.classList.remove('drag-over'));
+            const highlight = (ref && ref.nodeType === 1 && ref.classList && ref.classList.contains('card'))
+                ? ref
+                : (dragEl.previousElementSibling && dragEl.previousElementSibling.classList.contains('card')
+                    ? dragEl.previousElementSibling
+                    : null);
+            if (highlight && highlight !== dragEl) highlight.classList.add('drag-over');
+        }
+
+        grid.addEventListener('dragover', onDragMove);
+        document.addEventListener('dragover', (e) => {
+            if (!dragEl) return;
+            e.preventDefault();
+            moveDragGhost(e.clientX, e.clientY);
+            // Anche fuori dalle schede: aggiorna posizione se il puntatore è sulla griglia
+            const overGrid = e.target.closest && e.target.closest('#dashboardCards');
+            if (overGrid || (e.clientX && e.clientY)) {
+                const gridRect = grid.getBoundingClientRect();
+                if (e.clientX >= gridRect.left && e.clientX <= gridRect.right
+                    && e.clientY >= gridRect.top && e.clientY <= gridRect.bottom) {
+                    onDragMove(e);
+                }
+            }
+        });
+
+        grid.addEventListener('drop', (e) => {
+            if (!reorderMode) return;
+            e.preventDefault();
+            grid.querySelectorAll('.card.drag-over').forEach((c) => c.classList.remove('drag-over'));
+        });
+
+        updateResetOrderButton();
+        requestAnimationFrame(syncCardsToolbarAlign);
+        window.addEventListener('resize', syncCardsToolbarAlign);
+        if (typeof ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => syncCardsToolbarAlign());
+            ro.observe(grid);
+        }
     }
 
     document.querySelectorAll('#dashboardCards .card.is-soon a.btn').forEach((a) => {

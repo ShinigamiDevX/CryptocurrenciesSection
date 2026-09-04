@@ -1,0 +1,36 @@
+.li-desc {
+    margin: 0 0 1rem;
+    color: #5ABBC8;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+.li-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem 1rem;
+}
+.li-preview {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid rgba(0,200,255,0.18);
+    background: rgba(3,14,28,0.55);
+    color: #C8F0E8;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 28rem;
+    overflow: auto;
+}
+.li-file-meta {
+    color: #7ACCE0;
+    font-size: 0.82rem;
+}
+html.light-theme .li-desc { color: #5a4a6e; }
+html.light-theme .li-preview {
+    background: #fff;
+    border-color: rgba(123, 70, 190, 0.25);
+    color: #2a1f3d;
+}

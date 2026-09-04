@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accesso strumento…</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Inter, system-ui, sans-serif;
+            background: #030E1C;
+            color: #5ABBC8;
+        }
+    </style>
+</head>
+<body>
+    <p>Accesso allo strumento in corso…</p>
+    <script src="auth-token.js?v=2"></script>
+    <script src="portal-sso.js?v=4"></script>
+    <script>
+    (async function () {
+        var params = new URLSearchParams(location.search);
+        var tool = params.get('tool') || '';
+        var next = params.get('next') || '';
+        if (typeof openToolWithSso === 'function') {
+            await openToolWithSso(tool, next, '_self');
+            return;
+        }
+        if (next) location.assign(next);
+        else location.replace('/portal');
+    })();
+    </script>
+</body>
+</html>

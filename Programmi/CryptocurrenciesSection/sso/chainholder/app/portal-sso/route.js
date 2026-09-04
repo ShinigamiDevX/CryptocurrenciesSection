@@ -3,7 +3,7 @@
  *   app/portal-sso/route.js
  *
  * .env di Chainholder:
- *   PORTAL_SSO_CONSUME_URL=https://192.168.4.80:5200/api/auth/sso/consume
+ *   PORTAL_SSO_CONSUME_URL=https://cryptosection.chainholder.dev/api/auth/sso/consume
  *   NEXTAUTH_URL=http://192.168.1.73:3000
  *
  * Flusso: ticket del portale → email → riscontro nel DB utenti di Chainholder.
@@ -17,7 +17,7 @@ import https from 'https';
 import http from 'http';
 
 const CONSUME_URL = process.env.PORTAL_SSO_CONSUME_URL
-    || 'https://192.168.4.80:5200/api/auth/sso/consume';
+    || 'https://cryptosection.chainholder.dev/api/auth/sso/consume';
 const PUBLIC_ORIGIN = (process.env.NEXTAUTH_URL || process.env.AUTH_URL || process.env.CHAINHOLDER_PUBLIC_URL || 'http://192.168.1.73:3000')
     .replace(/\/$/, '');
 

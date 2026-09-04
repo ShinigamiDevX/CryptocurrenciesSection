@@ -145,6 +145,15 @@
             text-underline-offset: 2px;
         }
         .forgot-link:hover { color: #00C8FF; }
+        .cert-hint {
+            margin-top: 1.4rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid rgba(0,200,255,0.12);
+            font-size: 0.8rem;
+            color: #5ABBC8;
+            line-height: 1.45;
+        }
+        .cert-hint a { color: #00C8FF; }
         footer {
             margin-top: 2rem;
             font-size: 0.75rem;
@@ -205,6 +214,7 @@
             <button type="submit" class="btn-login" id="submitBtn">Accedi</button>
             <button type="button" class="btn-link" id="backToLoginBtn" style="display:none;width:100%;text-align:center;text-decoration:none;margin-top:1rem;">← Torna al login</button>
         </form>
+        <p class="cert-hint">Se il browser mostra il messaggio “Non sicuro”, installa il certificato del portale cliccando <a id="caInstallLink" href="http://192.168.4.80/installa-certificato">qui</a>.</p>
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
 
@@ -246,6 +256,11 @@
     <script src="password-toggle.js?v=1"></script>
     <script src="portal-sso.js?v=2"></script>
     <script>
+        (function () {
+            var a = document.getElementById('caInstallLink');
+            if (a) a.href = 'http://' + location.hostname + '/installa-certificato';
+        })();
+
         // Se già autenticato, vai al portale
         (async function() {
             const token = localStorage.getItem('authToken');

@@ -16,6 +16,7 @@ const CLUSTER_PORT = 3000;
 const ANALISI_PORT = 5001;
 const CRYPTOSCANNER_PORT = 5002;
 const XPUBLICATOR_PORT = 5003;
+const LITOOLS_PORT = 5004;
 
 // Route "pulite" come in nginx.conf
 const PAGE_ROUTES = {
@@ -31,6 +32,7 @@ const PAGE_ROUTES = {
     '/analisi-report':  '/analisi-report.html',
     '/cryptoscanner':   '/cryptoscanner.html',
     '/xpublicator':     '/xpublicator.html',
+    '/li-tools':        '/li-tools.html',
     '/siena-constructor': '/siena-constructor/index.html',
     '/siena-constructor/': '/siena-constructor/index.html',
 };
@@ -108,6 +110,10 @@ function handleRequest(req, res) {
     }
     if (urlPath.startsWith('/api/xpublicator/')) {
         proxy(req, res, XPUBLICATOR_PORT, req.url);
+        return;
+    }
+    if (urlPath.startsWith('/api/li-tools/')) {
+        proxy(req, res, LITOOLS_PORT, req.url);
         return;
     }
     serveStatic(req, res, PAGE_ROUTES[urlPath] || urlPath);

@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Certificato — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=3">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #030E1C;
+            color: #C8F0E8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem 2rem;
+        }
+        .card {
+            background: rgba(3, 12, 28, 0.97);
+            border: 1px solid rgba(0,200,255,0.18);
+            border-radius: 16px;
+            padding: 2.4rem 2.2rem;
+            width: 100%;
+            max-width: 560px;
+            box-shadow: 0 0 0 1px rgba(0,200,255,0.1), 0 32px 80px rgba(0,0,0,0.7);
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.6rem;
+        }
+        .logo img { height: 2.8rem; }
+        .logo-text { font-size: 1.1rem; font-weight: 700; color: #C8F0E8; }
+        .logo-text span { color: #00C8FF; }
+        h2 { font-size: 1.35rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.5rem; }
+        p, li { font-size: 0.9rem; color: #5ABBC8; line-height: 1.55; }
+        .lead { margin-bottom: 1.3rem; }
+        ol { margin: 0 0 1.4rem 1.15rem; }
+        li { margin-bottom: 0.55rem; }
+        .btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            padding: 0.85rem;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #00C8FF 0%, #00E676 100%);
+            border: none;
+            border-radius: 8px;
+            color: #030E1C;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .btn:hover { opacity: 0.88; }
+        a.back { color: #00C8FF; font-size: 0.85rem; }
+        .note { font-size: 0.8rem; color: rgba(90,187,200,0.7); margin-top: 0.4rem; }
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            .card { padding: 1.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <img src="immagini/logo.png" alt="Logo">
+            <div class="logo-text">Cryptocurrencies<span>Section</span></div>
+        </div>
+        <h2>Installa il certificato</h2>
+        <p class="lead">Il browser non può aggiungere da solo un'autorità di certificazione: va fatto una volta su questo PC, poi sparisce l'avviso "Non sicuro".</p>
+        <a class="btn" href="/ca/Portale-LAN-CA.crt" download="Portale-LAN-CA.crt">Scarica Portale-LAN-CA.crt</a>
+        <ol>
+            <li>Apri il file scaricato.</li>
+            <li>Scegli <strong>Installa certificato</strong>.</li>
+            <li>Seleziona <strong>Computer locale</strong> (serve l'amministratore).</li>
+            <li>Mettilo in <strong>Autorità di certificazione radice attendibili</strong>.</li>
+            <li>Chiudi completamente Chrome o Edge (anche le icone in tray) e riaprili.</li>
+        </ol>
+        <p class="note">Queste istruzioni valgono per Chrome ed Edge su Windows. Se usi Firefox, ha un magazzino certificati proprio: Impostazioni → Privacy e sicurezza → Certificati → Autorità → Importa lo stesso file.</p>
+        <p style="margin-top:1.2rem;"><a class="back" id="backLogin" href="https://cryptosection.chainholder.dev/login">← Vai al login</a></p>
+    </div>
+    <script>
+        document.getElementById('backLogin').href = 'https://' + location.hostname + '/login';
+    </script>
+</body>
+</html>
