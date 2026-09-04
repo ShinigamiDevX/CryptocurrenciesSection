@@ -30,12 +30,17 @@ export const useAssetStore = create((set, get) => ({
     },
 
     fetchAssets: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
             const assets = await getAssets();
-            set({ assets, isLoading: false, lastUpdated: new Date() });
+            set({ assets, isLoading: false, error: null, lastUpdated: new Date() });
             get().fetchHistoricalPrices();
         } catch (error) {
+            if (error && error.code === 'SESSION_EXPIRED') {
+                set({ error: 'Sessione scaduta. Accedi di nuovo.', isLoading: false, assets: [] });
+                setTimeout(() => { window.location.reload(); }, 400);
+                return;
+            }
             set({ error: 'Errore nel caricamento degli asset', isLoading: false });
         }
     },

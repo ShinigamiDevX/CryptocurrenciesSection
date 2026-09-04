@@ -76,8 +76,12 @@ export const getAssets = async () => {
   });
   if (!res.ok) {
     if (res.status === 401) {
-      sessionStorage.clear();
-      window.location.reload();
+      sessionStorage.removeItem('auth_token');
+      sessionStorage.removeItem('auth_role');
+      sessionStorage.removeItem('auth_email');
+      const err = new Error('SESSION_EXPIRED');
+      err.code = 'SESSION_EXPIRED';
+      throw err;
     }
     throw new Error('Failed to fetch assets from backend');
   }

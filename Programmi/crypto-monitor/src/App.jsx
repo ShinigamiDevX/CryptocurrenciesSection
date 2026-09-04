@@ -163,6 +163,11 @@ function App() {
         const data = await res.json().catch(() => ({}));
         if (!cancelled && data.success && data.token) {
           handleLogin(data.token, data.role, data.email);
+        } else if (!cancelled) {
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('auth_role');
+          sessionStorage.removeItem('auth_email');
+          setIsAuthenticated(false);
         }
       } catch {
         /* fallback al login locale */
