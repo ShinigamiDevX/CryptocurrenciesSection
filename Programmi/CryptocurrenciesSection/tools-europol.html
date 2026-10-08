@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Tools Europol — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=17">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=12">
+    <style>
+        main { max-width: 1200px; width: 100%; padding: 1.5rem 2rem 3rem; margin: 0 auto; box-sizing: border-box; }
+        .page-title {
+            font-size: 1.5rem; font-weight: 700; color: #00C8FF; margin-bottom: 0.3rem;
+            text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .page-title img { width: 1.35em; height: 1.35em; max-width: 1.35em; max-height: 1.35em; display: block; flex-shrink: 0; object-fit: contain; }
+        .page-sub { color: #5ABBC8; font-size: 0.88rem; margin: 0 auto 1.6rem; text-align: center; max-width: 760px; }
+        .te-back {
+            display: inline-flex; align-items: center; gap: 0.35rem; margin: 0 0 1.1rem;
+            color: #7ACCE0; text-decoration: none; font-size: 0.85rem; font-weight: 600;
+        }
+        .te-back:hover { color: #00C8FF; }
+        #euroToolCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; }
+        #euroToolEmpty { display: none; text-align: center; color: #5ABBC8; padding: 2rem 1rem; }
+    </style>
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Tools Europol</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head"><strong>Notifiche</strong></div>
+        <div class="nav-bell-list" id="navBellList"><div class="nav-bell-empty">Nessuna notifica.</div></div>
+    </div>
+
+    <main>
+        <a class="te-back" href="/portal">← Torna al portale</a>
+        <div class="page-title"><img src="/icons/line/briefcase.svg" alt=""> Tools Europol</div>
+        <p class="page-sub">Strumenti operativi della suite Europol disponibili sul portale.</p>
+
+        <div class="cards" id="euroToolCards">
+            <div class="card" data-card="apinga">
+                <div class="icon"><img src="/icons/line/globe.svg" alt=""></div>
+                <h3>Apinga</h3>
+                <p>OSINT e data enrichment su IP, URL, email, malware e API di intelligence (GUI e API locale).</p>
+                <a href="http://192.168.4.80:5001" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="cryptoscanner">
+                <div class="icon"><img src="/icons/line/file-search-alt.svg" alt=""></div>
+                <h3>CryptoScanner</h3>
+                <p>Scansione di file in chiaro per indirizzi crypto, seed phrase e hash di transazione.</p>
+                <a href="/cryptoscanner" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="xpublicator">
+                <div class="icon"><img src="/icons/line/key-skeleton.svg" alt=""></div>
+                <h3>Xpublicator</h3>
+                <p>Derivazione indirizzi da xpub/ypub/zpub, ricerca del path e conversione tra formati di chiave.</p>
+                <a href="/xpublicator" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="gelato">
+                <div class="icon"><img src="/icons/line/map-marker.svg" alt=""></div>
+                <h3>GELATO</h3>
+                <p>Geolocalizzazione e timeline da metadati foto, GPX e file di posizione.</p>
+                <a href="http://192.168.4.80:5005" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="li-tools">
+                <div class="icon"><img src="/icons/line/file-network.svg" alt=""></div>
+                <h3>LI Tools</h3>
+                <p>Parser ETSI LI HI3 (PCAP/WAV/testo) e conversione PCAP → HI3 per Lawful Interception.</p>
+                <a href="/li-tools" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="siena">
+                <div class="icon"><img src="/icons/line/envelope.svg" alt=""></div>
+                <h3>SIENA Constructor</h3>
+                <p>Redazione strutturata di messaggi SIENA in inglese: persone, veicoli, documenti e altri oggetti.</p>
+                <a href="/siena-constructor/" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="terra">
+                <div class="icon"><img src="/icons/line/map.svg" alt=""></div>
+                <h3>Terra</h3>
+                <p>Geolocalizzazione di foto: stima Paese, città e coordinate con mappa e livello di confidenza.</p>
+                <a href="http://192.168.4.80:7860" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+            <div class="card" data-card="vysion">
+                <div class="icon"><img src="/icons/line/shield-exclamation.svg" alt=""></div>
+                <h3>Vysion</h3>
+                <p>Monitoraggio siti leak ransomware: gruppi, vittime e screenshot raccolti via Tor.</p>
+                <a href="/sso-launch.html?tool=vysion&amp;next=http%3A%2F%2F192.168.4.80%3A3002" data-sso-tool="vysion" data-sso-next="http://192.168.4.80:3002" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            </div>
+        </div>
+        <p id="euroToolEmpty">Nessuno strumento Europol assegnato al tuo profilo.</p>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="auth-token.js?v=3"></script>
+    <script src="portal-sso.js?v=5"></script>
+    <script src="nav-notifications.js?v=57"></script>
+    <script>
+    function logout() {
+        if (typeof clearAuth === 'function') clearAuth();
+        window.location.replace('/login');
+    }
+
+    const EURO_CARDS = ['apinga', 'cryptoscanner', 'xpublicator', 'gelato', 'li-tools', 'siena', 'terra', 'vysion'];
+
+    function canAccessEuroTool(user, cardId) {
+        if (user.role === 'superadmin') return true;
+        const cards = Array.isArray(user.cards) ? user.cards : [];
+        if (cards.includes('tools-europol')) return true;
+        return cards.includes(cardId);
+    }
+
+    (async function () {
+        const token = typeof getAuthToken === 'function' ? getAuthToken() : '';
+        if (!token) { window.location.replace('/login'); return; }
+        try {
+            const res = await fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + token } });
+            if (!res.ok) throw new Error();
+            const user = await res.json();
+            const cards = Array.isArray(user.cards) ? user.cards : [];
+            const hubOk = user.role === 'superadmin'
+                || cards.includes('tools-europol')
+                || EURO_CARDS.some((id) => cards.includes(id));
+            if (!hubOk) { window.location.replace('/portal'); return; }
+
+            document.getElementById('navUserEmail').textContent = user.displayName || user.email || '';
+            document.getElementById('authOverlay').style.display = 'none';
+            if (typeof initNavBell === 'function') initNavBell();
+
+            const euroGrid = document.getElementById('euroToolCards');
+            const euroCards = Array.from(euroGrid.querySelectorAll('.card[data-card]'));
+            euroCards.sort((a, b) => {
+                const ta = ((a.querySelector('h3') || {}).textContent || '').trim();
+                const tb = ((b.querySelector('h3') || {}).textContent || '').trim();
+                return ta.localeCompare(tb, 'it', { sensitivity: 'base' });
+            });
+            euroCards.forEach((card) => euroGrid.appendChild(card));
+
+            let visible = 0;
+            euroCards.forEach((card) => {
+                const id = card.getAttribute('data-card');
+                const show = canAccessEuroTool(user, id);
+                card.style.display = show ? '' : 'none';
+                if (show) visible += 1;
+            });
+            document.getElementById('euroToolEmpty').style.display = visible ? 'none' : 'block';
+            if (typeof bindPortalSsoLinks === 'function') bindPortalSsoLinks();
+        } catch {
+            if (typeof clearAuth === 'function') clearAuth();
+            window.location.replace('/login');
+        }
+    })();
+    </script>
+</body>
+</html>

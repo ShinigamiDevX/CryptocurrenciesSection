@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>LA BIBBIA 3.1 — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=17">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="la-bibbia.css?v=2">
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>LA BIBBIA 3.1</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head"><strong>Notifiche</strong></div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title"><img src="/icons/line/diary.svg" alt=""> LA BIBBIA 3.1</div>
+        <p class="page-sub">Rubrica contatti e modalità di richiesta verso gli exchange.</p>
+
+        <div class="lb-wrap">
+            <div id="adminRequestsPanel" class="lb-admin-panel" style="display:none;"></div>
+
+            <div class="lb-toolbar">
+                <input type="search" id="searchInput" class="lb-search" placeholder="Cerca exchange o contatto…" autocomplete="off">
+                <button type="button" class="lb-btn lb-btn--primary" id="btnAddExchange" style="display:none;">+ Exchange</button>
+            </div>
+
+            <div class="lb-layout">
+                <aside class="lb-sidebar">
+                    <ul id="exchangeList" class="lb-ex-list"></ul>
+                </aside>
+                <section class="lb-main" id="exchangeDetail">
+                    <div class="lb-empty">Seleziona un exchange dalla lista.</div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <div class="lb-modal-bg" id="modalBg" aria-hidden="true">
+        <div class="lb-modal" role="dialog" aria-modal="true">
+            <h3 id="modalTitle">Modifica</h3>
+            <div id="modalBody"></div>
+            <p id="modalStatus" class="lb-status"></p>
+            <div class="lb-modal-foot">
+                <button type="button" class="lb-btn lb-btn--ghost" id="modalCancel">Annulla</button>
+                <button type="button" class="lb-btn lb-btn--primary" id="modalSubmit">Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth-token.js?v=3"></script>
+    <script src="nav-notifications.js?v=57"></script>
+    <script src="la-bibbia.js?v=1"></script>
+</body>
+</html>

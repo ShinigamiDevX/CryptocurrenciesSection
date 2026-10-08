@@ -10,7 +10,7 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=3">
+    <link rel="stylesheet" href="light-theme.css?v=17">
     <script src="light-theme.js?v=1"></script>
     <link rel="stylesheet" href="otp-boxes.css?v=1">
     <style>
@@ -193,7 +193,7 @@
             <div id="credentialsStep">
                 <div class="field">
                     <label for="email">Email o nome utente</label>
-                    <input type="text" id="email" name="username" placeholder="email@dominio.com oppure monitor01" autocomplete="username" required>
+                    <input type="text" id="email" name="username" placeholder="email@dominio.com oppure SatoshiNakamoto" autocomplete="username" required>
                 </div>
                 <div class="field">
                     <label for="password">Password</label>
@@ -254,7 +254,8 @@
 
     <script src="otp-boxes.js?v=1"></script>
     <script src="password-toggle.js?v=1"></script>
-    <script src="portal-sso.js?v=2"></script>
+    <script src="auth-token.js?v=3"></script>
+    <script src="portal-sso.js?v=5"></script>
     <script>
         (function () {
             var a = document.getElementById('caInstallLink');
@@ -515,7 +516,7 @@
                     errEl.textContent = data.error || 'Errore. Riprovare.';
                     errEl.style.display = 'block';
                 } else {
-                    okEl.textContent = data.message || 'Se l\'email è registrata, riceverai un link di reset.';
+                    okEl.textContent = data.message || 'Se l\'email è registrata, riceverai un link di reset. Controlla anche spam/promozioni.';
                     okEl.style.display = 'block';
                 }
             } catch {

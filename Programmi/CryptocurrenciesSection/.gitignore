@@ -18,6 +18,12 @@ cluster/dashboard/cert/
 
 # Auth — dati sensibili (non committare nel repo)
 auth/data/
+auth/backups/*.db
+auth/backups/*.db-*
+
+# Font Microsoft Times (copiati da Windows; licenza, non in repo)
+auth/fonts/*.ttf
+auth/fonts/*.ttc
 
 # Environment
 .env

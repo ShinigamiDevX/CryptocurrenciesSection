@@ -26,6 +26,37 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Scrollbar tema scuro (cyan su navy) — tutte le aree scrollabili */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 200, 255, 0.45) rgba(0, 18, 36, 0.95);
+}
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+*::-webkit-scrollbar-track {
+    background: rgba(0, 18, 36, 0.95);
+    border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(0, 200, 255, 0.4);
+    border-radius: 8px;
+    border: 2px solid rgba(0, 18, 36, 0.95);
+    background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 200, 255, 0.65);
+}
+*::-webkit-scrollbar-corner {
+    background: rgba(0, 18, 36, 0.95);
+}
+*::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
 body {
     background-color: var(--color-bg);
     color: var(--color-text);
@@ -230,14 +261,17 @@ nav ul li:last-child a:hover {
     min-width: 17px;
     height: 17px;
     padding: 0 4px;
-    background: #FF4757;
-    color: #fff;
+    background: #FF2D55 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     font-size: 0.68rem;
-    font-weight: 700;
+    font-weight: 800;
     line-height: 17px;
     text-align: center;
     border-radius: 9px;
-    box-shadow: 0 0 0 2px rgba(10, 12, 20, 0.9);
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
     display: none;
 }
 
@@ -400,12 +434,78 @@ nav ul li:last-child a:hover {
     margin-bottom: 0.2rem;
 }
 
-.nav-bell-item span {
+.nav-bell-item span,
+.nav-bell-actor,
+.nav-bell-topic {
     display: block;
     font-size: 0.78rem;
     color: #5ABBC8;
     line-height: 1.4;
 }
+.nav-bell-topic { color: #7ACCE0; }
+.nav-bell-detail {
+    padding: 0.85rem 1rem 1.1rem;
+    overflow-y: auto;
+    max-height: 320px;
+}
+.nav-bell-panel.nav-bell-fullscreen .nav-bell-detail {
+    flex: 1;
+    max-height: none;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0.75rem 1rem 2rem;
+}
+.nav-bell-detail-back {
+    display: inline-block;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #7ACCE0;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.nav-bell-detail-back:hover { color: #00C8FF; }
+.nav-bell-detail strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #E8FAF6;
+    margin-bottom: 0.35rem;
+}
+.nav-bell-detail .nav-bell-actor,
+.nav-bell-detail .nav-bell-topic { margin-bottom: 0.15rem; }
+.nav-bell-detail-body {
+    margin: 0.7rem 0 0.55rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: #C8E8F5;
+}
+.nav-bell-detail time {
+    display: block;
+    font-size: 0.72rem;
+    color: #7ACCE0;
+}
+.nav-bell-detail-open {
+    display: inline-flex;
+    margin-top: 0.75rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid rgba(0,200,255,0.35);
+    background: rgba(0,200,255,0.12);
+    color: #00C8FF !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+.nav-bell-detail-open[hidden] { display: none !important; }
+.nav-bell-actor[hidden],
+.nav-bell-topic[hidden],
+.nav-bell-detail-body[hidden] { display: none !important; }
 
 .nav-bell-item time {
     display: block;
@@ -439,13 +539,40 @@ nav ul li:last-child a:hover {
     cursor: wait;
 }
 
-.nav-bell-btn.has-alerts {
-    animation: nav-bell-pulse 2s ease-in-out infinite;
+.nav-bell-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
 }
 
-@keyframes nav-bell-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
-    50% { box-shadow: 0 0 0 4px rgba(255, 71, 87, 0.18); }
+.nav-bell-del-one {
+    display: inline-block;
+    margin: 0;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: #FF8A9A;
+    background: rgba(255, 71, 87, 0.1);
+    border: 1px solid rgba(255, 71, 87, 0.35);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.nav-bell-del-one:hover {
+    background: rgba(255, 71, 87, 0.2);
+    border-color: rgba(255, 71, 87, 0.55);
+}
+
+.nav-bell-del-one:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.nav-bell-btn.has-alerts {
+    /* nessun alone / contorno sul pulsante con pallino */
+    animation: none;
 }
 
 /* ===========================

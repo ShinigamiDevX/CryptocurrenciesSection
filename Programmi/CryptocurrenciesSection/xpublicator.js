@@ -159,7 +159,7 @@
             if (!res.ok) throw new Error();
             const user = await res.json();
             const cards = Array.isArray(user.cards) ? user.cards : [];
-            if (user.role !== 'superadmin' && !cards.includes('xpublicator')) {
+            if (user.role !== 'superadmin' && !cards.includes('xpublicator') && !cards.includes('tools-europol')) {
                 window.location.replace('/portal');
                 return;
             }

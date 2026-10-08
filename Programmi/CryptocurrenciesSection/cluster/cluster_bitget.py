@@ -69,7 +69,7 @@ def _get(row, *keys):
     return ''
 
 
-def asset_da_valore(coin_val, address_val, network_val=None):
+def asset_da_valore(coin_val, address_val, network_val=None, consenti_api=True):
     """
     1. Network dal file (colonna network/chain) → risoluzione diretta
     2. Ticker in MAPPATURA_ASSET_CLUSTER → postprocessa_asset
@@ -108,6 +108,10 @@ def asset_da_valore(coin_val, address_val, network_val=None):
                         if tupla[2] == "STELLAR_MAINNET" and not is_probably_stellar_address(address_str):
                             continue
                         return tupla[2]
+
+    # I prelievi (sent) non interrogano le API: la chain arriva da Gemini sull'hash.
+    if not consenti_api:
+        return ""
 
     # Se l'indirizzo è EVM e non siamo riusciti a determinare la chain,
     # interroga Chainalysis per identificarla
@@ -205,7 +209,7 @@ def esegui_bitget(file_input, file_output):
                            'transactionid', 'transactionhash', 'hash', 'id')
             if not tx_hash:
                 continue
-            asset = asset_da_valore(coin_val, to_address, network_val)
+            asset = asset_da_valore(coin_val, to_address, network_val, consenti_api=False)
             sent_list.append({
                 'Type': 'sent',
                 'Deposit Address or Hash': tx_hash,

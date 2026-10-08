@@ -129,7 +129,7 @@ class LuogoGeo {
                 if (comune === this._comune) return;
                 this._onComuneChange(comune);
             },
-            { placeholder: 'Cerca comune…', showImages: false, searchable: true }
+            { placeholder: 'Cerca comune…', showImages: false, searchable: true, filterMode: 'prefix' }
         );
 
         this.statoCs = new CustomSelect(

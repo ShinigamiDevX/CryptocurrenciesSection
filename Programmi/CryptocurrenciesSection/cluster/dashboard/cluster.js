@@ -1,31 +1,11 @@
 const express = require('express');
 const multer = require('multer');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-
-function loadClusterEnv() {
-    const candidates = [
-        path.join(__dirname, '..', '..', 'cluster.env'),
-        path.join(__dirname, '..', 'cluster.env'),
-    ];
-    for (const p of candidates) {
-        if (!fs.existsSync(p)) continue;
-        for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
-            const t = line.trim();
-            if (!t || t.startsWith('#') || !t.includes('=')) continue;
-            const i = t.indexOf('=');
-            const k = t.slice(0, i).trim();
-            const v = t.slice(i + 1).trim().replace(/^['"]|['"]$/g, '');
-            if (k && process.env[k] == null) process.env[k] = v;
-        }
-        break;
-    }
-}
-loadClusterEnv();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3444;
 
 // Configurazione Multer per upload
 const storage = multer.diskStorage({
@@ -47,7 +27,7 @@ app.use('/immagini', express.static(path.join(__dirname, '../immagini')));
 const { exec } = require('child_process');
 
 // ─── Reactor API – helper per il check "cluster too big" ───────────────────────
-const REACTOR_TOKEN = process.env.REACTOR_TOKEN || process.env.CHAINALYSIS_API_TOKEN || '';
+const REACTOR_TOKEN = '123e45ef8f45fdb6f83a25af557a753d151b7093bca86d9e197c92c33a2e6897';
 const REACTOR_HOST  = 'reactor.chainalysis.com';
 const REACTOR_ASSETS = ['BTC','ETH','BNB','TRX','MATIC','SOL','XRP','LTC','DOGE','TON','SUI','XLM','USDT','USDC'];
 
@@ -194,26 +174,40 @@ async function processUploadJob(jobId, { uploadedFile, originalFilename, exchang
     emitJobProgress(jobId, { progress: 0, message: 'Avvio script Python...', phase: 'python' });
 
     const { error, stdout, stderr } = await new Promise(resolve => {
-        exec(command, { cwd: path.dirname(clusterScript), env: execEnv, timeout: 300000 }, (err, out, serr) => {
+        exec(command, {
+            cwd: path.dirname(clusterScript),
+            env: execEnv,
+            timeout: 600000,
+            maxBuffer: 50 * 1024 * 1024,
+        }, (err, out, serr) => {
             resolve({ error: err, stdout: out, stderr: serr });
         });
     });
 
     console.log('DEBUG: exec callback, error =', error);
-    console.log('DEBUG: stdout =', stdout);
-    console.log('DEBUG: stderr =', stderr);
+    console.log('DEBUG: stdout length =', (stdout || '').length);
+    console.log('DEBUG: stderr length =', (stderr || '').length);
 
     if (error) {
         if (stderr && stderr.includes('[PASSWORD_REQUIRED]')) {
             emitJobProgress(jobId, { done: true, requiresPassword: true, uploadedFile: originalFilename, exchange });
-        } else if (stderr && stderr.includes('[PASSWORD_ERRATA]')) {
-            emitJobProgress(jobId, { done: true, passwordError: true, uploadedFile: originalFilename, exchange });
-        } else {
-            const errMsg = filterStderr(stderr) || filterStderr(stdout) || 'Errore sconosciuto durante l\'elaborazione.';
-            emitJobProgress(jobId, { done: true, error: 'Errore durante l\'elaborazione: ' + errMsg });
+            finalizeJob(jobId);
+            return;
         }
-        finalizeJob(jobId);
-        return;
+        if (stderr && stderr.includes('[PASSWORD_ERRATA]')) {
+            emitJobProgress(jobId, { done: true, passwordError: true, uploadedFile: originalFilename, exchange });
+            finalizeJob(jobId);
+            return;
+        }
+        // Python può aver finito bene ma Node segnala errore (es. stdout troppo lungo / maxBuffer).
+        if (fs.existsSync(outputCsv)) {
+            console.warn('DEBUG: exec error ma CSV presente, continuo:', error && error.message);
+        } else {
+            const errMsg = filterStderr(stderr) || filterStderr(stdout) || (error && error.message) || 'Errore sconosciuto durante l\'elaborazione.';
+            emitJobProgress(jobId, { done: true, error: 'Errore durante l\'elaborazione: ' + errMsg.slice(0, 500) });
+            finalizeJob(jobId);
+            return;
+        }
     }
 
     if (!fs.existsSync(outputCsv)) {
@@ -459,12 +453,16 @@ app.post('/reprocess-with-password', express.json(), (req, res) => {
     const command = `"${pythonPath}" "${clusterScript}" "${uploadedFilePath}" "${outputCsv}"`;
     const execEnv = { ...process.env, EXCEL_PASSWORD: password };
     if (service === 'trm') execEnv.OUTPUT_SERVICE = 'trm';
-    exec(command, { cwd: path.dirname(clusterScript), env: execEnv, timeout: 300000 }, (error, stdout, stderr) => {
+    exec(command, { cwd: path.dirname(clusterScript), env: execEnv, timeout: 600000, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (error) {
             if (stderr && stderr.includes('[PASSWORD_ERRATA]')) {
                 return res.status(200).json({ passwordError: true, uploadedFile, exchange });
             }
-            return res.status(500).send('Errore durante l\'elaborazione: ' + stderr);
+            if (fs.existsSync(outputCsv)) {
+                // prosegue: CSV generato nonostante warning Node (es. buffer)
+            } else {
+                return res.status(500).send('Errore durante l\'elaborazione: ' + (filterStderr(stderr) || filterStderr(stdout) || error.message).slice(0, 500));
+            }
         }
         if (fs.existsSync(outputCsv)) {
             res.download(outputCsv, downloadName, (err) => {
@@ -476,6 +474,13 @@ app.post('/reprocess-with-password', express.json(), (req, res) => {
     });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server HTTP in ascolto su http://0.0.0.0:${PORT}`);
+// HTTPS options
+const options = {
+    key: fs.readFileSync(path.join(__dirname, 'cert', 'key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, 'cert', 'cert.pem'))
+};
+
+const HOST = '0.0.0.0';
+https.createServer(options, app).listen(PORT, HOST, () => {
+    console.log(`Server HTTPS in ascolto su https://${HOST}:${PORT}`);
 });

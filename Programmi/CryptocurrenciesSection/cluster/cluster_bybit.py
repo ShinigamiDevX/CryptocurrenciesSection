@@ -1,20 +1,10 @@
 import pandas as pd
 from cluster_utils import MAPPATURA_ASSET_CLUSTER, postprocessa_asset, salva_e_avvisa
-from cluster_utils import asset_output_finale
+from cluster_utils import asset_output_finale, chiave_deposit_address
 
 
 
-import requests
-from cluster_utils import RPC_API, chainalysis_auth_header, is_probably_stellar_address
-
-CHAINALYSIS_STATS = {
-    "attempts": 0,
-    "hits": 0,
-    "http_ok_no_data": 0,
-    "errors": 0,
-    "skipped_no_chain": 0,
-    "skipped_no_chainalysis_endpoint": 0,
-}
+from cluster_utils import is_probably_stellar_address
 
 def get_asset_bybit(coin, address):
     primi = [t[0] for t in MAPPATURA_ASSET_CLUSTER]
@@ -39,36 +29,7 @@ def get_asset_bybit(coin, address):
                         if t[2] == "STELLAR_MAINNET" and not is_probably_stellar_address(address):
                             continue
                         return postprocessa_asset(t[2])
-    # 3. Fallback: usa RPC_API (Chainalysis)
-    for t in MAPPATURA_ASSET_CLUSTER:
-        if coin == t[0]:
-            chain_key = t[2]
-            break
-    else:
-        chain_key = None
-    if not chain_key:
-        CHAINALYSIS_STATS["skipped_no_chain"] += 1
-        return ""
-    endpoints = RPC_API.get(chain_key, [])
-    chainalysis_urls = [url for url in endpoints if "chainalysis.com" in url]
-    if not chainalysis_urls:
-        CHAINALYSIS_STATS["skipped_no_chainalysis_endpoint"] += 1
-        return ""
-    for url in chainalysis_urls:
-        url_test = url.replace("<address>", address)
-        try:
-            CHAINALYSIS_STATS["attempts"] += 1
-            r = requests.get(url_test, headers=chainalysis_auth_header(), timeout=10)
-            if r.status_code == 200:
-                data = r.json()
-                if isinstance(data, dict) and data:
-                    CHAINALYSIS_STATS["hits"] += 1
-                    return postprocessa_asset(chain_key)
-                CHAINALYSIS_STATS["http_ok_no_data"] += 1
-        except Exception:
-            CHAINALYSIS_STATS["errors"] += 1
-            continue
-    # Fallback finale
+    # I prelievi (sent) non interrogano le API: la chain arriva da Gemini sull'hash.
     return ""
 
 def _trova_foglio(xls, nome):
@@ -84,9 +45,6 @@ def _normalizza_colonne(df):
     return df
 
 def esegui_bybit(file_input, file_output):
-    for key in CHAINALYSIS_STATS:
-        CHAINALYSIS_STATS[key] = 0
-
     xls = pd.ExcelFile(file_input)
     depositi = []
     prelievi = []
@@ -107,9 +65,10 @@ def esegui_bybit(file_input, file_output):
             continue
         asset = asset_output_finale(coin, to_address)
         if not _trm_mode:
-            if (to_address, asset) in seen:
+            addr_key = chiave_deposit_address(to_address) or to_address
+            if (addr_key, asset) in seen:
                 continue
-            seen.add((to_address, asset))
+            seen.add((addr_key, asset))
         tx_id_dep = str(row.get("tx_id", "")).strip()
         if tx_id_dep.lower() in ('nan', 'none', ''):
             tx_id_dep = ''
@@ -164,13 +123,6 @@ def esegui_bybit(file_input, file_output):
         })
     # Unisci e salva
     df_finale = pd.DataFrame(depositi + prelievi)
-    avvisi.append(
-        (
-            "[CHAINALYSIS] attempts={attempts}, hits={hits}, http_ok_no_data={http_ok_no_data}, "
-            "errors={errors}, skipped_no_chain={skipped_no_chain}, "
-            "skipped_no_chainalysis_endpoint={skipped_no_chainalysis_endpoint}"
-        ).format(**CHAINALYSIS_STATS)
-    )
     salva_e_avvisa(df_finale, file_output, avvisi)
 
 if __name__ == "__main__":

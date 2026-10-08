@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Seed Phrase — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=17">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="custom-select.css?v=5">
+    <link rel="stylesheet" href="custom-date.css?v=3">
+    <link rel="stylesheet" href="seed-phrase.css?v=5">
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Seed Phrase</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-title"><img src="/icons/line/key-skeleton.svg" alt=""> Seed Phrase</div>
+        <p class="page-sub">Compila il modulo: il PDF viene generato dal modello Word ufficiale (SEED PHRASE.docx) con testo che va a capo automaticamente.</p>
+
+        <div class="sp-wrap">
+            <form id="seedForm" autocomplete="off">
+                <div class="sp-panel">
+                    <h2 id="wordsPanelTitle">Parole seed</h2>
+                    <p class="sp-hint">Indica quante persone partecipano alla creazione della seed (1–24). Poi scegli il tuo intervallo di parole. Ogni parola deve essere nel dizionario BIP39.</p>
+                    <div class="sp-participants">
+                        <label for="participantCount">Persone partecipanti</label>
+                        <div class="sp-num">
+                            <input type="number" id="participantCount" name="participantCount" min="1" max="24" value="2" inputmode="numeric" required>
+                            <div class="sp-num-spin" aria-hidden="true">
+                                <button type="button" class="sp-num-btn" id="participantUp" tabindex="-1" title="Aumenta">
+                                    <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden="true"><path d="M1 6.5L6 1.5L11 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                                <button type="button" class="sp-num-btn" id="participantDown" tabindex="-1" title="Diminuisci">
+                                    <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-range" id="wordRangeOptions" role="radiogroup" aria-label="Intervallo parole"></div>
+                    <div class="sp-words" id="wordFields"></div>
+                </div>
+
+                <div class="sp-panel">
+                    <h2>Passphrase, PIN e dati documento</h2>
+                    <div class="sp-grid2">
+                        <div class="sp-field">
+                            <label for="passphrase">Passphrase BIP39 <span class="sp-opt">(opzionale)</span></label>
+                            <input type="text" id="passphrase" name="passphrase" spellcheck="false" autocomplete="off">
+                        </div>
+                        <div class="sp-field">
+                            <label for="pin">PIN</label>
+                            <input type="text" id="pin" name="pin" inputmode="numeric" maxlength="8" spellcheck="false" autocomplete="off" required>
+                        </div>
+                        <div class="sp-field">
+                            <label>Data compilazione</label>
+                            <div id="compDate" class="cdate"></div>
+                        </div>
+                        <div class="sp-field">
+                            <label for="compTime">Ora compilazione</label>
+                            <input type="text" id="compTime" name="compTime" placeholder="hh:mm" maxlength="5" spellcheck="false" required>
+                        </div>
+                        <div class="sp-field" style="grid-column: 1 / -1;">
+                            <label for="testoLibero">Comando / luogo</label>
+                            <input type="text" id="testoLibero" name="testoLibero" spellcheck="false" required>
+                        </div>
+                        <div class="sp-field">
+                            <label for="codice">Codice alfanumerico busta</label>
+                            <input type="text" id="codice" name="codice" spellcheck="false" autocomplete="off" style="text-transform:uppercase" required>
+                        </div>
+                    </div>
+                    <p class="sp-hint" style="margin-top:0.75rem;margin-bottom:0;">
+                        Nome e cognome nel PDF: <strong id="signerPreview">—</strong>
+                    </p>
+                </div>
+
+                <div class="sp-actions">
+                    <button type="submit" class="sp-btn" id="btnGenerate">Genera PDF</button>
+                    <button type="button" class="sp-btn sp-btn--ghost" id="btnReset">Ripristina predefiniti</button>
+                </div>
+                <p class="sp-msg" id="formMsg"></p>
+            </form>
+        </div>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <script src="auth-token.js?v=3"></script>
+    <script src="custom-select.js?v=13"></script>
+    <script src="custom-date.js?v=3"></script>
+    <script src="seed-phrase.js?v=9"></script>
+</body>
+</html>

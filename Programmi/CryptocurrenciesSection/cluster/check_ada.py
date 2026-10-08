@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-file_path = r'C:\Users\Admin\Desktop\Portale\Programmi\CryptocurrenciesSection\cluster\dashboard\uploads\1778658057856-binance.xlsx'
+file_path = '/home/user/Scrivania/cluster/dashboard/uploads/1778658057856-binance.xlsx'
 csv_path = '/tmp/cluster_binance_test.csv'
 warnings_path = 'warnings.txt'
 

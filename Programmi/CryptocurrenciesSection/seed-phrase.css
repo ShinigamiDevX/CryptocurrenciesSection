@@ -1,0 +1,283 @@
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #00C8FF;
+    margin-bottom: 0.3rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.page-title img {
+    width: 1.35em;
+    height: 1.35em;
+    max-width: 1.35em;
+    max-height: 1.35em;
+    display: block;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+.page-sub {
+    text-align: center;
+    color: #7ACCE0;
+    font-size: 0.92rem;
+    margin: 0 auto 1.5rem;
+    max-width: 640px;
+}
+html.light-theme .page-title { color: #CC5000; }
+html.light-theme .page-sub { color: #7A5A28; }
+
+.sp-wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 1rem 2.5rem;
+}
+.sp-panel {
+    background: rgba(3, 14, 28, 0.55);
+    border: 1px solid rgba(0, 200, 255, 0.22);
+    border-radius: 14px;
+    padding: 1.35rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.sp-panel h2 {
+    margin: 0 0 0.85rem;
+    font-size: 1rem;
+    color: #00C8FF;
+    font-weight: 650;
+}
+.sp-opt {
+    font-weight: 500;
+    font-size: 0.85em;
+    opacity: 0.75;
+}
+.sp-hint {
+    margin: 0 0 1rem;
+    color: #7ACCE0;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+.sp-participants {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    margin-bottom: 1rem;
+}
+.sp-participants > label {
+    margin: 0;
+    color: #5ABBC8;
+    font-size: 0.78rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.sp-num {
+    position: relative;
+    display: inline-flex;
+    align-items: stretch;
+    width: 6.25rem;
+}
+.sp-num input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 200, 255, 0.28);
+    background: rgba(3, 14, 28, 0.65);
+    color: #C8F0E8;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+.sp-num input[type="number"]::-webkit-outer-spin-button,
+.sp-num input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.sp-num input[type="number"]:focus {
+    outline: none;
+    border-color: #00C8FF;
+    box-shadow: 0 0 0 3px rgba(0, 200, 255, 0.15);
+}
+.sp-num-spin {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 1.55rem;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid rgba(0, 200, 255, 0.22);
+    border-radius: 0 7px 7px 0;
+    overflow: hidden;
+}
+.sp-num-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(0, 200, 255, 0.06);
+    color: #5ABBC8;
+    cursor: pointer;
+    line-height: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.sp-num-btn + .sp-num-btn {
+    border-top: 1px solid rgba(0, 200, 255, 0.18);
+}
+.sp-num-btn:hover {
+    background: rgba(0, 200, 255, 0.18);
+    color: #00C8FF;
+}
+.sp-num-btn:active {
+    background: rgba(0, 200, 255, 0.28);
+    color: #E8FBFF;
+}
+.sp-num-btn:focus-visible {
+    outline: 2px solid #00C8FF;
+    outline-offset: -2px;
+    z-index: 1;
+}
+.sp-range {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+    margin-bottom: 1rem;
+}
+.sp-range label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #C8F0E8;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.35rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+.sp-range label:has(input:checked) {
+    border-color: rgba(0, 200, 255, 0.45);
+    background: rgba(0, 200, 255, 0.08);
+}
+.sp-words {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem 1rem;
+}
+.sp-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #5ABBC8;
+    font-size: 0.78rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.sp-field input[type="text"],
+.sp-field input[type="password"] {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 200, 255, 0.28);
+    background: rgba(3, 14, 28, 0.65);
+    color: #C8F0E8;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.92rem;
+    font-family: inherit;
+}
+.sp-field input:focus {
+    outline: none;
+    border-color: #00C8FF;
+    box-shadow: 0 0 0 3px rgba(0, 200, 255, 0.15);
+}
+.sp-field .csel { width: 100%; }
+.sp-grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem 1rem;
+}
+@media (max-width: 640px) {
+    .sp-grid2 { grid-template-columns: 1fr; }
+}
+.sp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 1.25rem;
+}
+.sp-btn {
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    border: 1px solid #00C8FF;
+    background: #00C8FF;
+    color: #030E1C;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+.sp-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.sp-btn--ghost {
+    background: transparent;
+    color: #00C8FF;
+}
+.sp-msg {
+    margin: 0.75rem 0 0;
+    font-size: 0.88rem;
+    color: #FF6B7A;
+    display: none;
+}
+.sp-msg.ok { color: #5EEAD4; display: block; }
+.sp-msg.err { display: block; }
+html.light-theme .sp-panel {
+    background: #fffaf3;
+    border-color: rgba(204, 120, 40, 0.28);
+}
+html.light-theme .sp-panel h2 { color: #B84800; }
+html.light-theme .sp-hint { color: #7A5A28; }
+html.light-theme .sp-range label,
+html.light-theme .sp-participants > label,
+html.light-theme .sp-field label { color: #6A5A40; }
+html.light-theme .sp-num input[type="number"],
+html.light-theme .sp-field input {
+    background: #fff;
+    border-color: rgba(204, 120, 40, 0.35);
+    color: #2C1A00;
+}
+html.light-theme .sp-num-spin {
+    border-left-color: rgba(204, 120, 40, 0.28);
+}
+html.light-theme .sp-num-btn {
+    background: rgba(204, 80, 0, 0.06);
+    color: #B07040;
+}
+html.light-theme .sp-num-btn + .sp-num-btn {
+    border-top-color: rgba(204, 120, 40, 0.22);
+}
+html.light-theme .sp-num-btn:hover {
+    background: rgba(204, 80, 0, 0.14);
+    color: #CC5000;
+}
+html.light-theme .sp-num-btn:active {
+    background: rgba(204, 80, 0, 0.22);
+    color: #8A3400;
+}
+html.light-theme .sp-range label:has(input:checked) {
+    border-color: rgba(204, 80, 0, 0.45);
+    background: rgba(204, 80, 0, 0.08);
+}
+html.light-theme .sp-btn {
+    background: #CC5000;
+    border-color: #CC5000;
+    color: #fff;
+}
+html.light-theme .sp-btn--ghost {
+    background: transparent;
+    color: #CC5000;
+}

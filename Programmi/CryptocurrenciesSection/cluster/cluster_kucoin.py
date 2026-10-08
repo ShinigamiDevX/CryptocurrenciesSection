@@ -1,7 +1,5 @@
 
-import requests
-import json
-from cluster_utils import postprocessa_asset, MAPPATURA_ASSET_CLUSTER, RPC_API, chainalysis_auth_header
+from cluster_utils import postprocessa_asset, MAPPATURA_ASSET_CLUSTER
 
 def normalizzatore_asset_kucoin(asset, indirizzo=None, network=None):
     asset = str(asset).strip().upper()
@@ -22,35 +20,7 @@ def normalizzatore_asset_kucoin(asset, indirizzo=None, network=None):
     for tupla in MAPPATURA_ASSET_CLUSTER:
         if asset == tupla[0] or asset == tupla[2]:
             return postprocessa_asset(tupla[2])
-    # 3. Fallback: usa RPC_API (Chainalysis)
-    for tupla in MAPPATURA_ASSET_CLUSTER:
-        if asset == tupla[0]:
-            chain_key = tupla[2]
-            break
-    else:
-        chain_key = None
-    if not chain_key:
-        return postprocessa_asset(asset)
-    endpoints = RPC_API.get(chain_key, [])
-    for url in endpoints:
-        if "chainalysis.com" in url:
-            url_test = url.replace("<address>", indirizzo)
-            try:
-                r = requests.get(url_test, headers=chainalysis_auth_header(), timeout=10)
-                print(f"[DEBUG Chainalysis] URL: {url_test} | Status: {r.status_code}")
-                try:
-                    data = r.json()
-                    print(f"[DEBUG Chainalysis] Response: {json.dumps(data)[:300]}")
-                except Exception:
-                    print(f"[DEBUG Chainalysis] Non-JSON response: {r.text[:200]}")
-                if r.status_code == 200:
-                    data = r.json()
-                    if isinstance(data, dict) and data:
-                        return postprocessa_asset(chain_key)
-            except Exception as e:
-                print(f"[DEBUG Chainalysis] Exception: {e}")
-                continue
-    # Fallback finale
+    # I prelievi non interrogano le API: la chain arriva da Gemini sull'hash.
     return postprocessa_asset(asset)
 import pandas as pd
 import os
@@ -84,7 +54,7 @@ def esegui_cluster(
 
     # Helper per asset
     from cluster_utils import MAPPATURA_ASSET_CLUSTER
-    from cluster_utils import asset_output_finale
+    from cluster_utils import asset_output_finale, asset_senza_api
     def asset_kucoin(coin, address):
         return asset_output_finale(coin, address)
 
@@ -108,15 +78,13 @@ def esegui_cluster(
             "Type": "sent",
             "Deposit Address or Hash": df_prelievi["hash"],
             "Output index or Counterparty Address": df_prelievi["address"],
-            "Asset": [asset_kucoin(row["coin"], row["address"]) for _, row in df_prelievi.iterrows()],
+            "Asset": [asset_senza_api(row["coin"], row["address"]) for _, row in df_prelievi.iterrows()],
             "_trm_asset": df_prelievi["coin"].astype(str).str.strip().values,
             "_trm_network": "",
         })
 
-    # Unisci e salva
+    # Unisci e salva. I deposit address sono univoci in salva_e_avvisa (non per coppia address+asset).
     df_finale = pd.concat([depositi, prelievi], ignore_index=True)
-    # Rimuovi duplicati sulla coppia (Deposit Address, Asset) per consentire lo stesso indirizzo su chain diverse
-    df_finale = df_finale.drop_duplicates(subset=["Deposit Address or Hash", "Asset"], keep="first")
     from cluster_utils import salva_e_avvisa
     salva_e_avvisa(df_finale, file_output)
 

@@ -12,6 +12,7 @@
         }
         if (opts && opts.sso) {
             a.setAttribute('data-sso-tool', opts.sso);
+            if (opts.ssoNext) a.setAttribute('data-sso-next', opts.ssoNext);
         }
         if (opts && opts.placeholder) {
             a.setAttribute('data-placeholder', opts.placeholder);
@@ -51,19 +52,14 @@
         nav.appendChild(createLink('/portal', 'dashboard', 'home', 'Dashboard', 'Panoramica'));
         nav.appendChild(createLink('#', 'ai', 'robot', 'AI', 'Assistente', { placeholder: 'AI: in arrivo.' }));
         nav.appendChild(createLink('/analisi-report', 'analisi-report', 'analytics', 'Analisi', 'Report'));
-        nav.appendChild(createLink('http://192.168.4.80:5001', 'apinga', 'globe', 'Apinga', 'OSINT', { external: true }));
-        nav.appendChild(createLink('http://192.168.1.73:3000/dashboard/requests', 'chainholder', 'folder-lock', 'Chainholder', 'Docs & archivio', { external: true, sso: 'chainholder' }));
+        nav.appendChild(createLink('/sso-launch.html?tool=chainholder&next=' + encodeURIComponent('http://192.168.1.73:3000/dashboard/requests'), 'chainholder', 'folder-lock', 'Chainholder', 'Docs & archivio', { external: true, sso: 'chainholder', ssoNext: 'http://192.168.1.73:3000/dashboard/requests' }));
         nav.appendChild(createLink('https://192.168.4.80:3444', 'cluster', 'layer-group', 'Cluster', 'Reactor', { external: true }));
         nav.appendChild(createLink('/corsi', 'corsi', 'graduation-cap', 'Corsi', 'Formazione'));
-        nav.appendChild(createLink('https://192.168.4.80:5173', 'cryptomonitor', 'desktop', 'CryptoMonitor', 'Monitoraggio', { external: true, sso: 'cryptomonitor' }));
-        nav.appendChild(createLink('/cryptoscanner', 'cryptoscanner', 'file-search-alt', 'CryptoScanner', 'File scan'));
-        nav.appendChild(createLink('/xpublicator', 'xpublicator', 'key-skeleton', 'Xpublicator', 'xpub → address'));
-        nav.appendChild(createLink('http://192.168.4.80:5005', 'gelato', 'map-marker', 'GELATO', 'Geo & foto', { external: true }));
-        nav.appendChild(createLink('/li-tools', 'li-tools', 'file-network', 'LI Tools', 'ETSI HI3'));
+        nav.appendChild(createLink('/sso-launch.html?tool=cryptomonitor&next=' + encodeURIComponent('https://192.168.4.80:5173'), 'cryptomonitor', 'desktop', 'CryptoMonitor', 'Monitoraggio', { external: true, sso: 'cryptomonitor', ssoNext: 'https://192.168.4.80:5173' }));
+        nav.appendChild(createLink('/la-bibbia', 'la-bibbia', 'diary', 'LA BIBBIA 3.1', 'Contatti exchange'));
         nav.appendChild(createLink('https://192.168.4.80:5174', 'materiali', 'books', 'Materiali', 'Archivio', { external: true }));
-        nav.appendChild(createLink('/siena-constructor/', 'siena', 'envelope', 'SIENA Constructor', 'Messaggi', { external: true }));
-        nav.appendChild(createLink('http://192.168.4.80:7860', 'terra', 'map', 'Terra', 'Geolocalizza foto', { external: true }));
-        nav.appendChild(createLink('http://192.168.4.80:3002', 'vysion', 'shield-exclamation', 'Vysion', 'Ransomware leak', { external: true, sso: 'vysion' }));
+        nav.appendChild(createLink('/sso-launch.html?tool=monitoring&next=' + encodeURIComponent('http://localhost:5002/holdertrack/monitor.php'), 'monitoring', 'monitor', 'Monitoring', 'HolderTrack', { external: true, sso: 'monitoring', ssoNext: 'http://localhost:5002/holdertrack/monitor.php' }));
+        nav.appendChild(createLink('/tools-europol', 'tools-europol', 'briefcase', 'Tools Europol', 'Suite Europol'));
         nav.appendChild(createLink('/profilo', 'profilo', 'user-circle', 'Profilo', 'Il mio account'));
 
         const isSuper = user.role === 'superadmin';
@@ -77,11 +73,17 @@
 
         // Apply card-level visibility rules similar to the portal allowlist.
         const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
+        const euroChildren = ['apinga', 'cryptoscanner', 'xpublicator', 'gelato', 'li-tools', 'siena', 'terra', 'vysion'];
+        const hasEuroChild = euroChildren.some(function (id) { return allowed.has(id); });
         nav.querySelectorAll('.global-side-link[data-card]').forEach(function (link) {
             const id = link.getAttribute('data-card');
             if (id === 'dashboard' || id === 'profilo') return;
             if (id === 'gestione-utenti') {
                 link.style.display = (isAdmin && !isStrumento) ? '' : 'none';
+                return;
+            }
+            if (id === 'tools-europol') {
+                link.style.display = (isSuper || allowed.has('tools-europol') || hasEuroChild) ? '' : 'none';
                 return;
             }
             if (isStrumento) {

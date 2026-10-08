@@ -1,7 +1,7 @@
 import pandas as pd
 import io
 import sys
-from cluster_utils import MAPPATURA_ASSET_CLUSTER, postprocessa_asset, asset_output_finale, trova_foglio, salva_e_avvisa, is_probably_monero_address
+from cluster_utils import MAPPATURA_ASSET_CLUSTER, postprocessa_asset, asset_output_finale, trova_foglio, salva_e_avvisa, is_probably_monero_address, chiave_deposit_address
 
 def asset_okx(currency, address):
     primi = [str(t[0]).strip().upper() for t in MAPPATURA_ASSET_CLUSTER]
@@ -187,9 +187,10 @@ def esegui_okx(file_input, file_output):
         if not address:
             continue
         asset = asset_output_finale(currency, address)
-        if (address, asset) in seen:
+        addr_key = chiave_deposit_address(address) or address
+        if (addr_key, asset) in seen:
             continue
-        seen.add((address, asset))
+        seen.add((addr_key, asset))
         depositi.append({
             "Type": "deposit",
             "Deposit Address or Hash": address,
@@ -205,7 +206,7 @@ def esegui_okx(file_input, file_output):
         txid = str(row.get("txid", "")).strip()
         if not address or not txid:
             continue
-        asset = asset_output_finale(currency, address)
+        asset = asset_okx(currency, address)
         prelievi.append({
             "Type": "sent",
             "Deposit Address or Hash": txid,

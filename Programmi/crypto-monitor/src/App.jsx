@@ -105,11 +105,39 @@ function AuthenticatedApp({ userRole, userEmail, onLogout, currency, toggleCurre
   );
 }
 
-function App() {
-  const [ssoBusy, setSsoBusy] = useState(() => {
-    try { return new URLSearchParams(window.location.search).has('sso'); }
-    catch { return false; }
+const ssoTicketRequests = new Map();
+
+function consumeSsoTicket(ticket) {
+  if (ssoTicketRequests.has(ticket)) return ssoTicketRequests.get(ticket);
+  const req = fetch('/api/sso', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticket }),
+  }).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
   });
+  ssoTicketRequests.set(ticket, req);
+  return req;
+}
+
+function readPortalSsoTicket() {
+  try {
+    if (typeof window !== 'undefined' && window.__PORTAL_SSO_TICKET) {
+      const t = String(window.__PORTAL_SSO_TICKET);
+      delete window.__PORTAL_SSO_TICKET;
+      return t;
+    }
+    return new URLSearchParams(window.location.search).get('sso') || '';
+  } catch {
+    return '';
+  }
+}
+
+function App() {
+  const [ssoTicket] = useState(() => readPortalSsoTicket());
+  const [ssoBusy, setSsoBusy] = useState(() => !!ssoTicket);
+  const [ssoError, setSsoError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!sessionStorage.getItem('auth_token'));
   const [userRole, setUserRole] = useState(() => sessionStorage.getItem('auth_role'));
   const [userEmail, setUserEmail] = useState(() => sessionStorage.getItem('auth_email') || '');
@@ -146,38 +174,33 @@ function App() {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const ticket = params.get('sso');
-    if (!ticket) {
+    if (!ssoTicket) {
       setSsoBusy(false);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/sso', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticket }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!cancelled && data.success && data.token) {
+        const { ok, data } = await consumeSsoTicket(ssoTicket);
+        if (cancelled) return;
+        if (ok && data.success && data.token) {
           handleLogin(data.token, data.role, data.email);
-        } else if (!cancelled) {
+          setSsoError('');
+        } else {
           sessionStorage.removeItem('auth_token');
           sessionStorage.removeItem('auth_role');
           sessionStorage.removeItem('auth_email');
           setIsAuthenticated(false);
+          setSsoError(data.error || 'Accesso dal portale non riuscito. Riprova dalla dashboard.');
         }
       } catch {
-        /* fallback al login locale */
+        if (!cancelled) setSsoError('Portale non raggiungibile. Riprova dalla dashboard.');
       } finally {
-        window.history.replaceState({}, document.title, window.location.pathname);
         if (!cancelled) setSsoBusy(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [ssoTicket]);
 
   const handleLogout = () => {
     const confirmExit = window.confirm("Sei sicuro di voler uscire? Tutti gli inserimenti e le modifiche sono stati salvati sul database automatico.\n\nPremi OK per uscire.");
@@ -223,6 +246,16 @@ function App() {
   if (!isAuthenticated) {
     return (
       <>
+        {ssoError ? (
+          <div style={{
+            position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 50, maxWidth: 520, padding: '0.75rem 1rem', borderRadius: 8,
+            background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.45)',
+            color: '#fecaca', textAlign: 'center', fontSize: 14,
+          }}>
+            {ssoError}
+          </div>
+        ) : null}
         <Login onLogin={handleLogin} />
         {konamiOverlay}
       </>

@@ -10,10 +10,10 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=14">
+    <link rel="stylesheet" href="light-theme.css?v=17">
     <script src="light-theme.js?v=1"></script>
-    <link rel="stylesheet" href="style.css?v=7">
-    <link rel="stylesheet" href="custom-select.css?v=8">
+    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="custom-select.css?v=5">
     <link rel="stylesheet" href="custom-date.css?v=8">
     <link rel="stylesheet" href="luogo-nascita.css?v=5">
     <style>
@@ -29,7 +29,7 @@
         .nav-bell-badge {
             position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
             padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
-            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+            line-height: 17px; text-align: center; border-radius: 9px; border:none!important;outline:none!important;box-shadow:none!important;display: none;
         }
         .nav-bell-badge.visible { display: block; }
         #navBellPanel {
@@ -111,6 +111,53 @@
             border-radius: 5px; font-size: 0.75rem; font-weight: 600;
             background: rgba(0,200,255,0.15); color: #00C8FF; vertical-align: middle;
         }
+
+        .avatar-row {
+            display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap;
+            padding-bottom: 1.4rem; margin-bottom: 1.4rem;
+            border-bottom: 1px solid rgba(0,200,255,0.12);
+        }
+        .avatar-circle {
+            position: relative; flex-shrink: 0; width: 96px; height: 96px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+            background: rgba(0,200,255,0.12); border: 2px solid rgba(0,200,255,0.35);
+            color: #00C8FF; font-size: 1.9rem; font-weight: 700; letter-spacing: 0.02em;
+            box-shadow: 0 0 0 4px rgba(0,200,255,0.06);
+            padding: 0; margin: 0; cursor: pointer; font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        }
+        .avatar-circle:hover, .avatar-circle:focus-visible {
+            border-color: #00C8FF; box-shadow: 0 0 0 4px rgba(0,200,255,0.18);
+            outline: none; transform: scale(1.03);
+        }
+        .avatar-circle:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+        .avatar-circle img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+        .avatar-circle.has-img { background: transparent; }
+        .avatar-circle::after {
+            content: 'Cambia'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: rgba(3,14,28,0.55); color: #E8F7FF; font-size: 0.72rem; font-weight: 700;
+            letter-spacing: 0.04em; text-transform: uppercase; opacity: 0; transition: opacity 0.15s;
+        }
+        .avatar-circle:not(.has-img)::after { content: 'Scegli'; }
+        .avatar-circle:hover::after, .avatar-circle:focus-visible::after { opacity: 1; }
+        .avatar-circle:disabled::after { opacity: 0; }
+        .avatar-info { flex: 1; min-width: 200px; }
+        .avatar-info h3 { color: #C8F0E8; font-size: 1.05rem; margin: 0 0 0.3rem; }
+        .avatar-info p { color: #5ABBC8; font-size: 0.82rem; margin: 0 0 0.8rem; line-height: 1.45; }
+        .avatar-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+        .avatar-actions .btn-edit, .avatar-actions .btn-cancel { font-family: inherit; }
+        .avatar-actions .btn-edit:disabled, .avatar-actions .btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+        html.light-theme .avatar-row { border-bottom-color: rgba(204,80,0,0.18); }
+        html.light-theme .avatar-circle {
+            background: rgba(255,122,0,0.12); border-color: rgba(255,122,0,0.45); color: #CC5000;
+            box-shadow: 0 0 0 4px rgba(255,122,0,0.06);
+        }
+        html.light-theme .avatar-circle:hover, html.light-theme .avatar-circle:focus-visible {
+            border-color: #FF7A00; box-shadow: 0 0 0 4px rgba(255,122,0,0.2);
+        }
+        html.light-theme .avatar-circle::after { background: rgba(44,26,0,0.5); color: #fff8ed; }
+        html.light-theme .avatar-info h3 { color: #2C1A00; }
+        html.light-theme .avatar-info p { color: #6A5A40; }
 
         .btn-edit {
             padding: 0.55rem 1.2rem; background: linear-gradient(135deg,#00C8FF,#00E676);
@@ -291,6 +338,18 @@
         <div class="feedback" id="profileMsg"></div>
 
         <div class="profile-card">
+            <div class="avatar-row" id="avatarRow">
+                <input type="file" id="avatarFile" accept="image/jpeg,image/png,image/webp" hidden>
+                <button type="button" class="avatar-circle" id="avatarCircle" aria-label="Cambia immagine di profilo" title="Clicca per scegliere o cambiare l'immagine">—</button>
+                <div class="avatar-info">
+                    <h3>Immagine di profilo</h3>
+                    <p>Viene mostrata nell'intestazione del portale e nelle chat. Clicca sull'immagine per cambiarla. JPG, PNG o WebP; viene ritagliata al centro e ridimensionata automaticamente.</p>
+                    <div class="avatar-actions">
+                        <button type="button" class="btn-cancel" id="avatarRemove" style="display:none;" onclick="removeAvatar()">Rimuovi</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="profile-head">
                 <h3>Dati account <span class="role-badge" id="viewRole">—</span></h3>
                 <button type="button" class="btn-edit" id="btnEdit" style="display:none;" onclick="enterEditMode()">Modifica</button>
@@ -305,6 +364,8 @@
                 <dl class="dl-grid">
                     <dt>Email</dt>
                     <dd id="viewEmail">—</dd>
+                    <dt>Nome utente</dt>
+                    <dd id="viewUsername">—</dd>
                     <dt>Nome</dt>
                     <dd id="viewNome">—</dd>
                     <dt class="profile-extra">Cognome</dt>
@@ -322,10 +383,39 @@
                     <dt class="profile-extra">Telefono</dt>
                     <dd class="profile-extra" id="viewTelefono">—</dd>
                 </dl>
+
+                <div id="telegramSection" style="margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid rgba(0,200,255,0.12);">
+                    <div class="profile-head" style="margin-bottom:0.65rem;">
+                        <h3 style="font-size:1.05rem;margin:0;">Telegram · Criptogram</h3>
+                    </div>
+                    <p id="tgStatus" style="font-size:0.92rem;color:#7ACCE0;margin:0 0 0.75rem;line-height:1.55;white-space:pre-line;">Caricamento…</p>
+                    <p id="tgHint" style="font-size:0.82rem;color:#5ABBC8;margin:0 0 0.85rem;line-height:1.45;display:none;">
+                        Inquadra il QR con il telefono e premi Avvia.
+                    </p>
+                    <p id="tgShareHint" style="font-size:0.78rem;color:#FFB74D;margin:0 0 0.85rem;line-height:1.4;display:none;">
+                        Il Super Admin può collegare più dispositivi Telegram in condivisione (anche tutti gli utenti, su telefoni diversi). Su ogni dispositivo deve esserci almeno un altro account portale collegato.
+                    </p>
+                    <div id="tgDevices" style="display:none;margin:0 0 0.85rem;font-size:0.78rem;color:#7ACCE0;line-height:1.45;"></div>
+                    <div class="edit-actions" style="justify-content:flex-start;margin:0;flex-wrap:wrap;gap:0.55rem;">
+                        <button type="button" class="btn-cancel" id="tgUnlinkBtn" style="display:none;">Scollega</button>
+                    </div>
+                    <div id="tgQrWrap" style="display:none;margin-top:0.85rem;padding:0.9rem;border:1px solid rgba(0,200,255,0.22);border-radius:12px;background:rgba(0,12,24,0.45);max-width:320px;">
+                        <p style="margin:0 0 0.65rem;font-size:0.8rem;color:#7ACCE0;line-height:1.4;">QR personale — inquadra con il telefono e premi <strong>Avvia</strong>:</p>
+                        <div id="tgQrBox" style="width:220px;height:220px;border-radius:8px;background:#fff;padding:10px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;" role="img" aria-label="QR code collegamento Telegram"></div>
+                        <p id="tgQrAccount" style="margin:0.65rem 0 0;font-size:0.75rem;color:#5ABBC8;line-height:1.35;"></p>
+                        <a id="tgQrUrl" href="#" target="_blank" rel="noopener" style="display:block;margin-top:0.55rem;font-size:0.72rem;color:#00C8FF;line-height:1.4;word-break:break-all;text-decoration:underline;"></a>
+                    </div>
+                    <p id="tgMsg" class="feedback" style="max-width:none;margin:0.75rem 0 0;display:none;"></p>
+                </div>
             </div>
 
             <!-- Modifica -->
             <div id="editMode" style="display:none;">
+                <div class="edit-field" id="editUsernameWrap">
+                    <label for="editUsername">Nome utente <span style="font-weight:500;opacity:0.75;">(opzionale)</span></label>
+                    <input type="text" id="editUsername" maxlength="32" spellcheck="false" autocomplete="off" placeholder="es. Satoshi404">
+                    <p style="font-size:0.78rem;color:#5ABBC8;margin:0.35rem 0 0;line-height:1.4;">Nome di fantasia per accedere al posto dell'email. 3–32 caratteri: lettere, numeri, punto, trattino o trattino basso. Lascia vuoto per usare solo l'email.</p>
+                </div>
                 <div class="edit-row">
                     <div class="edit-field">
                         <label for="editNome">Nome *</label>
@@ -420,13 +510,14 @@
 
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
-    <script src="auth-token.js?v=2"></script>
-    <script src="custom-select.js?v=12"></script>
+    <script src="qrcode.min.js?v=1"></script>
+    <script src="auth-token.js?v=3"></script>
+    <script src="custom-select.js?v=13"></script>
     <script src="custom-date.js?v=6"></script>
-    <script src="luogo-nascita.js?v=9"></script>
+    <script src="luogo-nascita.js?v=10"></script>
     <script src="telefono-field.js?v=7"></script>
     <script src="profile-fields.js?v=5"></script>
-    <script src="nav-notifications.js?v=5"></script>
+    <script src="nav-notifications.js?v=57"></script>
     <script src="password-toggle.js?v=1"></script>
     <script src="portal-onboarding.js?v=10"></script>
     <script>
@@ -503,6 +594,14 @@
         document.getElementById('pwdConfirm').value = '';
     }
 
+    function usernameClientError(raw) {
+        if (!raw) return '';
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{2,31}$/.test(raw)) {
+            return 'Nome utente non valido. Usa 3–32 caratteri: lettere, numeri, punto, _ o -, senza spazi.';
+        }
+        return '';
+    }
+
     async function changeOwnPassword() {
         const currentPassword = document.getElementById('pwdCurrent').value;
         const newPassword = document.getElementById('pwdNew').value;
@@ -549,6 +648,7 @@
     function renderView() {
         const p = _profile;
         document.getElementById('viewEmail').textContent = p.email || '—';
+        document.getElementById('viewUsername').textContent = p.username || '—';
         document.getElementById('viewNome').textContent = p.nome || '—';
         document.getElementById('viewCognome').textContent = p.cognome || '—';
         document.getElementById('viewRole').textContent = ROLE_LABEL[p.role] || p.role || '—';
@@ -584,6 +684,229 @@
 
         document.getElementById('btnEdit').style.display = p.canEdit ? '' : 'none';
         document.getElementById('lockedNote').style.display = 'none';
+        loadTelegramStatus();
+    }
+
+    function setTgMsg(text, isErr) {
+        const el = document.getElementById('tgMsg');
+        if (!el) return;
+        if (!text) { el.style.display = 'none'; el.textContent = ''; return; }
+        el.style.display = '';
+        el.textContent = text;
+        el.className = 'feedback' + (isErr ? ' err' : '');
+    }
+
+    let _tgLinkUrl = '';
+    let _tgPortalAccount = '';
+    let _tgPollTimer = null;
+    let _tgEnsuring = false;
+    let _tgDevicesKey = '';
+
+    function stopTgPoll() {
+        if (_tgPollTimer) {
+            clearInterval(_tgPollTimer);
+            _tgPollTimer = null;
+        }
+    }
+
+    function startTgPoll() {
+        if (_tgPollTimer) return;
+        _tgPollTimer = setInterval(() => { loadTelegramStatus({ poll: true }); }, 4000);
+    }
+
+    async function loadTelegramStatus(opts) {
+        const poll = !!(opts && opts.poll);
+        const section = document.getElementById('telegramSection');
+        const statusEl = document.getElementById('tgStatus');
+        const hint = document.getElementById('tgHint');
+        const shareHint = document.getElementById('tgShareHint');
+        const devicesEl = document.getElementById('tgDevices');
+        const unlinkBtn = document.getElementById('tgUnlinkBtn');
+        if (!section || !statusEl) return;
+        if (_currentUser && _currentUser.accountType === 'strumento') {
+            section.style.display = 'none';
+            stopTgPoll();
+            return;
+        }
+        section.style.display = '';
+        try {
+            const res = await fetch('/api/auth/telegram/status', { headers: authHeader() });
+            if (res.status === 403) { section.style.display = 'none'; stopTgPoll(); return; }
+            if (!res.ok) throw new Error('Stato Telegram non disponibile.');
+            const st = await res.json();
+            if (hint) hint.style.display = '';
+            if (shareHint) shareHint.style.display = st.mustShareDevice ? '' : 'none';
+            if (!st.configured) {
+                statusEl.textContent = 'Bot Telegram non ancora configurato sul server.';
+                if (unlinkBtn) unlinkBtn.style.display = 'none';
+                if (devicesEl) { devicesEl.style.display = 'none'; devicesEl.innerHTML = ''; }
+                _tgLinkUrl = '';
+                hideTelegramQr();
+                stopTgPoll();
+                return;
+            }
+            if (st.linked) {
+                const nDev = Number(st.deviceCount) || (Array.isArray(st.devices) ? st.devices.length : 1);
+                const tg = st.telegramUsername ? ('@' + st.telegramUsername) : 'Telegram';
+                const accName = st.portalAccount || '';
+                const acc = accName ? (' per l\'account ' + accName) : '';
+                const notifyLine = 'Ricevi una notifica su Telegram quando ricevi un messaggio.';
+                if (hint) hint.style.display = 'none';
+                if (st.mustShareDevice) {
+                    const active = (Array.isArray(st.devices) ? st.devices : []).filter((d) => d.notifyActive).length;
+                    const pending = nDev - active;
+                    statusEl.textContent = 'Super Admin collegato su ' + nDev + ' dispositiv'
+                        + (nDev === 1 ? 'o' : 'i') + ' (' + active + ' attivi'
+                        + (pending > 0 ? ', ' + pending + ' in attesa di condivisione' : '')
+                        + ').' + acc + '\n' + notifyLine;
+                    if (devicesEl) {
+                        const rows = (Array.isArray(st.devices) ? st.devices : []).map((d, i) => {
+                            const handle = d.telegramUsername ? ('@' + d.telegramUsername) : ('Dispositivo ' + (i + 1));
+                            if (d.shared) {
+                                const peers = (d.sharedWith || []).join(', ') || 'altri utenti';
+                                return '• ' + handle + ' — attivo, condiviso con ' + peers;
+                            }
+                            return '• ' + handle + ' — in attesa: collega un altro account su questo telefono';
+                        });
+                        devicesEl.innerHTML = rows.join('<br>');
+                        devicesEl.style.display = rows.length ? '' : 'none';
+                    }
+                    if (!st.notifyActive || pending > 0) startTgPoll();
+                    else stopTgPoll();
+                    // QR sempre disponibile per aggiungere altri dispositivi; rinnova dopo ogni nuovo link
+                    const devicesKey = String(nDev) + ':' + (Array.isArray(st.devices) ? st.devices.map((d) => d.chatId).join(',') : '');
+                    if (_tgDevicesKey !== devicesKey) {
+                        _tgDevicesKey = devicesKey;
+                        _tgLinkUrl = '';
+                    }
+                    await ensureTelegramQr(st.portalAccount || '');
+                } else {
+                    if (devicesEl) { devicesEl.style.display = 'none'; devicesEl.innerHTML = ''; }
+                    statusEl.textContent = 'Collegato come ' + tg + acc + '.\n' + notifyLine;
+                    hideTelegramQr();
+                    _tgLinkUrl = '';
+                    _tgPortalAccount = '';
+                    stopTgPoll();
+                }
+                if (unlinkBtn) {
+                    unlinkBtn.style.display = '';
+                    unlinkBtn.textContent = st.mustShareDevice && nDev > 1
+                        ? 'Scollega tutti i dispositivi'
+                        : 'Scollega';
+                }
+                if (!poll) setTgMsg('');
+            } else {
+                if (devicesEl) { devicesEl.style.display = 'none'; devicesEl.innerHTML = ''; }
+                if (hint) hint.style.display = '';
+                statusEl.textContent = st.mustShareDevice
+                    ? 'Non collegato. Scansiona il QR, poi collega almeno un altro utente sullo stesso telefono. Puoi ripetere su altri dispositivi.'
+                    : 'Non collegato. Usa il QR sotto (personale per questo account) oppure apri l\'URL.';
+                if (unlinkBtn) unlinkBtn.style.display = 'none';
+                await ensureTelegramQr(st.portalAccount || '');
+                startTgPoll();
+            }
+        } catch (err) {
+            if (!poll) statusEl.textContent = err.message || 'Impossibile leggere lo stato Telegram.';
+        }
+    }
+
+    function hideTelegramQr() {
+        const wrap = document.getElementById('tgQrWrap');
+        if (wrap) wrap.style.display = 'none';
+        const box = document.getElementById('tgQrBox');
+        if (box) box.innerHTML = '';
+        const acc = document.getElementById('tgQrAccount');
+        if (acc) acc.textContent = '';
+        const urlEl = document.getElementById('tgQrUrl');
+        if (urlEl) {
+            urlEl.textContent = '';
+            urlEl.removeAttribute('href');
+        }
+    }
+
+    function renderTelegramQr(linkUrl, portalAccount) {
+        const wrap = document.getElementById('tgQrWrap');
+        const box = document.getElementById('tgQrBox');
+        const acc = document.getElementById('tgQrAccount');
+        const urlEl = document.getElementById('tgQrUrl');
+        if (!wrap || !box || !linkUrl) return;
+        if (_tgLinkUrl !== linkUrl || !box.childNodes.length) {
+            box.innerHTML = '';
+            if (typeof QRCode === 'function') {
+                new QRCode(box, {
+                    text: linkUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#001018',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M,
+                });
+            } else {
+                const img = document.createElement('img');
+                img.width = 200;
+                img.height = 200;
+                img.alt = 'QR code collegamento Telegram';
+                img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=M&margin=8&data='
+                    + encodeURIComponent(linkUrl);
+                box.appendChild(img);
+            }
+        }
+        _tgLinkUrl = linkUrl;
+        _tgPortalAccount = portalAccount || _tgPortalAccount || '';
+        if (acc) {
+            acc.textContent = _tgPortalAccount
+                ? ('Account portale: ' + _tgPortalAccount)
+                : 'Inquadra il codice con la fotocamera del telefono.';
+        }
+        if (urlEl) {
+            urlEl.href = linkUrl;
+            urlEl.textContent = linkUrl;
+        }
+        wrap.style.display = '';
+    }
+
+    async function ensureTelegramQr(portalAccount) {
+        if (_tgLinkUrl) {
+            renderTelegramQr(_tgLinkUrl, portalAccount || _tgPortalAccount);
+            return;
+        }
+        if (_tgEnsuring) return;
+        _tgEnsuring = true;
+        try {
+            const res = await fetch('/api/auth/telegram/link', {
+                method: 'POST',
+                headers: authHeader(),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Impossibile generare il QR Telegram.');
+            if (!data.linkUrl) throw new Error('Link Telegram non ricevuto.');
+            renderTelegramQr(data.linkUrl, data.portalAccount || portalAccount || '');
+            setTgMsg('');
+        } catch (err) {
+            hideTelegramQr();
+            setTgMsg(err.message || 'Impossibile generare il QR Telegram.', true);
+        } finally {
+            _tgEnsuring = false;
+        }
+    }
+
+    async function unlinkTelegram() {
+        setTgMsg('');
+        if (!confirm('Scollegare Telegram da Criptogram?')) return;
+        try {
+            const res = await fetch('/api/auth/telegram/link', {
+                method: 'DELETE',
+                headers: authHeader(),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Scollegamento non riuscito.');
+            _tgLinkUrl = '';
+            _tgPortalAccount = '';
+            setTgMsg('Telegram scollegato. Scansiona di nuovo il QR per ricollegare.');
+            await loadTelegramStatus();
+        } catch (err) {
+            setTgMsg(err.message || 'Scollegamento non riuscito.', true);
+        }
     }
 
     async function enterEditMode() {
@@ -622,6 +945,10 @@
             _domicilioWired = true;
         }
         fillProfileFields(EDIT_IDS, _profile, (g) => editGradoCs.setValue(g || ''));
+        const userWrap = document.getElementById('editUsernameWrap');
+        const userInput = document.getElementById('editUsername');
+        if (userWrap) userWrap.style.display = _profile.canSetUsername ? '' : 'none';
+        if (userInput) userInput.value = _profile.username || '';
         const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
         document.getElementById('editHint').textContent = isAdmin
             ? 'Le modifiche verranno applicate immediatamente. * campi obbligatori.'
@@ -654,12 +981,36 @@
             showMsg(dateErr, 'error');
             return;
         }
+        const username = _profile.canSetUsername
+            ? String(document.getElementById('editUsername').value || '').trim()
+            : null;
+        if (username !== null) {
+            const userErr = usernameClientError(username);
+            if (userErr) {
+                showMsg(userErr, 'error');
+                return;
+            }
+        }
         const btn = document.getElementById('btnSave');
         btn.disabled = true;
         const isAdmin = _profile.role === 'admin' || _profile.role === 'superadmin';
         const url    = isAdmin ? `/api/auth/users/${_currentUser.id}/profile` : '/api/auth/profile-change-request';
         const method = isAdmin ? 'PATCH' : 'POST';
         try {
+            if (username !== null && username !== String(_profile.username || '')) {
+                const ures = await fetch('/api/auth/username', {
+                    method: 'POST',
+                    headers: authHeader(),
+                    body: JSON.stringify({ username }),
+                });
+                const udata = await ures.json().catch(() => ({}));
+                if (!ures.ok) {
+                    showMsg(udata.error || 'Impossibile salvare il nome utente.', 'error');
+                    return;
+                }
+                _profile.username = udata.username || '';
+                document.getElementById('viewUsername').textContent = _profile.username || '—';
+            }
             const res  = await fetch(url, { method, headers: authHeader(), body: JSON.stringify(profile) });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -681,11 +1032,133 @@
         }
     }
 
+    // ── Immagine di profilo ───────────────────────────────────────────────
+    const AVATAR_SIZE = 256;
+    let _avatarObjUrl = '';
+
+    function avatarInitials() {
+        const p = _profile || {};
+        const a = String(p.nome || '').trim(), b = String(p.cognome || '').trim();
+        if (a || b) return ((a.charAt(0) || '') + (b.charAt(0) || '')).toUpperCase();
+        const u = String(p.username || p.email || '').trim();
+        return (u.charAt(0) || '—').toUpperCase();
+    }
+
+    async function renderAvatar() {
+        const circle = document.getElementById('avatarCircle');
+        const removeBtn = document.getElementById('avatarRemove');
+        const row = document.getElementById('avatarRow');
+        if (_profile && _profile.canSetAvatar === false) { row.style.display = 'none'; return; }
+        row.style.display = '';
+        if (_avatarObjUrl) { URL.revokeObjectURL(_avatarObjUrl); _avatarObjUrl = ''; }
+        let url = '';
+        if (_profile && _profile.avatarVersion) {
+            try {
+                const res = await fetch('/api/auth/avatar/me', { headers: authHeader() });
+                if (res.status === 200) { _avatarObjUrl = URL.createObjectURL(await res.blob()); url = _avatarObjUrl; }
+            } catch { /* iniziali */ }
+        }
+        if (url) {
+            circle.innerHTML = '<img src="' + url + '" alt="Immagine di profilo">';
+            circle.classList.add('has-img');
+            circle.setAttribute('aria-label', 'Cambia immagine di profilo');
+            circle.title = 'Clicca per cambiare l\'immagine';
+            removeBtn.style.display = '';
+        } else {
+            circle.textContent = avatarInitials();
+            circle.classList.remove('has-img');
+            circle.setAttribute('aria-label', 'Scegli immagine di profilo');
+            circle.title = 'Clicca per scegliere un\'immagine';
+            removeBtn.style.display = 'none';
+        }
+    }
+
+    function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const src = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(src);
+                const side = Math.min(img.naturalWidth, img.naturalHeight);
+                if (!side) { reject(new Error('Immagine non valida.')); return; }
+                const sx = (img.naturalWidth - side) / 2;
+                const sy = (img.naturalHeight - side) / 2;
+                const canvas = document.createElement('canvas');
+                canvas.width = AVATAR_SIZE; canvas.height = AVATAR_SIZE;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, sx, sy, side, side, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
+                const keepAlpha = file.type === 'image/png' || file.type === 'image/webp';
+                resolve(keepAlpha ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.86));
+            };
+            img.onerror = () => { URL.revokeObjectURL(src); reject(new Error('Impossibile leggere l\'immagine.')); };
+            img.src = src;
+        });
+    }
+
+    async function uploadAvatar(file) {
+        if (!file) return;
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { showMsg('Formato non supportato. Usa JPG, PNG o WebP.', 'error'); return; }
+        if (file.size > 12 * 1024 * 1024) { showMsg('File troppo grande (massimo 12 MB).', 'error'); return; }
+        const circle = document.getElementById('avatarCircle');
+        const removeBtn = document.getElementById('avatarRemove');
+        if (circle) circle.disabled = true;
+        if (removeBtn) removeBtn.disabled = true;
+        try {
+            const image = await fileToDataUrl(file);
+            const res = await fetch('/api/auth/avatar', { method: 'PUT', headers: authHeader(), body: JSON.stringify({ image }) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { showMsg(data.error || 'Impossibile salvare l\'immagine.', 'error'); return; }
+            _profile.avatarVersion = data.avatarVersion || 0;
+            await renderAvatar();
+            if (typeof refreshNavAvatar === 'function') refreshNavAvatar();
+            showMsg('Immagine di profilo aggiornata.', 'success');
+        } catch (err) {
+            showMsg(err.message || 'Errore durante il caricamento.', 'error');
+        } finally {
+            if (circle) circle.disabled = false;
+            if (removeBtn) removeBtn.disabled = false;
+        }
+    }
+
+    function removeAvatar() {
+        showConfirm('Rimuovere l\'immagine di profilo?', async () => {
+            const circle = document.getElementById('avatarCircle');
+            const removeBtn = document.getElementById('avatarRemove');
+            if (circle) circle.disabled = true;
+            if (removeBtn) removeBtn.disabled = true;
+            try {
+                const res = await fetch('/api/auth/avatar', { method: 'DELETE', headers: authHeader() });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { showMsg(data.error || 'Impossibile rimuovere l\'immagine.', 'error'); return; }
+                _profile.avatarVersion = 0;
+                await renderAvatar();
+                if (typeof refreshNavAvatar === 'function') refreshNavAvatar();
+                showMsg('Immagine di profilo rimossa.', 'success');
+            } catch {
+                showMsg('Errore di rete. Riprovare.', 'error');
+            } finally {
+                if (circle) circle.disabled = false;
+                if (removeBtn) removeBtn.disabled = false;
+            }
+        });
+    }
+
+    document.getElementById('avatarCircle').addEventListener('click', () => {
+        document.getElementById('avatarFile').click();
+    });
+    document.getElementById('avatarFile').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        uploadAvatar(file);
+    });
+
     async function loadProfile() {
         const res = await fetch('/api/auth/my-profile', { headers: authHeader() });
         if (!res.ok) throw new Error('profile');
         _profile = await res.json();
         renderView();
+        renderAvatar();
         const guideBtn = document.getElementById('btnShowOnboarding');
         if (guideBtn && typeof PortalOnboarding !== 'undefined') {
             const role = _profile.role || _currentUser.role;
@@ -726,6 +1199,8 @@
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.email;
             initNavBell();
+            const tgUnlinkBtn = document.getElementById('tgUnlinkBtn');
+            if (tgUnlinkBtn) tgUnlinkBtn.addEventListener('click', unlinkTelegram);
             await loadProfile();
         } catch {
             clearAuth();

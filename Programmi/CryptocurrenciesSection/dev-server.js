@@ -33,6 +33,8 @@ const PAGE_ROUTES = {
     '/cryptoscanner':   '/cryptoscanner.html',
     '/xpublicator':     '/xpublicator.html',
     '/li-tools':        '/li-tools.html',
+    '/tools-europol':   '/tools-europol.html',
+    '/idee':            '/idee.html',
     '/siena-constructor': '/siena-constructor/index.html',
     '/siena-constructor/': '/siena-constructor/index.html',
 };

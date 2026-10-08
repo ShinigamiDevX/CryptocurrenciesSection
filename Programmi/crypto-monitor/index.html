@@ -5,6 +5,20 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Crypto Seizure Monitor</title>
+    <script>
+      // Cattura subito il ticket SSO (StrictMode/React non devono perderlo)
+      (function () {
+        try {
+          var t = new URLSearchParams(window.location.search).get('sso');
+          if (t) {
+            window.__PORTAL_SSO_TICKET = t;
+            var u = new URL(window.location.href);
+            u.searchParams.delete('sso');
+            window.history.replaceState({}, '', u.pathname + (u.search || '') + (u.hash || ''));
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

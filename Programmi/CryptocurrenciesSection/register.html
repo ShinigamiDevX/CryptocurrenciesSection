@@ -10,9 +10,9 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=3">
+    <link rel="stylesheet" href="light-theme.css?v=17">
     <script src="light-theme.js?v=1"></script>
-    <link rel="stylesheet" href="custom-select.css?v=8">
+    <link rel="stylesheet" href="custom-select.css?v=5">
     <link rel="stylesheet" href="custom-date.css?v=8">
     <link rel="stylesheet" href="luogo-nascita.css?v=5">
     <link rel="stylesheet" href="otp-boxes.css?v=1">
@@ -162,6 +162,11 @@
                         <label for="grado">Grado</label>
                         <div id="gradoSelect" class="csel"></div>
                     </div>
+                    <div class="field field-full">
+                        <label for="username">Nome utente <span style="font-weight:500;opacity:0.75;">(opzionale)</span></label>
+                        <input type="text" id="username" name="username" maxlength="32" spellcheck="false" autocomplete="off" placeholder="es. Satoshi404">
+                        <div class="hint">Nome di fantasia per accedere al posto dell'email. 3–32 caratteri: lettere, numeri, punto, trattino o trattino basso.</div>
+                    </div>
                     <div class="field">
                         <label for="nome">Nome</label>
                         <input type="text" id="nome" name="nome" placeholder="Nome" autocomplete="given-name" required>
@@ -224,9 +229,9 @@
     </div>
     <footer>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</footer>
 
-    <script src="custom-select.js?v=12"></script>
+    <script src="custom-select.js?v=13"></script>
     <script src="custom-date.js?v=6"></script>
-    <script src="luogo-nascita.js?v=9"></script>
+    <script src="luogo-nascita.js?v=10"></script>
     <script src="telefono-field.js?v=7"></script>
     <script src="profile-fields.js?v=5"></script>
     <script src="otp-boxes.js?v=1"></script>
@@ -302,6 +307,15 @@
                 });
         }
 
+        function usernameError() {
+            const raw = document.getElementById('username').value.trim();
+            if (!raw) return '';
+            if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{2,31}$/.test(raw)) {
+                return 'Nome utente non valido. Usa 3–32 caratteri: lettere, numeri, punto, _ o -, senza spazi.';
+            }
+            return '';
+        }
+
         document.getElementById('registerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const errorMsg   = document.getElementById('errorMsg');
@@ -324,6 +338,11 @@
                 errorMsg.textContent = dateErr;
                 errorMsg.style.display = 'block'; return;
             }
+            const userErr = usernameError();
+            if (userErr) {
+                errorMsg.textContent = userErr;
+                errorMsg.style.display = 'block'; return;
+            }
             if (!otp || otp.length < 6) {
                 errorMsg.textContent = 'Inserisci tutte e 6 le cifre del codice di verifica.';
                 errorMsg.style.display = 'block';
@@ -336,7 +355,13 @@
                 const res  = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, password: pwd, otp, ...profile })
+                    body: JSON.stringify({
+                        token,
+                        password: pwd,
+                        otp,
+                        username: document.getElementById('username').value.trim(),
+                        ...profile,
+                    })
                 });
                 let data = {};
                 try { data = await res.json(); } catch { /* risposta non JSON (es. 502) */ }
@@ -376,6 +401,11 @@
             }
             if (pwd !== confirm) {
                 errorMsg.textContent = 'Le password non coincidono.';
+                errorMsg.style.display = 'block'; return;
+            }
+            const userErr = usernameError();
+            if (userErr) {
+                errorMsg.textContent = userErr;
                 errorMsg.style.display = 'block'; return;
             }
             const btn = document.getElementById('sendOtpBtn');

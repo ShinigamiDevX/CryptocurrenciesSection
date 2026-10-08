@@ -1,6 +1,6 @@
 import pandas as pd
 from cluster_utils import MAPPATURA_ASSET, MAPPATURA_ASSET_CLUSTER, postprocessa_asset, salva_e_avvisa
-from cluster_utils import asset_output_finale, trova_foglio, get_col
+from cluster_utils import asset_output_finale, trova_foglio, get_col, chiave_deposit_address
 
 
 def is_bnb_beacon_address(value):
@@ -77,10 +77,11 @@ def esegui_binance(file_input, file_output):
                 "Asset": asset_binance_raw(currency, network)
             })
             continue
-        # Unicità su (Deposit Address, Asset) per consentire lo stesso indirizzo su chain diverse
-        if (deposit_address, asset) in seen:
+        # Dedup preliminare su (address, asset); l'unicità per address è in elimina_duplicati_depositi
+        addr_key = chiave_deposit_address(deposit_address) or deposit_address
+        if (addr_key, asset) in seen:
             continue
-        seen.add((deposit_address, asset))
+        seen.add((addr_key, asset))
         depositi.append({
             "Type": "deposit",
             "Deposit Address or Hash": deposit_address,
@@ -224,14 +225,17 @@ def esegui_cluster(
             '_trm_tx_hash': txid_deposit,
         })
 
-    # Unicità su (Deposit Address, Asset) solo per modalità Chainalysis
+    # Dedup preliminare su (address, asset); TRM: una riga per tx. Unicità address in elimina_duplicati_depositi.
     if os.environ.get('OUTPUT_SERVICE', '').lower() == 'trm':
         depositi_unici = depositi
     else:
         seen = set()
         depositi_unici = []
         for d in depositi:
-            key = (d['Deposit Address or Hash'], d['Asset'])
+            key = (
+                chiave_deposit_address(d['Deposit Address or Hash']) or d['Deposit Address or Hash'],
+                d['Asset'],
+            )
             if key not in seen:
                 seen.add(key)
                 depositi_unici.append(d)

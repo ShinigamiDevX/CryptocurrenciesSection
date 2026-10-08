@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/immagini/logo.png">
+    <title>Idee e proposte — CryptocurrenciesSection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="seasonal-theme.js?v=5"></script>
+    <link rel="stylesheet" href="seasonal-theme.css?v=24">
+    <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
+    <link rel="stylesheet" href="light-theme.css?v=17">
+    <script src="light-theme.js?v=1"></script>
+    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="idee.css?v=7">
+</head>
+<body>
+    <div id="authOverlay"><span>Verifica autenticazione...</span></div>
+
+    <header>
+        <div class="header-inner">
+            <h1>
+                <img src="immagini/logo.png" alt="Logo" style="height:2.2rem;vertical-align:middle;margin-right:0.6rem;">
+                Cryptocurrencies<span>Section</span> <small>Idee e proposte</small>
+            </h1>
+            <nav>
+                <ul>
+                    <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
+                    <li><a href="/profilo">Il mio profilo</a></li>
+                    <li>
+                        <a href="/portal" class="nav-home" title="Portale" aria-label="Portale">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.71 10.29l-9-8a1 1 0 0 0-1.42 0l-9 8A1 1 0 0 0 3 12h1v8a2 2 0 0 0 2 2h4v-7h4v7h4a2 2 0 0 0 2-2v-8h1a1 1 0 0 0 .71-1.71z"/></svg>
+                        </a>
+                    </li>
+                    <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
+                        <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
+                            <span class="nav-bell-badge" id="navBellBadge" hidden>0</span>
+                        </button>
+                    </li>
+                    <li class="nav-logout"><a href="#" onclick="logout();return false;">Esci</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="nav-bell-panel" id="navBellPanel" hidden>
+        <div class="nav-bell-panel-head">
+            <strong>Notifiche</strong>
+        </div>
+        <div class="nav-bell-list" id="navBellList">
+            <div class="nav-bell-empty">Nessuna notifica.</div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-title"><img src="/icons/line/lightbulb.svg" alt=""> Idee e proposte</div>
+        <p class="page-sub">Proponi miglioramenti al portale, nuovi strumenti o modifiche a quelli esistenti. L'invio arriva a tutti gli admin e super admin.</p>
+
+        <div class="idee-wrap">
+            <form id="ideeForm" class="idee-panel" autocomplete="off">
+                <fieldset class="idee-topic">
+                    <legend>Argomento</legend>
+                    <div class="idee-mode" role="radiogroup" aria-label="Tipo di argomento">
+                        <label class="idee-mode-opt"><input type="radio" name="topicMode" value="tool" checked> Strumento</label>
+                        <label class="idee-mode-opt"><input type="radio" name="topicMode" value="free"> Campo libero</label>
+                    </div>
+                    <select id="ideeTool" aria-label="Strumento">
+                        <option value="">Scegli uno strumento</option>
+                    </select>
+                    <input id="ideeTopicText" type="text" maxlength="120" placeholder="Scrivi l'argomento, ad esempio grafica o un nuovo strumento" hidden>
+                </fieldset>
+                <label for="ideeText">La tua idea</label>
+                <textarea id="ideeText" name="text" maxlength="4000" required placeholder="Descrivi l'idea, la proposta o il problema riscontrato con lo strumento selezionato"></textarea>
+                <div class="idee-meta">
+                    <span id="ideeCount">0 / 4000</span>
+                    <span>Minimo 10 caratteri</span>
+                </div>
+                <div class="idee-actions">
+                    <button type="submit" class="idee-btn" id="ideeSubmit">Invia proposta</button>
+                </div>
+                <p class="idee-msg" id="ideeMsg" role="status"></p>
+            </form>
+
+            <div class="idee-archive-block" id="ideeArchiveBar" hidden>
+                <div class="idee-admin-btns">
+                    <button type="button" class="idee-btn idee-btn--ghost" id="ideeArchiveBtn" aria-expanded="false" aria-controls="ideeArchive">
+                        <span>Proposte ricevute</span>
+                        <span class="idee-unread-badge" id="ideeUnreadBadge" hidden>0</span>
+                        <svg class="idee-chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button type="button" class="idee-btn idee-btn--ghost" id="ideeTrashBtn" hidden aria-expanded="false" aria-controls="ideeTrash">
+                        <span>Archivio</span>
+                        <svg class="idee-chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+                <section class="idee-archive" id="ideeArchive" hidden>
+                    <div class="idee-archive-inner">
+                        <div class="idee-archive-head">Proposte ricevute</div>
+                        <div id="ideeArchiveList" class="idee-list"></div>
+                    </div>
+                </section>
+                <section class="idee-archive idee-trash" id="ideeTrash" hidden>
+                    <div class="idee-archive-inner">
+                        <div class="idee-archive-head">Archivio · eliminate</div>
+                        <p class="idee-trash-hint">Qui finiscono le proposte eliminate dagli admin. Solo tu puoi cancellarle definitivamente.</p>
+                        <div id="ideeTrashList" class="idee-list"></div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="idee-panel" id="ideeListPanel">
+                <h2 id="ideeListTitle">Le tue proposte</h2>
+                <div id="ideeList" class="idee-list"></div>
+            </section>
+        </div>
+    </main>
+
+    <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
+
+    <div class="confirm-bg" id="confirmModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="confirmMsg">
+        <div class="confirm-box">
+            <p id="confirmMsg"></p>
+            <div class="confirm-btns">
+                <button type="button" class="btn-cancel" id="confirmCancel">Annulla</button>
+                <button type="button" class="btn-ok" id="confirmOk">Conferma</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth-token.js?v=3"></script>
+    <script src="nav-notifications.js?v=57"></script>
+    <script src="idee.js?v=8"></script>
+</body>
+</html>

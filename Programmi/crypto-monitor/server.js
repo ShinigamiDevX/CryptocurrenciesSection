@@ -13,6 +13,7 @@ import https from 'https';
 import http from 'http';
 import 'dotenv/config';
 import db, { initDb } from './db.js';
+import { notifyQuantityChanges } from './telegram.js';
 
 if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = process.env.npm_lifecycle_event === 'dev' ? 'development' : 'production';
@@ -606,13 +607,18 @@ function consumePortalTicket(ticket) {
             path: u.pathname + u.search,
             method: 'POST',
             rejectUnauthorized: false,
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'Content-Length': Buffer.byteLength(body),
+                Host: u.host,
+            },
         }, (res) => {
             let data = '';
             res.on('data', (c) => { data += c; });
             res.on('end', () => {
                 try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-                catch { resolve({ status: res.statusCode, body: null }); }
+                catch { resolve({ status: res.statusCode, body: null, raw: String(data).slice(0, 200) }); }
             });
         });
         req.on('error', reject);
@@ -622,23 +628,56 @@ function consumePortalTicket(ticket) {
     });
 }
 
-api.post('/sso', loginLimiter, async (req, res) => {
+/** Evita doppio consume se il browser invia due POST con lo stesso ticket. */
+const ssoInflight = new Map();
+const ssoRecent = new Map();
+const SSO_RECENT_MS = 2 * 60 * 1000;
+
+function hashSsoTicket(ticket) {
+    return crypto.createHash('sha256').update(String(ticket || '')).digest('hex');
+}
+
+api.post('/sso', async (req, res) => {
     const ticket = String((req.body || {}).ticket || '').trim();
+    console.log('[SSO] POST /api/sso ticket=', ticket ? `${ticket.slice(0, 8)}…` : '(vuoto)');
     if (!ticket) return res.status(400).json({ error: 'Ticket mancante.' });
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const th = hashSsoTicket(ticket);
+
+    const cached = ssoRecent.get(th);
+    if (cached && cached.exp > Date.now()) {
+        return res.json({
+            success: true,
+            token: cached.token,
+            role: cached.role,
+            email: cached.email,
+            replay: true,
+        });
+    }
+
     let portal;
     try {
-        portal = await consumePortalTicket(ticket);
+        if (ssoInflight.has(th)) {
+            portal = await ssoInflight.get(th);
+        } else {
+            const pending = consumePortalTicket(ticket).finally(() => ssoInflight.delete(th));
+            ssoInflight.set(th, pending);
+            portal = await pending;
+        }
     } catch (e) {
         console.error('[SSO] consume failed:', e.message);
         return res.status(502).json({ error: 'Portale non raggiungibile.' });
     }
-    if (!portal || portal.status !== 200 || !portal.body || !portal.body.email) {
+    if (!portal || portal.status !== 200 || !portal.body) {
+        console.warn('[SSO] consume rejected:', portal && portal.status, portal && (portal.body && portal.body.error || portal.raw));
         return res.status(401).json({ error: 'Ticket SSO non valido o scaduto.' });
     }
-    const email = String(portal.body.email).trim().toLowerCase();
-    if (!email || email.endsWith('@strumento.local')) {
-        return res.status(403).json({ error: 'Account portale senza email. Usa il login diretto.' });
+    const rawEmail = String((portal.body && portal.body.email) || '').trim().toLowerCase();
+    const username = String((portal.body && (portal.body.username || portal.body.displayName)) || '')
+        .trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    const email = rawEmail || (username ? `${username}@strumento.local` : '');
+    if (!email) {
+        return res.status(403).json({ error: 'Account portale senza identità. Usa il login diretto.' });
     }
     let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (user && user.status === 'locked') {
@@ -656,7 +695,14 @@ api.post('/sso', loginLimiter, async (req, res) => {
     const newToken = generateToken();
     db.prepare('UPDATE users SET sessionToken = ?, sessionExpiry = ?, failedLoginAttempts = 0, lockedAt = NULL WHERE id = ?')
         .run(hashToken(newToken), Date.now() + SESSION_DURATION_MS, user.id);
+    ssoRecent.set(th, {
+        token: newToken,
+        role: user.role,
+        email: user.email,
+        exp: Date.now() + SSO_RECENT_MS,
+    });
     logAccess({ type: 'login', email: user.email, role: user.role, status: 'sso', ip: clientIp });
+    console.log('[SSO] ok for', user.email);
     res.json({ success: true, token: newToken, role: user.role, email: user.email });
 });
 
@@ -1151,6 +1197,7 @@ api.post('/assets', requireEditor, (req, res) => {
     if (!assets || !Array.isArray(assets)) return res.status(400).json({ error: 'Invalid assets data' });
 
     try {
+        const quantityChanges = [];
         const transaction = db.transaction(() => {
             for (const a of assets) {
                 // Upsert asset metadata
@@ -1188,6 +1235,14 @@ api.post('/assets', requireEditor, (req, res) => {
                         // Audit Trail
                         if (!existing) {
                             recordHistory(h.id, req.user.id, 'create', h);
+                            quantityChanges.push({
+                                type: 'create',
+                                assetName: a.name,
+                                symbol: a.symbol,
+                                newAmount: h.amount,
+                                proceeding: h.proceeding,
+                                walletAddress: h.walletAddress,
+                            });
                         } else {
                             // Detect changes
                             const changes = {};
@@ -1200,6 +1255,20 @@ api.post('/assets', requireEditor, (req, res) => {
                             if (Object.keys(changes).length > 0) {
                                 recordHistory(h.id, req.user.id, 'update', changes);
                             }
+                            // Solo quantità (non prezzo): confronta amount numerico
+                            const oldAmt = Number(existing.amount);
+                            const newAmt = Number(h.amount);
+                            if (Number.isFinite(oldAmt) && Number.isFinite(newAmt) && Math.abs(oldAmt - newAmt) > 1e-10) {
+                                quantityChanges.push({
+                                    type: 'update',
+                                    assetName: a.name,
+                                    symbol: a.symbol,
+                                    oldAmount: oldAmt,
+                                    newAmount: newAmt,
+                                    proceeding: h.proceeding || existing.proceeding,
+                                    walletAddress: h.walletAddress || existing.walletAddress,
+                                });
+                            }
                         }
                     }
                 }
@@ -1207,6 +1276,11 @@ api.post('/assets', requireEditor, (req, res) => {
         });
         transaction();
         res.json({ success: true, message: 'Assets updated successfully' });
+        if (quantityChanges.length) {
+            notifyQuantityChanges(quantityChanges, req.user?.email).catch((e) => {
+                console.error('[Telegram] notifyQuantityChanges:', e.message);
+            });
+        }
     } catch (e) {
         console.error('[API] Asset update failed:', e);
         res.status(500).json({ error: 'Internal Server Error' });

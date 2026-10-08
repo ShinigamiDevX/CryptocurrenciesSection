@@ -4,27 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cluster reactor.chainalysis</title>
-    <base href="/cluster/">
-    <link rel="icon" type="image/png" href="/immagini/logo.png">
-    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="/immagini/icon.png">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <a href="/" class="form-btn" style="position:fixed;top:18px;left:18px;z-index:2000;width:auto;padding:8px 18px;min-width:unset;text-decoration:none;">← Portale</a>
     <button id="themeToggleBtn" class="form-btn" style="position:fixed;top:18px;right:18px;z-index:2000;width:auto;padding:8px 18px;min-width:unset;">☀️ Tema chiaro</button>
     <div class="upload-card">
         <div class="upload-header">
             <h1>Genera il file CSV per il cluster</h1>
         </div>
-        <form id="uploadForm" action="upload" method="post" enctype="multipart/form-data">
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
             <div class="form-group" style="text-align:center;">
                 <div class="step-label">1. Seleziona il servizio</div>
                 <div class="service-grid" id="serviceGrid">
                     <div class="service-tile" data-value="reactor">
-                        <img src="immagini/chainalysis.png" alt="Reactor Chainalysis" class="service-tile-img">
+                        <img src="/immagini/chainalysis.png" alt="Reactor Chainalysis" class="service-tile-img">
                         <div class="service-tile-name">Reactor Chainalysis</div>
                     </div>
                     <div class="service-tile" data-value="trm">
-                        <img src="immagini/trm.jpg" alt="TRM" class="service-tile-img">
+                        <img src="/immagini/trm.jpg" alt="TRM" class="service-tile-img">
                         <div class="service-tile-name">TRM</div>
                     </div>
                 </div>
@@ -33,13 +31,13 @@
             <div class="form-group" style="text-align:center;">
                 <div class="step-label">2. Seleziona l'Exchange</div>
                 <div class="exchange-grid" id="exchangeGrid">
-                    <div class="exchange-tile" data-value="Binance" data-img="immagini/binance.jpg"><img src="immagini/binance.jpg" alt="Binance"></div>
-                    <div class="exchange-tile" data-value="Bitget" data-img="immagini/bitget.jpg"><img src="immagini/bitget.jpg" alt="Bitget"></div>
-                    <div class="exchange-tile" data-value="Bybit" data-img="immagini/bybit.png"><img src="immagini/bybit.png" alt="Bybit"></div>
-                    <div class="exchange-tile" data-value="Coinbase" data-img="immagini/coinbase.png"><img src="immagini/coinbase.png" alt="Coinbase"></div>
-                    <div class="exchange-tile exchange-tile--soon" data-img="immagini/kraken.png"><img src="immagini/kraken.png" alt="Kraken"><span class="exchange-tile-soon-label">coming soon...</span></div>
-                    <div class="exchange-tile" data-value="Kucoin" data-img="immagini/kucoin.png"><img src="immagini/kucoin.png" alt="Kucoin"></div>
-                    <div class="exchange-tile" data-value="OKX" data-img="immagini/OKX.png"><img src="immagini/OKX.png" alt="OKX"></div>
+                    <div class="exchange-tile" data-value="Binance" data-img="/immagini/binance.jpg"><img src="/immagini/binance.jpg" alt="Binance"></div>
+                    <div class="exchange-tile" data-value="Bitget" data-img="/immagini/bitget.jpg"><img src="/immagini/bitget.jpg" alt="Bitget"></div>
+                    <div class="exchange-tile" data-value="Bybit" data-img="/immagini/bybit.png"><img src="/immagini/bybit.png" alt="Bybit"></div>
+                    <div class="exchange-tile" data-value="Coinbase" data-img="/immagini/coinbase.png"><img src="/immagini/coinbase.png" alt="Coinbase"></div>
+                    <div class="exchange-tile exchange-tile--soon" data-img="/immagini/kraken.png"><img src="/immagini/kraken.png" alt="Kraken"><span class="exchange-tile-soon-label">coming soon...</span></div>
+                    <div class="exchange-tile" data-value="Kucoin" data-img="/immagini/kucoin.png"><img src="/immagini/kucoin.png" alt="Kucoin"></div>
+                    <div class="exchange-tile" data-value="OKX" data-img="/immagini/OKX.png"><img src="/immagini/OKX.png" alt="OKX"></div>
                 </div>
                 <input type="hidden" name="exchange" id="exchange" value="">
             </div>
@@ -400,7 +398,7 @@
             else if (exchange === 'OKX') downloadName = 'cluster_okx.csv';
             else if (exchange === 'Bybit') downloadName = 'cluster_bybit.csv';
             else if (exchange === 'Coinbase') downloadName = 'cluster_coinbase.csv';
-            fetch('upload', { method: 'POST', body: formData })
+            fetch('/upload', { method: 'POST', body: formData })
             .then(async response => {
                 if (!response.ok) {
                     const errText = await response.text().catch(() => '');
@@ -409,7 +407,7 @@
                     return;
                 }
                 const { jobId } = await response.json();
-                const evtSource = new EventSource('progress/' + jobId);
+                const evtSource = new EventSource('/progress/' + jobId);
                 evtSource.onmessage = function(e) {
                     let data;
                     try { data = JSON.parse(e.data); } catch { return; }
@@ -497,7 +495,7 @@
             else if (exchg === 'OKX') dlName = 'cluster_okx.csv';
             else if (exchg === 'Bybit') dlName = 'cluster_bybit.csv';
             else if (exchg === 'Coinbase') dlName = 'cluster_coinbase.csv';
-            fetch('reprocess-with-password', {
+            fetch('/reprocess-with-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uploadedFile: _pendingUploadedFile, exchange: exchg, password, service: document.getElementById('service').value })
@@ -550,7 +548,6 @@
             }
         };
     </script>
-    <script src="/password-toggle.js?v=1"></script>
 
 </body>
 </html>

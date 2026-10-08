@@ -10,9 +10,9 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=4">
+    <link rel="stylesheet" href="light-theme.css?v=17">
     <script src="light-theme.js?v=1"></script>
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=12">
     <style>
         /* Campanella: regole critiche (evita layout rotto se CSS in cache) */
         .nav-bell-wrap { position: relative; flex-shrink: 0; list-style: none; }
@@ -27,7 +27,7 @@
         .nav-bell-badge {
             position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
             padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
-            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+            line-height: 17px; text-align: center; border-radius: 9px; border:none!important;outline:none!important;box-shadow:none!important;display: none;
         }
         .nav-bell-badge.visible { display: block; }
         #navBellPanel {
@@ -299,7 +299,8 @@
             border-color: rgba(0,230,118,0.7);
             box-shadow: 0 0 0 2px rgba(0,230,118,0.25);
         }
-        #dashboardCards.reorder-mode .card a.btn { pointer-events: none; }
+        #dashboardCards.reorder-mode .card a.btn,
+        #dashboardCards.reorder-mode .card button.btn { pointer-events: none; }
         #dashboardCards.reorder-mode .card:hover { transform: none; }
         .card-drag-handle {
             display: none;
@@ -336,6 +337,176 @@
                 0 0 0 1px rgba(123, 70, 190, 0.2),
                 0 22px 56px rgba(0, 0, 0, 0.22),
                 0 0 20px rgba(123, 70, 190, 0.18);
+        }
+
+        /* Tools Europol: espansione inline sotto la scheda (animata) */
+        /* Il gap verticale della griglia è spostato sul margine delle schede: così la riga
+           del pannello, quando è chiuso, misura esattamente 0 e la chiusura non "scatta". */
+        #dashboardCards { row-gap: 0; }
+        #dashboardCards > .card[data-card] { margin-bottom: 1.5rem; height: auto; }
+        .euro-expand-panel {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-rows: 0fr;
+            position: relative;
+            margin: 0;
+            padding: 0 1.25rem;
+            border-radius: 16px;
+            border: 0 solid transparent;
+            box-sizing: border-box;
+            opacity: 0;
+            transform: translateY(-6px) scaleY(0.98);
+            transform-origin: top center;
+            background:
+                radial-gradient(120% 90% at 15% 0%, rgba(0, 230, 118, 0.10), transparent 55%),
+                radial-gradient(110% 80% at 90% 100%, rgba(0, 200, 255, 0.14), transparent 60%),
+                linear-gradient(160deg, #0a1f3a 0%, #071a2f 55%, #0b1b36 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 14px 40px rgba(0, 0, 0, 0.35);
+            transition:
+                grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                padding 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                margin 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                border-width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.3s ease,
+                transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.3s ease;
+        }
+        .euro-expand-panel[hidden] { display: none; }
+        .euro-expand-panel.is-open {
+            grid-template-rows: 1fr;
+            margin: -0.5rem 0 1.5rem;
+            padding: 1.25rem 1.25rem 1.35rem;
+            border-width: 1px;
+            opacity: 1;
+            transform: translateY(0) scaleY(1);
+            border-color: rgba(0, 230, 118, 0.32);
+        }
+        /* Connettore visivo con la scheda madre */
+        .euro-expand-panel::before {
+            content: '';
+            position: absolute;
+            top: -7px;
+            left: var(--euro-arrow-left, 2.4rem);
+            width: 12px;
+            height: 12px;
+            transform: rotate(45deg);
+            background: #0a1f3a;
+            border-left: 1px solid rgba(0, 230, 118, 0.32);
+            border-top: 1px solid rgba(0, 230, 118, 0.32);
+            opacity: 0;
+            transition: opacity 0.25s ease 0.15s;
+        }
+        .euro-expand-panel.is-open::before { opacity: 1; }
+        /* Barra accent in alto */
+        .euro-expand-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 1.25rem;
+            right: 1.25rem;
+            height: 2px;
+            border-radius: 0 0 2px 2px;
+            background: linear-gradient(90deg, #00E676, #00C8FF 60%, transparent);
+            opacity: 0;
+            transform: scaleX(0);
+            transform-origin: left center;
+            transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s, opacity 0.2s ease 0.1s;
+        }
+        .euro-expand-panel.is-open::after { opacity: 0.85; transform: scaleX(1); }
+        .euro-expand-inner { min-height: 0; overflow: hidden; }
+        .euro-expand-head {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0 0 1rem;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #5EEAD4;
+        }
+        .euro-expand-head::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(94, 234, 212, 0.35), transparent);
+        }
+        .euro-expand-panel .euro-child-cards {
+            margin-top: 0;
+            gap: 1.1rem;
+        }
+        .euro-expand-panel .euro-child-cards .card {
+            background: rgba(2, 10, 24, 0.55);
+            border-color: rgba(0, 230, 118, 0.16);
+            backdrop-filter: blur(2px);
+        }
+        .euro-expand-panel .euro-child-cards .card:hover { border-color: #00E676; }
+        .euro-expand-panel.is-open .euro-child-cards .card {
+            animation: euroCardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+            animation-delay: calc(var(--i, 0) * 55ms + 80ms);
+        }
+        @keyframes euroCardIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .euro-expand-empty {
+            display: none;
+            margin: 0.35rem 0 0;
+            text-align: center;
+            color: #7ACCE0;
+            font-size: 0.9rem;
+        }
+        .euro-expand-empty.visible { display: block; }
+        #euroExpandBtn { font-family: inherit; display: inline-flex; align-items: center; gap: 0.45rem; }
+        #euroExpandBtn .euro-chevron {
+            width: 0.8em;
+            height: 0.8em;
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #euroExpandBtn[aria-expanded="true"] { border-color: #00E676; color: #00E676; }
+        #euroExpandBtn[aria-expanded="true"] .euro-chevron { transform: rotate(180deg); }
+
+        html.light-theme .euro-expand-panel {
+            background:
+                radial-gradient(120% 90% at 15% 0%, rgba(255, 196, 120, 0.30), transparent 55%),
+                radial-gradient(110% 80% at 90% 100%, rgba(123, 70, 190, 0.14), transparent 60%),
+                linear-gradient(160deg, #fbf3e6 0%, #f6eef9 55%, #f3ecfb 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                0 14px 36px rgba(90, 50, 140, 0.14);
+        }
+        html.light-theme .euro-expand-panel.is-open { border-color: rgba(204, 80, 0, 0.35); }
+        html.light-theme .euro-expand-panel::before {
+            background: #fbf3e6;
+            border-left-color: rgba(204, 80, 0, 0.35);
+            border-top-color: rgba(204, 80, 0, 0.35);
+        }
+        html.light-theme .euro-expand-panel::after {
+            background: linear-gradient(90deg, #CC5000, #7B46BE 60%, transparent);
+        }
+        html.light-theme .euro-expand-head { color: #B84800; }
+        html.light-theme .euro-expand-head::after {
+            background: linear-gradient(90deg, rgba(184, 72, 0, 0.35), transparent);
+        }
+        html.light-theme .euro-expand-panel .euro-child-cards .card {
+            background: rgba(255, 255, 255, 0.78);
+            border-color: rgba(204, 80, 0, 0.18);
+        }
+        html.light-theme .euro-expand-panel .euro-child-cards .card:hover { border-color: #CC5000; }
+        html.light-theme .euro-expand-empty { color: #6a5a80; }
+        html.light-theme #euroExpandBtn[aria-expanded="true"] {
+            border-color: #CC5000;
+            color: #CC5000;
+        }
+        #dashboardCards.reorder-mode .euro-expand-panel { display: none !important; }
+        @media (prefers-reduced-motion: reduce) {
+            .euro-expand-panel,
+            .euro-expand-panel::before,
+            .euro-expand-panel::after,
+            #euroExpandBtn .euro-chevron { transition: none; }
+            .euro-expand-panel.is-open .euro-child-cards .card { animation: none; }
         }
 
         /* ── Auth overlay ─────────────────────────────────────── */
@@ -402,6 +573,7 @@
                 <ul>
                     <li id="navUserEmail" style="font-size:0.82rem;color:#5ABBC8;pointer-events:none;"></li>
                     <li><a href="/profilo">Il mio profilo</a></li>
+                    <li id="navIdee"><a href="/idee">Idee e proposte</a></li>
                     <li id="navBellWrap" class="nav-bell-wrap" style="display:none;">
                         <button type="button" class="nav-bell-btn" id="navBellBtn" aria-label="Notifiche" title="Notifiche">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm8-6V11a8 8 0 1 0-16 0v5l-2 2v1h20v-1l-2-2z"/></svg>
@@ -452,17 +624,11 @@
                 <p>Carica CSV, Excel o PDF: profilo, transazioni wallet, IP di accesso e riassunto con grafici.</p>
                 <a href="/analisi-report" class="btn btn-outline">Apri strumento</a>
             </div>
-            <div class="card" data-card="apinga">
-                <div class="icon"><img src="/icons/line/globe.svg" alt=""></div>
-                <h3>Apinga</h3>
-                <p>OSINT e data enrichment su IP, URL, email, malware e API di intelligence (GUI e API locale).</p>
-                <a href="http://192.168.4.80:5001" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
-            </div>
             <div class="card" data-card="chainholder">
                 <div class="icon"><img src="/icons/line/folder-lock.svg" alt=""></div>
                 <h3>Chainholder</h3>
                 <p>Accesso alla documentazione interna, procedure operative, normative di riferimento e archivio sicuro dei dati sensibili.</p>
-                <a href="http://192.168.1.73:3000/dashboard/requests" data-sso-tool="chainholder" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                <a href="/sso-launch.html?tool=chainholder&amp;next=http%3A%2F%2F192.168.1.73%3A3000%2Fdashboard%2Frequests" data-sso-tool="chainholder" data-sso-next="http://192.168.1.73:3000/dashboard/requests" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
             <div class="card" data-card="cluster">
                 <div class="icon"><img src="/icons/line/layer-group.svg" alt=""></div>
@@ -480,31 +646,19 @@
                 <div class="icon"><img src="/icons/line/desktop.svg" alt=""></div>
                 <h3>CryptoMonitor</h3>
                 <p>Monitoraggio operativo delle attività crypto su servizio dedicato esterno al portale.</p>
-                <a href="https://192.168.4.80:5173" data-sso-tool="cryptomonitor" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                <a href="/sso-launch.html?tool=cryptomonitor&amp;next=https%3A%2F%2F192.168.4.80%3A5173" data-sso-tool="cryptomonitor" data-sso-next="https://192.168.4.80:5173" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
-            <div class="card" data-card="cryptoscanner">
-                <div class="icon"><img src="/icons/line/file-search-alt.svg" alt=""></div>
-                <h3>CryptoScanner</h3>
-                <p>Scansione di file in chiaro per indirizzi crypto, seed phrase e hash di transazione.</p>
-                <a href="/cryptoscanner" class="btn btn-outline">Apri strumento</a>
+            <div class="card" data-card="la-bibbia">
+                <div class="icon"><img src="/icons/line/diary.svg" alt=""></div>
+                <h3>LA BIBBIA 3.1</h3>
+                <p>Rubrica contatti exchange, PEC e modalità di richiesta informazioni alle piattaforme.</p>
+                <a href="/la-bibbia" class="btn btn-outline">Apri strumento</a>
             </div>
-            <div class="card" data-card="xpublicator">
+            <div class="card" data-card="seed-phrase">
                 <div class="icon"><img src="/icons/line/key-skeleton.svg" alt=""></div>
-                <h3>Xpublicator</h3>
-                <p>Derivazione indirizzi da xpub/ypub/zpub, ricerca del path e conversione tra formati di chiave.</p>
-                <a href="/xpublicator" class="btn btn-outline">Apri strumento</a>
-            </div>
-            <div class="card" data-card="gelato">
-                <div class="icon"><img src="/icons/line/map-marker.svg" alt=""></div>
-                <h3>GELATO</h3>
-                <p>Geolocalizzazione e timeline da metadati foto, GPX e file di posizione.</p>
-                <a href="http://192.168.4.80:5005" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
-            </div>
-            <div class="card" data-card="li-tools">
-                <div class="icon"><img src="/icons/line/file-network.svg" alt=""></div>
-                <h3>LI Tools</h3>
-                <p>Parser ETSI LI HI3 (PCAP/WAV/testo) e conversione PCAP → HI3 per Lawful Interception.</p>
-                <a href="/li-tools" class="btn btn-outline">Apri strumento</a>
+                <h3>Seed Phrase</h3>
+                <p>Compilazione del modulo PDF seed phrase BIP39 con passphrase, PIN e dati di conservazione.</p>
+                <a href="/seed-phrase" class="btn btn-outline">Apri strumento</a>
             </div>
             <div class="card" data-card="materiali">
                 <div class="icon"><img src="/icons/line/books.svg" alt=""></div>
@@ -512,23 +666,73 @@
                 <p>Accesso all’archivio materiali e risorse operative sul servizio dedicato esterno.</p>
                 <a href="https://192.168.4.80:5174" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
-            <div class="card" data-card="siena">
-                <div class="icon"><img src="/icons/line/envelope.svg" alt=""></div>
-                <h3>SIENA Constructor</h3>
-                <p>Redazione strutturata di messaggi SIENA in inglese: persone, veicoli, documenti e altri oggetti.</p>
-                <a href="/siena-constructor/" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            <div class="card" data-card="monitoring">
+                <div class="icon"><img src="/icons/line/monitor.svg" alt=""></div>
+                <h3>Monitoring</h3>
+                <p>Monitoraggio indirizzi wallet: proprietari e balance in tempo reale</p>
+                <a href="/sso-launch.html?tool=monitoring&amp;next=http%3A%2F%2Flocalhost%3A5002%2Fholdertrack%2Fmonitor.php" data-sso-tool="monitoring" data-sso-next="http://localhost:5002/holdertrack/monitor.php" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
             </div>
-            <div class="card" data-card="terra">
-                <div class="icon"><img src="/icons/line/map.svg" alt=""></div>
-                <h3>Terra</h3>
-                <p>Geolocalizzazione di foto: stima Paese, città e coordinate con mappa e livello di confidenza.</p>
-                <a href="http://192.168.4.80:7860" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            <div class="card" data-card="tools-europol">
+                <div class="icon"><img src="/icons/line/briefcase.svg" alt=""></div>
+                <h3>Tools Europol</h3>
+                <p>Suite strumenti Europol: Apinga, CryptoScanner, Xpublicator, GELATO, LI Tools, SIENA, Terra e Vysion.</p>
+                <button type="button" class="btn btn-outline" id="euroExpandBtn" aria-expanded="false" aria-controls="euroExpandPanel"><span class="euro-label">Espandi</span><svg class="euro-chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
-            <div class="card" data-card="vysion">
-                <div class="icon"><img src="/icons/line/shield-exclamation.svg" alt=""></div>
-                <h3>Vysion</h3>
-                <p>Monitoraggio siti leak ransomware: gruppi, vittime e screenshot raccolti via Tor.</p>
-                <a href="http://192.168.4.80:3002" data-sso-tool="vysion" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+            <div class="euro-expand-panel" id="euroExpandPanel" hidden>
+              <div class="euro-expand-inner">
+                <div class="euro-expand-head">Strumenti Europol</div>
+                <div class="cards euro-child-cards" id="euroChildCards">
+                    <div class="card" data-card="apinga">
+                        <div class="icon"><img src="/icons/line/globe.svg" alt=""></div>
+                        <h3>Apinga</h3>
+                        <p>OSINT e data enrichment su IP, URL, email, malware e API di intelligence (GUI e API locale).</p>
+                        <a href="http://192.168.4.80:5001" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="cryptoscanner">
+                        <div class="icon"><img src="/icons/line/file-search-alt.svg" alt=""></div>
+                        <h3>CryptoScanner</h3>
+                        <p>Scansione di file in chiaro per indirizzi crypto, seed phrase e hash di transazione.</p>
+                        <a href="/cryptoscanner" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="xpublicator">
+                        <div class="icon"><img src="/icons/line/key-skeleton.svg" alt=""></div>
+                        <h3>Xpublicator</h3>
+                        <p>Derivazione indirizzi da xpub/ypub/zpub, ricerca del path e conversione tra formati di chiave.</p>
+                        <a href="/xpublicator" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="gelato">
+                        <div class="icon"><img src="/icons/line/map-marker.svg" alt=""></div>
+                        <h3>GELATO</h3>
+                        <p>Geolocalizzazione e timeline da metadati foto, GPX e file di posizione.</p>
+                        <a href="http://192.168.4.80:5005" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="li-tools">
+                        <div class="icon"><img src="/icons/line/file-network.svg" alt=""></div>
+                        <h3>LI Tools</h3>
+                        <p>Parser ETSI LI HI3 (PCAP/WAV/testo) e conversione PCAP → HI3 per Lawful Interception.</p>
+                        <a href="/li-tools" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="siena">
+                        <div class="icon"><img src="/icons/line/envelope.svg" alt=""></div>
+                        <h3>SIENA Constructor</h3>
+                        <p>Redazione strutturata di messaggi SIENA in inglese: persone, veicoli, documenti e altri oggetti.</p>
+                        <a href="/siena-constructor/" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="terra">
+                        <div class="icon"><img src="/icons/line/map.svg" alt=""></div>
+                        <h3>Terra</h3>
+                        <p>Geolocalizzazione di foto: stima Paese, città e coordinate con mappa e livello di confidenza.</p>
+                        <a href="http://192.168.4.80:7860" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                    <div class="card" data-card="vysion">
+                        <div class="icon"><img src="/icons/line/shield-exclamation.svg" alt=""></div>
+                        <h3>Vysion</h3>
+                        <p>Monitoraggio siti leak ransomware: gruppi, vittime e screenshot raccolti via Tor.</p>
+                        <a href="/sso-launch.html?tool=vysion&amp;next=http%3A%2F%2F192.168.4.80%3A3002" data-sso-tool="vysion" data-sso-next="http://192.168.4.80:3002" target="_blank" rel="noopener noreferrer" class="btn btn-outline">Apri strumento</a>
+                    </div>
+                </div>
+                <p class="euro-expand-empty" id="euroExpandEmpty">Nessuno strumento Europol assegnato al tuo profilo.</p>
+              </div>
             </div>
             <div class="card is-admin" data-card="gestione-utenti" style="display:none;">
                 <span class="card-admin-badge">Admin</span>
@@ -557,9 +761,9 @@
     </div>
 
 
-    <script src="auth-token.js?v=2"></script>
-    <script src="portal-sso.js?v=2"></script>
-    <script src="nav-notifications.js?v=5"></script>
+    <script src="auth-token.js?v=3"></script>
+    <script src="portal-sso.js?v=5"></script>
+    <script src="nav-notifications.js?v=57"></script>
     <script src="portal-onboarding.js?v=10"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
@@ -574,31 +778,33 @@
             _currentUser = await res.json();
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('navUserEmail').textContent = _currentUser.displayName || _currentUser.email || '';
+            const navIdee = document.getElementById('navIdee');
+            if (navIdee) navIdee.hidden = _currentUser.accountType === 'strumento';
             applyDashboardCards(_currentUser);
             setupCardSearch();
             setupCardReorder(_currentUser);
             if (typeof bindPortalSsoLinks === 'function') bindPortalSsoLinks();
             const welcomeTitle = document.getElementById('welcomeTitle');
             const welcomeSub = document.getElementById('welcomeSub');
+            let username = String(_currentUser.username || '').trim();
+            let nomeReale = '';
+            try {
+                const pref = await fetch('/api/auth/my-profile', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (pref.ok) {
+                    const p = await pref.json();
+                    if (!username) username = String(p.username || '').trim();
+                    nomeReale = String(p.nome || '').trim();
+                }
+            } catch { /* titolo di default */ }
+            const saluto = username || nomeReale || (_currentUser.email || '').split('@')[0];
             if (_currentUser.role === 'superadmin') {
-                welcomeTitle.textContent = 'Benvenuto Super Admin';
+                welcomeTitle.textContent = 'Super Admin';
                 welcomeTitle.style.color = '#FF6B7A';
                 welcomeSub.style.display = 'none';
-            } else {
-                try {
-                    const pref = await fetch('/api/auth/my-profile', {
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
-                    if (pref.ok) {
-                        const p = await pref.json();
-                        const nomeUtente = (p.nome || '').trim()
-                            || (_currentUser.email || '').split('@')[0];
-                        if (nomeUtente) {
-                            welcomeTitle.textContent =
-                                'Benvenuto nel portale operativo, ' + nomeUtente;
-                        }
-                    }
-                } catch { /* titolo di default */ }
+            } else if (saluto) {
+                welcomeTitle.textContent = 'Benvenuto nel portale operativo, ' + saluto;
             }
             initNavBell();
             if (typeof PortalOnboarding !== 'undefined') PortalOnboarding.maybeShow(_currentUser);
@@ -615,14 +821,61 @@
         });
     }
 
-    /** Ordine HTML originale delle schede (prima di eventuali personalizzazioni). */
-    const DEFAULT_CARD_ORDER = Array.from(
-        document.querySelectorAll('#dashboardCards .card[data-card]')
-    ).map((c) => c.getAttribute('data-card'));
+    const CARD_ALWAYS_LAST = 'gestione-utenti';
+
+    function dashboardCardElements() {
+        return Array.from(document.querySelectorAll('#dashboardCards > .card[data-card]'));
+    }
+
+    function cardTitleForSort(cardEl) {
+        const h3 = cardEl.querySelector('h3');
+        return (h3 ? h3.textContent : cardEl.getAttribute('data-card') || '').trim();
+    }
+
+    function compareDashboardCardsByTitle(a, b) {
+        const idA = a.getAttribute('data-card');
+        const idB = b.getAttribute('data-card');
+        if (idA === CARD_ALWAYS_LAST) return 1;
+        if (idB === CARD_ALWAYS_LAST) return -1;
+        const cmp = cardTitleForSort(a).localeCompare(cardTitleForSort(b), 'it', { sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+        return String(idA).localeCompare(String(idB), 'it');
+    }
+
+    /** Ordine predefinito: alfabetico per titolo (Gestione Utenti sempre in fondo). */
+    const DEFAULT_CARD_ORDER = dashboardCardElements()
+        .sort(compareDashboardCardsByTitle)
+        .map((c) => c.getAttribute('data-card'));
+
+    /** Inserisce le schede nuove (non in ordine salvato) nella posizione alfabetica corretta. */
+    function mergeSavedCardOrderWithAlphabetical(savedOrder) {
+        const allIds = DEFAULT_CARD_ORDER.slice();
+        let order = (savedOrder || []).filter((id) => allIds.includes(id));
+        const missing = allIds.filter((id) => !order.includes(id));
+        const grid = document.getElementById('dashboardCards');
+        for (const id of missing) {
+            const el = grid && grid.querySelector(':scope > .card[data-card="' + id + '"]');
+            if (!el) continue;
+            let insertAt = order.length;
+            for (let i = 0; i < order.length; i++) {
+                const other = grid.querySelector(':scope > .card[data-card="' + order[i] + '"]');
+                if (other && compareDashboardCardsByTitle(el, other) < 0) {
+                    insertAt = i;
+                    break;
+                }
+            }
+            order.splice(insertAt, 0, id);
+        }
+        if (order.includes(CARD_ALWAYS_LAST)) {
+            order = order.filter((x) => x !== CARD_ALWAYS_LAST);
+            order.push(CARD_ALWAYS_LAST);
+        }
+        return order;
+    }
 
     function defaultVisibleCardOrder() {
         return DEFAULT_CARD_ORDER.filter((id) => {
-            const el = document.querySelector('#dashboardCards .card[data-card="' + id + '"]');
+            const el = document.querySelector('#dashboardCards > .card[data-card="' + id + '"]');
             return el && el.dataset.allowed === '1';
         });
     }
@@ -647,26 +900,152 @@
         const grid = document.getElementById('dashboardCards');
         if (!grid) return;
         DEFAULT_CARD_ORDER.forEach((id) => {
-            const card = grid.querySelector('.card[data-card="' + id + '"]');
+            const card = grid.querySelector(':scope > .card[data-card="' + id + '"]');
             if (card) grid.appendChild(card);
         });
+        syncEuroExpandPanelPosition();
     }
 
     /** Visibilità schede: allowlist utente + Gestione Utenti solo per admin/superadmin.
-     *  Super Admin: tutte le schede. */
+     *  Super Admin: tutte le schede.
+     *  Tools Europol: visibile se assegnata, oppure se ha almeno uno strumento figlio. */
+    const EUROTOOLS_CHILDREN = [
+        'apinga', 'cryptoscanner', 'xpublicator', 'gelato', 'li-tools', 'siena', 'terra', 'vysion',
+    ];
+
+    /** Posiziona il pannello dopo l'ULTIMA scheda della riga che contiene Tools Europol:
+     *  le schede accanto restano al loro posto, scendono solo quelle delle righe successive. */
+    function syncEuroExpandPanelPosition() {
+        const grid = document.getElementById('dashboardCards');
+        const card = grid && grid.querySelector(':scope > .card[data-card="tools-europol"]');
+        const panel = document.getElementById('euroExpandPanel');
+        if (!grid || !card || !panel) return;
+
+        // Misura le righe senza il pannello nel flusso
+        const prevDisplay = panel.style.display;
+        panel.style.display = 'none';
+        const visible = Array.from(grid.querySelectorAll(':scope > .card[data-card]'))
+            .filter((c) => c.style.display !== 'none');
+        const rowTop = card.offsetTop;
+        let last = card;
+        visible.forEach((c) => {
+            if (Math.abs(c.offsetTop - rowTop) < 2) last = c;
+        });
+        if (last.nextElementSibling !== panel) last.after(panel);
+        panel.style.display = prevDisplay;
+
+        // Freccia di collegamento allineata sotto la scheda Tools Europol
+        const gridRect = grid.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const arrowLeft = Math.max(16, Math.round(cardRect.left - gridRect.left + 36));
+        panel.style.setProperty('--euro-arrow-left', arrowLeft + 'px');
+    }
+
+    function setEuroExpanded(open) {
+        const panel = document.getElementById('euroExpandPanel');
+        const btn = document.getElementById('euroExpandBtn');
+        if (!panel || !btn) return;
+        const grid = document.getElementById('dashboardCards');
+        if (grid && grid.classList.contains('reorder-mode')) open = false;
+        open = !!open;
+        const wasOpen = panel.classList.contains('is-open');
+        if (open === wasOpen && (open || panel.hasAttribute('hidden'))) return;
+
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        const label = btn.querySelector('.euro-label');
+        if (label) label.textContent = open ? 'Comprimi' : 'Espandi';
+        else btn.textContent = open ? 'Comprimi' : 'Espandi';
+
+        if (panel._euroCloseTimer) {
+            clearTimeout(panel._euroCloseTimer);
+            panel._euroCloseTimer = null;
+        }
+
+        if (open) {
+            syncEuroExpandPanelPosition();
+            panel.removeAttribute('hidden');
+            applyEuroChildVisibility(true);
+            // Forza il reflow così la transizione parte dallo stato chiuso
+            void panel.offsetHeight;
+            panel.classList.add('is-open');
+        } else {
+            panel.classList.remove('is-open');
+            const finish = () => {
+                panel._euroCloseTimer = null;
+                if (!panel.classList.contains('is-open')) {
+                    panel.setAttribute('hidden', '');
+                    applyEuroChildVisibility();
+                    requestAnimationFrame(syncCardsToolbarAlign);
+                }
+            };
+            panel._euroCloseTimer = setTimeout(finish, 460);
+        }
+        requestAnimationFrame(syncCardsToolbarAlign);
+    }
+
+    function applyEuroChildPermissions(user) {
+        const isSuper = user.role === 'superadmin';
+        const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
+        const hub = isSuper || allowed.has('tools-europol');
+        document.querySelectorAll('#euroChildCards .card[data-card]').forEach((card) => {
+            const id = card.getAttribute('data-card');
+            const show = hub || allowed.has(id);
+            card.dataset.allowed = show ? '1' : '0';
+        });
+        // Ordine alfabetico figli
+        const host = document.getElementById('euroChildCards');
+        if (host) {
+            const kids = Array.from(host.querySelectorAll('.card[data-card]'));
+            kids.sort((a, b) => cardTitleForSort(a).localeCompare(cardTitleForSort(b), 'it', { sensitivity: 'base' }));
+            kids.forEach((c) => host.appendChild(c));
+        }
+    }
+
+    function applyEuroChildVisibility(forceOpen) {
+        const panel = document.getElementById('euroExpandPanel');
+        const empty = document.getElementById('euroExpandEmpty');
+        const input = document.getElementById('cardSearch');
+        const q = ((input && input.value) || '').trim().toLowerCase();
+        const open = !!forceOpen || !!(panel && panel.classList.contains('is-open'));
+        let shown = 0;
+        document.querySelectorAll('#euroChildCards .card[data-card]').forEach((card) => {
+            const allowed = card.dataset.allowed === '1';
+            const match = !q || cardSearchHaystack(card).includes(q);
+            const show = open && allowed && match;
+            card.style.display = show ? '' : 'none';
+            if (show) {
+                card.style.setProperty('--i', String(shown));
+                shown += 1;
+            }
+        });
+        if (empty) empty.classList.toggle('visible', open && shown === 0);
+    }
+
+    function euroParentSearchMatch(q) {
+        if (!q) return true;
+        const parent = document.querySelector('#dashboardCards > .card[data-card="tools-europol"]');
+        if (parent && cardSearchHaystack(parent).includes(q)) return true;
+        return Array.from(document.querySelectorAll('#euroChildCards .card[data-card]'))
+            .some((card) => card.dataset.allowed === '1' && cardSearchHaystack(card).includes(q));
+    }
+
     function applyDashboardCards(user) {
         const isSuper = user.role === 'superadmin';
         const isAdmin = isSuper || user.role === 'admin';
         const isStrumento = user.accountType === 'strumento';
         const allowed = new Set(Array.isArray(user.cards) ? user.cards : []);
-        document.querySelectorAll('#dashboardCards .card[data-card]').forEach(card => {
+        const hasEuroChild = EUROTOOLS_CHILDREN.some((id) => allowed.has(id));
+        document.querySelectorAll('#dashboardCards > .card[data-card]').forEach((card) => {
             const id = card.getAttribute('data-card');
             let show;
             if (id === 'gestione-utenti') show = isAdmin && !isStrumento;
-            else if (isStrumento) show = allowed.has(id);
+            else if (id === 'tools-europol') {
+                show = isSuper || allowed.has('tools-europol') || hasEuroChild;
+            } else if (isStrumento) show = allowed.has(id);
             else show = isSuper || allowed.has(id);
             card.dataset.allowed = show ? '1' : '0';
         });
+        applyEuroChildPermissions(user);
         applySavedCardOrder(user);
         applyCardSearchFilter();
         updateResetOrderButton();
@@ -692,13 +1071,33 @@
         if (clearBtn) clearBtn.classList.toggle('visible', !!q);
         if (input) input.classList.toggle('has-value', !!q);
         let shown = 0;
-        document.querySelectorAll('#dashboardCards .card[data-card]').forEach((card) => {
+        document.querySelectorAll('#dashboardCards > .card[data-card]').forEach((card) => {
+            const id = card.getAttribute('data-card');
             const allowed = card.dataset.allowed === '1';
-            const match = !q || cardSearchHaystack(card).includes(q);
+            let match = !q || cardSearchHaystack(card).includes(q);
+            if (id === 'tools-europol' && q) match = euroParentSearchMatch(q);
             const show = allowed && match;
             card.style.display = show ? '' : 'none';
             if (show) shown += 1;
         });
+
+        // Se la ricerca punta a uno strumento figlio, apri il pannello
+        if (q && euroParentSearchMatch(q)) {
+            const childHit = Array.from(document.querySelectorAll('#euroChildCards .card[data-card]'))
+                .some((c) => c.dataset.allowed === '1' && cardSearchHaystack(c).includes(q));
+            if (childHit) setEuroExpanded(true);
+        }
+
+        const euroCard = document.querySelector('#dashboardCards > .card[data-card="tools-europol"]');
+        const panel = document.getElementById('euroExpandPanel');
+        if (panel) {
+            const parentVisible = !!(euroCard && euroCard.style.display !== 'none' && euroCard.dataset.allowed === '1');
+            if (!parentVisible) setEuroExpanded(false);
+            panel.style.display = parentVisible ? '' : 'none';
+            if (parentVisible) syncEuroExpandPanelPosition();
+        }
+
+        applyEuroChildVisibility();
         if (empty) empty.classList.toggle('visible', !!q && shown === 0);
         requestAnimationFrame(syncCardsToolbarAlign);
     }
@@ -748,24 +1147,28 @@
     function applySavedCardOrder(user) {
         const grid = document.getElementById('dashboardCards');
         if (!grid) return;
-        const order = preferredCardOrder(user);
+        const saved = preferredCardOrder(user);
+        const order = saved.length ? mergeSavedCardOrderWithAlphabetical(saved) : [];
         if (!order.length) {
             applyDefaultCardOrder();
             return;
         }
         const rank = new Map(order.map((id, i) => [id, i]));
-        const cards = Array.from(grid.querySelectorAll('.card[data-card]'));
+        const cards = Array.from(grid.querySelectorAll(':scope > .card[data-card]'));
         cards.sort((a, b) => {
-            const ia = rank.has(a.dataset.card) ? rank.get(a.dataset.card) : 9999;
-            const ib = rank.has(b.dataset.card) ? rank.get(b.dataset.card) : 9999;
-            if (ia !== ib) return ia - ib;
-            return 0;
+            const ia = rank.get(a.dataset.card);
+            const ib = rank.get(b.dataset.card);
+            if (ia != null && ib != null && ia !== ib) return ia - ib;
+            if (ia != null && ib == null) return -1;
+            if (ia == null && ib != null) return 1;
+            return compareDashboardCardsByTitle(a, b);
         });
         cards.forEach((card) => grid.appendChild(card));
+        syncEuroExpandPanelPosition();
     }
 
     function currentVisibleCardOrder() {
-        return Array.from(document.querySelectorAll('#dashboardCards .card[data-card]'))
+        return Array.from(document.querySelectorAll('#dashboardCards > .card[data-card]'))
             .filter((c) => c.dataset.allowed === '1')
             .map((c) => c.getAttribute('data-card'));
     }
@@ -791,7 +1194,7 @@
         const grid = document.getElementById('dashboardCards');
         const toolbar = document.querySelector('.cards-toolbar');
         if (!grid || !toolbar) return;
-        const visible = Array.from(grid.querySelectorAll('.card[data-card]'))
+        const visible = Array.from(grid.querySelectorAll(':scope > .card[data-card]'))
             .filter((c) => c.style.display !== 'none');
         if (!visible.length) {
             toolbar.style.width = '';
@@ -807,7 +1210,7 @@
     }
 
     function insertionReferenceFromPoint(grid, dragEl, clientX, clientY) {
-        const others = Array.from(grid.querySelectorAll('.card[data-card]'))
+        const others = Array.from(grid.querySelectorAll(':scope > .card[data-card]'))
             .filter((c) => c !== dragEl && c.style.display !== 'none');
         if (!others.length) return null;
 
@@ -861,7 +1264,7 @@
         const resetBtn = document.getElementById('resetOrderBtn');
         if (!grid || !btn) return;
 
-        grid.querySelectorAll('.card[data-card]').forEach((card) => {
+        grid.querySelectorAll(':scope > .card[data-card]').forEach((card) => {
             if (card.querySelector('.card-drag-handle')) return;
             const handle = document.createElement('span');
             handle.className = 'card-drag-handle';
@@ -904,11 +1307,12 @@
                     search.value = '';
                     applyCardSearchFilter();
                 }
+                setEuroExpanded(false);
             }
             grid.classList.toggle('reorder-mode', on);
             btn.classList.toggle('active', on);
             btn.textContent = on ? 'Fine' : 'Modifica ordine';
-            grid.querySelectorAll('.card[data-card]').forEach((card) => {
+            grid.querySelectorAll(':scope > .card[data-card]').forEach((card) => {
                 const visible = card.dataset.allowed === '1';
                 card.draggable = on && visible;
             });
@@ -982,6 +1386,7 @@
             } else if (dragEl.nextSibling !== ref) {
                 grid.insertBefore(dragEl, ref);
             }
+            syncEuroExpandPanelPosition();
             grid.querySelectorAll('.card.drag-over').forEach((c) => c.classList.remove('drag-over'));
             const highlight = (ref && ref.nodeType === 1 && ref.classList && ref.classList.contains('card'))
                 ? ref
@@ -1022,9 +1427,30 @@
         }
     }
 
-    document.querySelectorAll('#dashboardCards .card.is-soon a.btn').forEach((a) => {
+    document.querySelectorAll('#dashboardCards > .card.is-soon a.btn').forEach((a) => {
         a.addEventListener('click', (e) => e.preventDefault());
     });
+
+    (function setupEuroExpand() {
+        const btn = document.getElementById('euroExpandBtn');
+        if (!btn) return;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const open = btn.getAttribute('aria-expanded') === 'true';
+            setEuroExpanded(!open);
+        });
+        syncEuroExpandPanelPosition();
+        // Al resize la composizione delle righe cambia: riposiziona il pannello
+        let rafId = null;
+        window.addEventListener('resize', () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                syncEuroExpandPanelPosition();
+            });
+        });
+    })();
 
     // ── Easter egg: logo hover + frase → scritta, nessun privilegio ──
     // La frase NON è nel client: si digita a memoria; il server verifica lo SHA-256.

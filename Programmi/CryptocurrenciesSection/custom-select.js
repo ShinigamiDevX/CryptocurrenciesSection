@@ -20,6 +20,7 @@ class CustomSelect {
         this.showImages  = cfg.showImages !== false;
         // Di default tutti i menu sono digitabili (filtro mentre si scrive)
         this.searchable  = cfg.searchable !== false;
+        this.filterMode  = cfg.filterMode === 'prefix' ? 'prefix' : 'words';
         this.showBtnSublabel = cfg.showBtnSublabel !== false;
         this.showOptionSublabel = cfg.showOptionSublabel !== false;
         this._value      = cfg.value || '';
@@ -96,6 +97,9 @@ class CustomSelect {
         return this.options.filter(o => {
             const label = CustomSelect._norm(o.label);
             const value = CustomSelect._norm(o.value);
+            if (this.filterMode === 'prefix') {
+                return label.startsWith(q) || value.startsWith(q);
+            }
             const sub = CustomSelect._norm(o.sublabel);
             const labelDigits = label.replace(/^\+/, '');
             return label.startsWith(q)

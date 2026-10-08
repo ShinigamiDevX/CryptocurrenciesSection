@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 
-excel_path = r'C:\Users\Admin\Desktop\Portale\Programmi\CryptocurrenciesSection\cluster\dashboard\uploads\1778658057856-binance.xlsx'
+excel_path = '/home/user/Scrivania/cluster/dashboard/uploads/1778658057856-binance.xlsx'
 warnings_path = '/tmp/cluster_binance_test.warnings.txt'
 
 # 1. Read Excel and find column names

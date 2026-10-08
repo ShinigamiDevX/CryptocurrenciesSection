@@ -30,8 +30,17 @@ services:
     restart: unless-stopped
     env_file:
       - cluster.env
+    # Dashboard HTTPS (cert firmato dalla Portale LAN CA) raggiunta direttamente dalla scheda Cluster
+    ports:
+      - "3444:3444"
     volumes:
       - ./cluster/dashboard/uploads:/app/dashboard/uploads
+      - ./cluster/cluster_utils.py:/app/cluster_utils.py:ro
+      - ./cluster/cluster_binance.py:/app/cluster_binance.py:ro
+      - ./cluster/cluster_kucoin.py:/app/cluster_kucoin.py:ro
+      - ./cluster/cluster_bybit.py:/app/cluster_bybit.py:ro
+      - ./cluster/cluster_okx.py:/app/cluster_okx.py:ro
+      - ./cluster/dashboard/public/style.css:/app/dashboard/public/style.css:ro
 
   auth:
     build:
@@ -47,6 +56,13 @@ services:
       - CHAINHOLDER_URL=${CHAINHOLDER_URL:-http://192.168.1.73:3000}
       - CRYPTOMONITOR_URL=${CRYPTOMONITOR_URL:-https://192.168.4.80:5173}
       - CORSI_DIR=/app/corsi
+      - EMOJI_DIR=/app/emoji
+      - SEED_PHRASE_CONVERT=libreoffice
+      - SEED_PHRASE_DOCX=/app/templates/SEED PHRASE.docx
+      - SEED_PHRASE_BIP39=/app/templates/bip39words.json
+      - BACKUP_DIR=/app/backups
+      - BACKUP_INTERVAL_MS=86400000
+      - BACKUP_KEEP=14
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_SECURE=${SMTP_SECURE:-false}
@@ -54,12 +70,23 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-}
       - ELEVATE_PHRASE_HASH=${ELEVATE_PHRASE_HASH:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-}
     volumes:
       - ./auth/data:/app/data
+      - ./auth/backups:/app/backups
       - ./corsi:/app/corsi
+      - ./emoji:/app/emoji:ro
       - ./auth/server.js:/app/server.js:ro
       - ./auth/db.js:/app/db.js:ro
+      - ./auth/telegram-criptogram.js:/app/telegram-criptogram.js:ro
       - ./auth/corsi-content.js:/app/corsi-content.js:ro
+      - ./auth/bibbia-routes.js:/app/bibbia-routes.js:ro
+      - ./auth/bibbia-import.js:/app/bibbia-import.js:ro
+      - ./auth/seed-phrase-generate.js:/app/seed-phrase-generate.js:ro
+      - ./files/SEED PHRASE.docx:/app/templates/SEED PHRASE.docx:ro
+      - ./files/bip39words.json:/app/templates/bip39words.json:ro
+      - ./auth/fonts:/usr/share/fonts/truetype/times:ro
 
   analisi:
     build:

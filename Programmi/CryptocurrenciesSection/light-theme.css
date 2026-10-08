@@ -66,6 +66,23 @@ html.light-theme {
     --color-muted: #8B5E00;
 }
 
+/* Scrollbar tema chiaro (arancio su crema) */
+html.light-theme *,
+html.light-theme {
+    scrollbar-color: rgba(255, 140, 0, 0.5) rgba(255, 248, 237, 0.95) !important;
+}
+html.light-theme *::-webkit-scrollbar-track,
+html.light-theme *::-webkit-scrollbar-corner {
+    background: rgba(255, 248, 237, 0.95) !important;
+}
+html.light-theme *::-webkit-scrollbar-thumb {
+    background: rgba(255, 140, 0, 0.42) !important;
+    border-color: rgba(255, 248, 237, 0.95) !important;
+}
+html.light-theme *::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 122, 0, 0.65) !important;
+}
+
 html.light-theme,
 html.light-theme body {
     background-color: #FFF8ED !important;
@@ -124,6 +141,16 @@ html.light-theme .nav-home:hover {
     color: #FF7A00 !important;
 }
 
+html.light-theme .nav-bell-badge,
+html.light-theme #navMsgBadge.nav-bell-badge {
+    background: #E53935 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 html.light-theme .nav-bell-panel,
 html.light-theme #navBellPanel {
     background: #fff8ed !important;
@@ -148,9 +175,15 @@ html.light-theme .nav-bell-item {
 }
 
 html.light-theme #navBellPanel .nav-bell-item span,
+html.light-theme #navBellPanel .nav-bell-actor,
+html.light-theme #navBellPanel .nav-bell-topic,
 html.light-theme #navBellPanel .nav-bell-empty {
     color: #8B5E00 !important;
 }
+html.light-theme #navBellPanel .nav-bell-detail strong { color: #2C1A00 !important; }
+html.light-theme #navBellPanel .nav-bell-detail-body { color: #4A3208 !important; }
+html.light-theme #navBellPanel .nav-bell-detail-back,
+html.light-theme #navBellPanel .nav-bell-detail-open { color: #CC5000 !important; }
 
 html.light-theme #navBellPanel .nav-bell-item.unread {
     background: rgba(255, 122, 0, 0.08) !important;

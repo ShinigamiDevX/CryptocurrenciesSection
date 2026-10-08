@@ -10,10 +10,10 @@
     <script src="seasonal-theme.js?v=5"></script>
     <link rel="stylesheet" href="seasonal-theme.css?v=24">
     <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light-theme')}catch(e){}</script>
-    <link rel="stylesheet" href="light-theme.css?v=14">
+    <link rel="stylesheet" href="light-theme.css?v=17">
     <script src="light-theme.js?v=1"></script>
-    <link rel="stylesheet" href="style.css?v=7">
-    <link rel="stylesheet" href="custom-select.css?v=8">
+    <link rel="stylesheet" href="style.css?v=12">
+    <link rel="stylesheet" href="custom-select.css?v=5">
     <link rel="stylesheet" href="custom-date.css?v=8">
     <link rel="stylesheet" href="luogo-nascita.css?v=5">
     <style>
@@ -30,7 +30,7 @@
         .nav-bell-badge {
             position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
             padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
-            line-height: 17px; text-align: center; border-radius: 9px; display: none;
+            line-height: 17px; text-align: center; border-radius: 9px; border:none!important;outline:none!important;box-shadow:none!important;display: none;
         }
         .nav-bell-badge.visible { display: block; }
         #navBellPanel {
@@ -195,6 +195,20 @@
         .btn-reset:hover { background:rgba(255,184,77,0.25); }
         .btn-unlock { background:rgba(0,230,118,0.12); border:1px solid rgba(0,230,118,0.35); color:#00E676; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
         .btn-unlock:hover { background:rgba(0,230,118,0.25); }
+        .btn-lock { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.55); color:#FFFFFF; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; margin:0; }
+        .btn-lock:hover { background:rgba(255,255,255,0.16); border-color:#FFFFFF; }
+        html.light-theme .btn-lock {
+            background: rgba(44,26,0,0.06); border: 1px solid rgba(44,26,0,0.55); color: #1A1000;
+        }
+        html.light-theme .btn-lock:hover {
+            background: rgba(44,26,0,0.12); border-color: #1A1000;
+        }
+        html.light-theme .btn-reset {
+            background: rgba(204,80,0,0.12); border: 1px solid rgba(204,80,0,0.55); color: #B34800; font-weight: 700;
+        }
+        html.light-theme .btn-reset:hover {
+            background: rgba(204,80,0,0.2); border-color: #CC5000; color: #8A3200;
+        }
         .btn-ok-sm  { padding:0.45rem 1rem; background:linear-gradient(135deg,#00C8FF,#00E676); border:none; border-radius:6px; color:#030E1C; font-weight:700; font-size:0.85rem; cursor:pointer; }
         .btn-rej { background:rgba(255,71,87,0.15); border:1px solid rgba(255,71,87,0.35); color:#FF6B7A; font-size:0.78rem; padding:0.3rem 0.75rem; border-radius:5px; cursor:pointer; }
         .btn-rej:hover { background:rgba(255,71,87,0.28); }
@@ -748,9 +762,21 @@
             background: linear-gradient(180deg, rgba(0,200,255,0.05), rgba(3,14,28,0.35));
             box-shadow: 0 0 0 1px rgba(0,200,255,0.06), 0 12px 32px rgba(0,0,0,0.28);
         }
+        .bulk-matrix-wrap {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,200,255,0.45) rgba(0,18,36,0.95);
+        }
         .bulk-matrix-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+        .bulk-matrix-wrap::-webkit-scrollbar-track { background: rgba(0,18,36,0.95); border-radius: 8px; }
         .bulk-matrix-wrap::-webkit-scrollbar-thumb {
-            background: rgba(0,200,255,0.28); border-radius: 6px;
+            background: rgba(0,200,255,0.4); border-radius: 6px;
+            border: 2px solid rgba(0,18,36,0.95); background-clip: padding-box;
+        }
+        .bulk-matrix-wrap::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+        html.light-theme .bulk-matrix-wrap { scrollbar-color: rgba(255,140,0,0.5) rgba(255,248,237,0.95); }
+        html.light-theme .bulk-matrix-wrap::-webkit-scrollbar-track { background: rgba(255,248,237,0.95); }
+        html.light-theme .bulk-matrix-wrap::-webkit-scrollbar-thumb {
+            background: rgba(255,140,0,0.45); border-color: rgba(255,248,237,0.95);
         }
         .bulk-matrix {
             width: max-content;
@@ -1131,10 +1157,10 @@
             <div class="inv-list" id="invList"></div>
         </div>
 
-        <!-- Tab: Approvazioni (modifiche profilo + azioni admin) -->
+        <!-- Tab: Approvazioni (modifiche profilo richieste dagli utenti) -->
         <div class="tab-panel" id="tab-approvals">
             <div class="feedback" id="requestsMsg"></div>
-            <p class="tab-section-hint">Richieste in attesa. Ruolo e profilo: Super Admin oppure altri due admin. Visibilità: solo Super Admin.</p>
+            <p class="tab-section-hint">Richieste di modifica profilo inviate dagli utenti. Admin e Super Admin possono approvare o rifiutare.</p>
             <div id="approvalsList"></div>
         </div>
 
@@ -1282,13 +1308,13 @@
 
     <footer><p>Uso interno riservato. Accesso non autorizzato è perseguibile a norma di legge.</p></footer>
 
-    <script src="auth-token.js?v=2"></script>
-    <script src="custom-select.js?v=12"></script>
+    <script src="auth-token.js?v=3"></script>
+    <script src="custom-select.js?v=13"></script>
     <script src="custom-date.js?v=6"></script>
-    <script src="luogo-nascita.js?v=9"></script>
+    <script src="luogo-nascita.js?v=10"></script>
     <script src="telefono-field.js?v=7"></script>
     <script src="profile-fields.js?v=5"></script>
-    <script src="nav-notifications.js?v=5"></script>
+    <script src="nav-notifications.js?v=57"></script>
     <script>
     // ── Auth ──────────────────────────────────────────────────────────────────
     let _currentUser = null;
@@ -1303,12 +1329,16 @@
         { id: 'corsi', label: 'Corsi', short: 'Corsi', icon: '/icons/line/graduation-cap.svg' },
         { id: 'cryptomonitor', label: 'CryptoMonitor', short: 'CryptoMonitor', icon: '/icons/line/desktop.svg' },
         { id: 'cryptoscanner', label: 'CryptoScanner', short: 'CryptoScanner', icon: '/icons/line/file-search-alt.svg' },
+        { id: 'la-bibbia', label: 'LA BIBBIA 3.1', short: 'BIBBIA 3.1', icon: '/icons/line/diary.svg' },
+        { id: 'seed-phrase', label: 'Seed Phrase', short: 'Seed Phrase', icon: '/icons/line/key-skeleton.svg' },
         { id: 'xpublicator', label: 'Xpublicator', short: 'Xpublicator', icon: '/icons/line/key-skeleton.svg' },
         { id: 'gelato', label: 'GELATO', short: 'GELATO', icon: '/icons/line/map-marker.svg' },
         { id: 'li-tools', label: 'LI Tools', short: 'LI Tools', icon: '/icons/line/file-network.svg' },
         { id: 'materiali', label: 'Materiali', short: 'Materiali', icon: '/icons/line/books.svg' },
+        { id: 'monitoring', label: 'Monitoring', short: 'Monitoring', icon: '/icons/line/monitor.svg' },
         { id: 'siena', label: 'SIENA Constructor', short: 'SIENA', icon: '/icons/line/envelope.svg' },
         { id: 'terra', label: 'Terra', short: 'Terra', icon: '/icons/line/map.svg' },
+        { id: 'tools-europol', label: 'Tools Europol', short: 'Tools Europol', icon: '/icons/line/briefcase.svg' },
         { id: 'vysion', label: 'Vysion', short: 'Vysion', icon: '/icons/line/shield-exclamation.svg' },
     ];
     const CARD_LABEL = Object.fromEntries(ASSIGNABLE_CARDS.map(c => [c.id, c.label]));
@@ -1590,16 +1620,12 @@
         });
     }
 
-    // Campanella: nav-notifications.js — aggiorna anche badge tab Modifiche Profilo
+    // Campanella: nav-notifications.js — aggiorna anche badge tab Approvazioni
     async function refreshRequestsBadge() {
         try {
-            const [pcrRes, aarRes] = await Promise.all([
-                fetch('/api/auth/profile-change-requests', { headers: authHeader() }),
-                fetch('/api/auth/admin-requests', { headers: authHeader() }),
-            ]);
+            const pcrRes = await fetch('/api/auth/profile-change-requests', { headers: authHeader() });
             const pcr = pcrRes.ok ? await pcrRes.json() : [];
-            const aar = aarRes.ok ? await aarRes.json() : [];
-            const n = (Array.isArray(pcr) ? pcr.length : 0) + (Array.isArray(aar) ? aar.length : 0);
+            const n = Array.isArray(pcr) ? pcr.length : 0;
             const badge = document.getElementById('reqBadge');
             if (!badge) return;
             if (n) { badge.textContent = n; badge.style.display = ''; }
@@ -1608,7 +1634,6 @@
     }
 
     function refreshPcrTabBadge() { refreshRequestsBadge(); }
-    function refreshAarTabBadge() { refreshRequestsBadge(); }
 
     // ── Tab ───────────────────────────────────────────────────────────────────
     function switchTab(tab) {
@@ -1717,6 +1742,21 @@
         return u.visible !== false;
     }
 
+    function canEditUserRecord(u) {
+        if (!u || !_currentUser) return false;
+        const isSelf = u.id === _currentUser.id;
+        const isFounder = u.email === 'portalecrypto@proton.me';
+        const isSA = _currentUser.role === 'superadmin';
+        if (isFounder) return false;
+        if (isStrumentoUser(u)) return isSA;
+        if (isSelf) return u.visible !== false;
+        if (isSA) return true;
+        if (u.visible === false || u.role === 'superadmin') return false;
+        const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
+        const targetLevel = ROLE_LEVEL[u.role] ?? 0;
+        return targetLevel < myLevel;
+    }
+
     function renderUserRow(u, list) {
         const myLevel = ROLE_LEVEL[_currentUser.role] ?? 0;
         const isSelf         = u.id === _currentUser.id;
@@ -1726,15 +1766,10 @@
         const isSA          = _currentUser.role === 'superadmin';
         const canDelete     = !isSelf && !isSuperadmin && targetLevel < myLevel && list !== 'hidden';
         const canRestore    = isSA && !isSelf && !isSuperadmin && targetLevel < myLevel && list === 'hidden';
-        const canEditProfile = !isFounder && (
-            isSA
-                ? true
-                : (!isSuperadmin && targetLevel < myLevel && u.visible !== false)
-        ) && (list !== 'hidden' || isSA);
-        // Admin può modificare anche se stesso (come SA)
-        const canEditSelfOrOther = canEditProfile || (isSelf && !isFounder && list !== 'hidden');
+        const canEditSelfOrOther = canEditUserRecord(u) && (list !== 'hidden' || _currentUser.role === 'superadmin');
         const canResetPw     = isSA && !isSelf && !isFounder;
-        const canUnlock      = !isSuperadmin && !!u.loginLocked && targetLevel < myLevel;
+        const canToggleLock  = isSA && !isSelf && !isFounder && !isSuperadmin && targetLevel < myLevel && list !== 'hidden';
+        const canUnlock      = !isSA && !isSuperadmin && !!u.loginLocked && targetLevel < myLevel;
         const badgeCls = (isSuperadmin || u.role === 'admin') ? 'badge-admin' : 'badge-user';
         const displayNome = isFounder
             ? 'Super Admin'
@@ -1754,7 +1789,7 @@
         return `<tr class="row-clickable" data-uid="${u.id}" onclick="onUserRowClick(event,'${u.id}')">
             <td>${displayGrado}</td>
             <td>${displayNome}</td>
-            <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}</td>
+            <td>${u.email}${isSelf ? ' <span style="color:#5ABBC8;font-size:0.75rem">(tu)</span>' : ''}${u.username && u.accountType !== 'strumento' ? `<div style="color:#5ABBC8;font-size:0.75rem">${escapeHtml(u.username)}</div>` : ''}</td>
             <td><div class="role-cell"><span class="badge ${badgeCls}">${ROLE_LABEL[u.role] || u.role}</span>${u.docente ? '<span class="badge badge-docente">Docente</span>' : ''}${u.loginLocked ? '<span class="badge badge-locked">Bloccato</span>' : ''}</div></td>
             <td style="color:#5ABBC8;font-size:0.8rem">${new Date(u.createdAt).toLocaleDateString('it-IT')}</td>
             ${hiddenAtCell}
@@ -1762,6 +1797,7 @@
                 ${canEditSelfOrOther ? `<button class="btn-edit" onclick="openEditModal('${u.id}')">Modifica</button>` : ''}
                 ${canUnlock ? `<button class="btn-unlock" onclick="unlockUserLogin('${u.id}')">Sblocca</button>` : ''}
                 ${canResetPw ? `<button class="btn-reset" onclick="resetUserPassword('${u.id}','${emailJs}')">Reset password</button>` : ''}
+                ${canToggleLock ? `<button class="${u.loginLocked ? 'btn-unlock' : 'btn-lock'}" onclick="toggleUserLoginLock('${u.id}')">${u.loginLocked ? 'Sblocca' : 'Blocca'}</button>` : ''}
                 ${visBtn}
             </td>
         </tr>`;
@@ -1860,16 +1896,25 @@
         }[c]));
     }
 
+    function canBulkEditUser(u) {
+        const myLevel = ROLE_LEVEL[_currentUser?.role] ?? 0;
+        if (!u || u.visible === false) return false;
+        if (u.role === 'superadmin' || u.accountType === 'strumento') return false;
+        if (u.email === 'portalecrypto@proton.me' || u.id === _currentUser?.id) return false;
+        return (ROLE_LEVEL[u.role] ?? 0) < myLevel;
+    }
+
     function bulkAssignableUsers() {
         const dir = _bulkSort.dir === 'asc' ? 1 : -1;
         const key = _bulkSort.key;
         const myLevel = ROLE_LEVEL[_currentUser?.role] ?? 0;
+        // Mostra anche i pari grado (es. altri Admin): restano in sola lettura.
         return _usersCache.filter((u) =>
             u.role !== 'superadmin'
             && u.accountType !== 'strumento'
             && u.email !== 'portalecrypto@proton.me'
             && u.id !== _currentUser.id
-            && (ROLE_LEVEL[u.role] ?? 0) < myLevel
+            && (ROLE_LEVEL[u.role] ?? 0) <= myLevel
         ).sort((a, b) => {
             let cmp = 0;
             if (key === 'grado') {
@@ -2061,15 +2106,20 @@
             const prev = edits[u.id];
             const have = new Set(prev && Array.isArray(prev.cards) ? prev.cards : (Array.isArray(u.cards) ? u.cards : []));
             const badgeCls = u.role === 'admin' ? 'badge-admin' : 'badge-user';
-            const locked = u.visible === false;
-            const hiddenCls = locked ? ' is-hidden is-locked' : '';
+            const editable = canBulkEditUser(u);
+            const hiddenUser = u.visible === false;
+            const locked = !editable;
+            const lockReason = hiddenUser
+                ? 'Utente non visibile: autorizzazioni bloccate'
+                : 'Non puoi modificare le autorizzazioni di un altro Admin';
+            const hiddenCls = (hiddenUser ? ' is-hidden' : '') + (locked ? ' is-locked' : '');
             const lockAttr = locked ? ' disabled' : '';
-            const lockTitle = locked ? ' title="Utente non visibile: autorizzazioni bloccate"' : '';
+            const lockTitle = locked ? ` title="${lockReason}"` : '';
             const canDoc = roleCanBeDocente(u.role);
             const docOn = prev ? !!prev.docente : (canDoc && !!u.docente);
             const docenteCell = `<td class="bulk-cell is-docente${docOn ? ' is-on' : ''}${canDoc && !locked ? '' : ' is-na'}">
                 <label class="bulk-cell-hit">
-                    <input type="checkbox" data-uid="${escapeHtml(u.id)}" data-docente="1"${docOn ? ' checked' : ''}${canDoc && !locked ? '' : ' disabled'} title="${locked ? 'Utente non visibile: autorizzazioni bloccate' : (canDoc ? 'Categoria Docente' : 'Disponibile solo per Utente e Admin')}" aria-label="Docente per ${escapeHtml(name)}">
+                    <input type="checkbox" data-uid="${escapeHtml(u.id)}" data-docente="1"${docOn ? ' checked' : ''}${canDoc && !locked ? '' : ' disabled'} title="${locked ? lockReason : (canDoc ? 'Categoria Docente' : 'Disponibile solo per Utente e Admin')}" aria-label="Docente per ${escapeHtml(name)}">
                     <span class="bulk-flag" aria-hidden="true"></span>
                 </label>
             </td>`;
@@ -2082,13 +2132,13 @@
                     </label>
                 </td>`;
             }).join('');
-            return `<tr data-uid="${escapeHtml(u.id)}" data-filter="${escapeHtml(hay)}" data-role="${escapeHtml(u.role || '')}" data-docente="${canDoc && u.docente ? '1' : '0'}" data-visible="${locked ? '0' : '1'}" data-cards="${escapeHtml(Array.isArray(u.cards) ? u.cards.join(' ') : '')}" class="${hiddenCls.trim()}">
+            return `<tr data-uid="${escapeHtml(u.id)}" data-filter="${escapeHtml(hay)}" data-role="${escapeHtml(u.role || '')}" data-docente="${canDoc && u.docente ? '1' : '0'}" data-visible="${hiddenUser ? '0' : '1'}" data-cards="${escapeHtml(Array.isArray(u.cards) ? u.cards.join(' ') : '')}" class="${hiddenCls.trim()}">
                 <td class="bulk-user-col">
                     <div class="bulk-user-cell">
                         <span class="bulk-avatar">${escapeHtml(bulkInitials(u))}</span>
                         <span class="bulk-user-text">
                             <strong>${escapeHtml(name)} <span class="badge ${badgeCls}">${escapeHtml(ROLE_LABEL[u.role] || u.role)}</span></strong>
-                            <small>${escapeHtml(u.email)}${u.visible === false ? ' · eliminato' : ''}</small>
+                            <small>${escapeHtml(u.email)}${hiddenUser ? ' · eliminato' : (!editable ? ' · sola lettura' : '')}</small>
                         </span>
                     </div>
                 </td>
@@ -2177,7 +2227,7 @@
             const hay = row.getAttribute('data-filter') || '';
             const isDoc = row.getAttribute('data-docente') === '1';
             const cards = (row.getAttribute('data-cards') || '').split(/\s+/).filter(Boolean);
-            const isHiddenUser = row.classList.contains('is-locked') || row.getAttribute('data-visible') === '0';
+            const isHiddenUser = row.getAttribute('data-visible') === '0';
             let ok = !q || hay.includes(q);
             if (ok && !showHidden && isHiddenUser) ok = false;
             if (ok && needRoles.length) ok = needRoles.includes(row.getAttribute('data-role') || '');
@@ -2293,7 +2343,36 @@
     function unlockFromView() {
         const id = _viewUserId;
         if (!id) return;
-        unlockUserLogin(id, () => closeViewModal());
+        toggleUserLoginLock(id, () => closeViewModal());
+    }
+
+    function toggleUserLoginLock(id, afterOk) {
+        const u = _usersCache.find(x => x.id === id);
+        if (u && u.loginLocked) unlockUserLogin(id, afterOk);
+        else lockUserLogin(id, afterOk);
+    }
+
+    function lockUserLogin(id, afterOk) {
+        const u = _usersCache.find(x => x.id === id);
+        const label = u ? (u.email || 'utente') : 'utente';
+        showConfirm(`Bloccare l'accesso di ${label} per 2 ore?`, async () => {
+            try {
+                const res = await fetch('/api/auth/users/' + id + '/lock-login', {
+                    method: 'POST',
+                    headers: authHeader(),
+                });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showMsg('usersMsg', d.error || 'Impossibile bloccare l\'account.', 'error');
+                    return;
+                }
+                showMsg('usersMsg', 'Account bloccato per 2 ore.', 'success');
+                if (typeof afterOk === 'function') afterOk();
+                loadUsers();
+            } catch {
+                showMsg('usersMsg', 'Errore di rete nel blocco.', 'error');
+            }
+        });
     }
 
     function unlockUserLogin(id, afterOk) {
@@ -2489,6 +2568,16 @@
 
         const lockDd = document.getElementById('viewLoginLock');
         const unlockBtn = document.getElementById('viewUnlockBtn');
+        const canToggleLock = _currentUser.role === 'superadmin'
+            && u.id !== _currentUser.id
+            && u.role !== 'superadmin'
+            && u.email !== 'portalecrypto@proton.me'
+            && (ROLE_LEVEL[u.role] ?? 0) < (ROLE_LEVEL[_currentUser.role] ?? 0)
+            && u.visible !== false;
+        const canAdminUnlock = _currentUser.role !== 'superadmin'
+            && u.role !== 'superadmin'
+            && !!u.loginLocked
+            && (ROLE_LEVEL[u.role] ?? 0) < (ROLE_LEVEL[_currentUser.role] ?? 0);
         if (u.visible === false) {
             lockDd.innerHTML = '<span class="badge badge-hidden">Revocato</span>';
             unlockBtn.style.display = 'none';
@@ -2496,17 +2585,22 @@
             const until = u.loginLockedUntil
                 ? new Date(u.loginLockedUntil).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
                 : '';
-            const why = u.loginLockedReason === 'otp_fail' ? '3 OTP errati' : '3 invii OTP';
+            const why = u.loginLockedReason === 'otp_fail' ? '3 OTP errati'
+                : u.loginLockedReason === 'admin' ? 'blocco Super Admin'
+                : '3 invii OTP';
             lockDd.innerHTML = `<span class="badge badge-locked">Bloccato</span> ${until ? 'fino alle ' + until : ''} (${why})`;
-            unlockBtn.style.display = (u.role !== 'superadmin'
-                && (ROLE_LEVEL[u.role] ?? 0) < (ROLE_LEVEL[_currentUser.role] ?? 0)) ? '' : 'none';
+            unlockBtn.textContent = 'Sblocca accesso';
+            unlockBtn.className = 'btn-unlock';
+            unlockBtn.style.display = (canToggleLock || canAdminUnlock) ? '' : 'none';
         } else {
             lockDd.textContent = 'Attivo';
-            unlockBtn.style.display = 'none';
+            unlockBtn.textContent = 'Blocca accesso';
+            unlockBtn.className = 'btn-lock';
+            unlockBtn.style.display = canToggleLock ? '' : 'none';
         }
 
         const editBtn = document.getElementById('viewEditBtn');
-        editBtn.style.display = isFounder ? 'none' : '';
+        editBtn.style.display = canEditUserRecord(u) ? '' : 'none';
         document.getElementById('viewModal').style.display = 'flex';
     }
 
@@ -2534,7 +2628,7 @@
 
     async function openEditModal(userId) {
         const u = _usersCache.find(x => x.id === userId);
-        if (!u) return;
+        if (!u || !canEditUserRecord(u)) return;
         document.getElementById('editUserId').value = userId;
         _editOriginalRole = u.role || 'user';
         const isStrumento = isStrumentoUser(u);
@@ -2685,7 +2779,7 @@
         }
     }
 
-    // ── Approvazioni (profilo + azioni admin, elenco unico) ──────────────────
+    // ── Approvazioni (solo modifiche profilo richieste dagli utenti) ─────────
     function renderPcrItem(r) {
         const extras = [
             r.dataNascita ? `Nascita: ${formatDateIT(r.dataNascita)}` : null,
@@ -2711,59 +2805,22 @@
                 </div>`;
     }
 
-    function renderAarItem(r) {
-        const isMine = r.requestedById === _currentUser.id;
-        const approvals = r.approvals || [];
-        const alreadyApproved = approvals.some(a => a.id === _currentUser.id);
-        const superOnly = !!r.superadminOnly;
-        const canApprove = !isMine && !alreadyApproved && (!superOnly || _currentUser.role === 'superadmin');
-        const when = new Date(r.requestedAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
-        const approvedBy = !superOnly && approvals.length
-            ? `<small style="color:#7ACCE0;">Approvazioni admin (${approvals.length}/${r.needed}): ${approvals.map(a => a.label || a.email).join(', ')}</small>`
-            : (superOnly ? '<small style="color:#7ACCE0;">Solo Super Admin</small>' : '');
-        const targetName = r.targetLabel || r.targetEmail;
-        const requesterName = r.requestedByLabel || r.requestedByEmail;
-        return `
-                <div class="pcr-item">
-                    <div class="pcr-info">
-                        <strong>${escapeHtml(r.typeLabel)} — ${escapeHtml(targetName)}</strong>
-                        <small>${escapeHtml(r.summary)}</small>
-                        <small style="color:#7ACCE0;">Richiesta da ${escapeHtml(requesterName)}${isMine ? ' (tu)' : ''} · ${when}</small>
-                        ${approvedBy}
-                    </div>
-                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-                        ${canApprove ? `<button class="btn-ok-sm" onclick="approveAdminRequest('${r.id}')">✓ Approva</button>` : ''}
-                        ${alreadyApproved ? '<span style="font-size:0.78rem;color:#5ABBC8;">Già approvata da te</span>' : ''}
-                        <button class="btn-rej" onclick="rejectAdminRequest('${r.id}', ${isMine})">${isMine ? '✕ Annulla' : '✕ Rifiuta'}</button>
-                    </div>
-                </div>`;
-    }
-
     async function loadApprovals() {
         const list = document.getElementById('approvalsList');
         if (!list) return;
         list.innerHTML = '<div style="color:#5ABBC8;font-size:0.88rem;">Caricamento...</div>';
         try {
-            const [pcrRes, aarRes] = await Promise.all([
-                fetch('/api/auth/profile-change-requests', { headers: authHeader() }),
-                fetch('/api/auth/admin-requests', { headers: authHeader() }),
-            ]);
+            const pcrRes = await fetch('/api/auth/profile-change-requests', { headers: authHeader() });
             const pcr = await pcrRes.json().catch(() => []);
-            const aar = await aarRes.json().catch(() => []);
             refreshRequestsBadge();
-            const items = [];
-            (Array.isArray(pcr) ? pcr : []).forEach((r) => {
-                items.push({ at: r.requestedAt, html: renderPcrItem(r) });
-            });
-            (Array.isArray(aar) ? aar : []).forEach((r) => {
-                items.push({ at: r.requestedAt, html: renderAarItem(r) });
-            });
-            items.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+            const items = (Array.isArray(pcr) ? pcr : [])
+                .slice()
+                .sort((a, b) => new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0));
             if (!items.length) {
                 list.innerHTML = '<div class="empty-state">Nessuna richiesta in attesa.</div>';
                 return;
             }
-            list.innerHTML = items.map((i) => i.html).join('');
+            list.innerHTML = items.map((r) => renderPcrItem(r)).join('');
         } catch {
             list.innerHTML = '<div style="color:#FF6B7A;font-size:0.85rem">Errore caricamento.</div>';
         }
@@ -2783,39 +2840,6 @@
             const res = await fetch(`/api/auth/profile-change-requests/${id}`, { method:'DELETE', headers:authHeader() });
             if (res.ok) { showMsg('requestsMsg','Richiesta rifiutata.','success'); loadProfileChangeRequests(); refreshNavBell(); refreshRequestsBadge(); }
             else { const d=await res.json(); showMsg('requestsMsg',d.error||'Errore.','error'); }
-        });
-    }
-
-    function approveAdminRequest(id) {
-        showConfirm('Approvare questa richiesta?', async () => {
-            const res = await fetch(`/api/auth/admin-requests/${id}/approve`, { method: 'POST', headers: authHeader() });
-            const d = await res.json().catch(() => ({}));
-            if (res.ok) {
-                showMsg(
-                    'requestsMsg',
-                    d.executed
-                        ? 'Richiesta approvata: operazione applicata.'
-                        : `Approvazione registrata (${d.approvals}/${d.needed}). Serve un'altra approvazione.`,
-                    'success'
-                );
-                loadApprovals(); loadUsers(); refreshAarTabBadge();
-                if (typeof refreshNavBell === 'function') refreshNavBell();
-            } else {
-                showMsg('requestsMsg', d.error || 'Errore.', 'error');
-                loadApprovals(); refreshAarTabBadge();
-            }
-        });
-    }
-
-    function rejectAdminRequest(id, isMine) {
-        showConfirm(isMine ? 'Annullare la tua richiesta?' : 'Rifiutare questa richiesta?', async () => {
-            const res = await fetch(`/api/auth/admin-requests/${id}`, { method: 'DELETE', headers: authHeader() });
-            if (res.ok) {
-                showMsg('requestsMsg', isMine ? 'Richiesta annullata.' : 'Richiesta rifiutata.', 'success');
-                loadApprovals(); refreshAarTabBadge();
-                if (typeof refreshNavBell === 'function') refreshNavBell();
-            }
-            else { const d = await res.json(); showMsg('requestsMsg', d.error || 'Errore.', 'error'); }
         });
     }
     </script>

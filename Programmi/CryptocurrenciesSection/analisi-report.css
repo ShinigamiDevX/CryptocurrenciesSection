@@ -10,7 +10,7 @@
 .nav-bell-badge {
     position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
     padding: 0 4px; background: #FF4757; color: #fff; font-size: 0.68rem; font-weight: 700;
-    line-height: 17px; text-align: center; border-radius: 9px; display: none;
+    line-height: 17px; text-align: center; border-radius: 9px; border:none!important;outline:none!important;box-shadow:none!important;display: none;
 }
 .nav-bell-badge.visible { display: block; }
 #navBellPanel {

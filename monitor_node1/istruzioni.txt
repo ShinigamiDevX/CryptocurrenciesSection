@@ -1,0 +1,9 @@
+1 avviare xampp control
+2 avviare mongo db
+
+apri shell 
+e in questa cartella 
+
+
+
+c:\> node app.js

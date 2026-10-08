@@ -1,37 +1,9 @@
-import os
 import re
 import time
 import json
 import warnings
 import requests
 from urllib.parse import quote
-
-def _load_cluster_env_file():
-    """Carica cluster.env se le variabili non sono già nell'ambiente (Docker le inietta da solo)."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    candidates = (
-        os.path.join(here, '..', 'cluster.env'),
-        os.path.join(here, 'cluster.env'),
-    )
-    for path in candidates:
-        path = os.path.abspath(path)
-        if not os.path.isfile(path):
-            continue
-        try:
-            with open(path, encoding='utf-8') as fh:
-                for raw in fh:
-                    line = raw.strip()
-                    if not line or line.startswith('#') or '=' not in line:
-                        continue
-                    key, _, val = line.partition('=')
-                    key, val = key.strip(), val.strip().strip('"').strip("'")
-                    if key and key not in os.environ:
-                        os.environ[key] = val
-        except OSError:
-            continue
-        break
-
-_load_cluster_env_file()
 
 # Sopprimi warning openpyxl cosmetics (stili mancanti nel workbook)
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
@@ -98,10 +70,13 @@ EVM_CHAIN_KEYS = [
 
 CHAINALYSIS_BASE_URL = "https://api.chainalysis.com"
 REACTOR_BASE_URL = "https://reactor.chainalysis.com"
-CHAINALYSIS_API_TOKEN = (os.environ.get("CHAINALYSIS_API_TOKEN") or os.environ.get("REACTOR_TOKEN") or "").strip()
+CHAINALYSIS_API_TOKEN = "123e45ef8f45fdb6f83a25af557a753d151b7093bca86d9e197c92c33a2e6897"
 
 TRM_BASE_URL = "https://api.trmlabs.com"
-TRM_API_KEY = (os.environ.get("TRM_API_KEY") or "").strip()
+TRM_API_KEY = "35c2ed35-f481-4b31-892e-6654bf979b16"
+
+# Chiave Gemini: GEMINI_API_KEY (o GOOGLE_API_KEY) in cluster.env / ambiente. Non in repo.
+GEMINI_API_KEY = ""
 
 # Mapping TRM chain names → mainnet Chainalysis
 # TRM_CHAIN_TO_MAINNET rimosso: sostituito da TRM_CHAIN_ID_TO_MAINNET
@@ -338,9 +313,32 @@ def is_evm_address(value):
     return v.startswith("0x") and len(v) == 42
 
 
+def chiave_deposit_address(value):
+    """Chiave di unicità per un deposit address. Gli EVM si confrontano in minuscolo."""
+    s = str(value or '').strip()
+    if not s or s.lower() in ('nan', 'none'):
+        return ''
+    if is_evm_address(s):
+        return s.lower()
+    return s
+
+
 def is_evm_tx_hash(value):
     v = str(value).strip()
     return v.startswith("0x") and len(v) == 66
+
+
+def chiave_tx_hash(value):
+    """Chiave di unicità per un tx hash. Hex (EVM/BTC/TRON) in minuscolo; Solana resta case-sensitive."""
+    s = str(value or '').strip()
+    if not s or s.lower() in ('nan', 'none'):
+        return ''
+    if is_evm_tx_hash(s):
+        return s.lower()
+    body = s[2:] if s.lower().startswith('0x') else s
+    if body and all(c in '0123456789abcdefABCDEF' for c in body) and len(body) in (64, 66):
+        return ('0x' + body.lower()) if s.lower().startswith('0x') else body.lower()
+    return s
 
 
 def is_probably_stellar_address(value):
@@ -348,6 +346,84 @@ def is_probably_stellar_address(value):
     if len(addr) != 56 or not addr.startswith("G"):
         return False
     return all(ch in STELLAR_BASE32_ALPHABET for ch in addr)
+
+
+def is_probably_bitcoin_address(value):
+    """BTC: Legacy/P2SH ~26-35 char, bech32 bc1q/bc1p. Non le firme Solana lunghe che iniziano con '3'."""
+    addr = str(value).strip()
+    if addr.startswith(("bc1q", "bc1p")):
+        return 14 <= len(addr) <= 90
+    if addr[:1] in ("1", "3"):
+        return 26 <= len(addr) <= 35
+    return False
+
+
+def is_probably_solana_signature(value):
+    """Firma tx Solana: base58, di solito 87-88 caratteri (non un indirizzo wallet)."""
+    v = str(value).strip()
+    if not (80 <= len(v) <= 90):
+        return False
+    base58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    return all(ch in base58 for ch in v)
+
+
+def is_probably_dogecoin_address(value):
+    """Dogecoin legacy: inizia con D, ~25-34 caratteri. Non le firme Solana lunghe."""
+    addr = str(value).strip()
+    return addr.startswith("D") and 25 <= len(addr) <= 34
+
+
+def is_probably_litecoin_address(value):
+    addr = str(value).strip()
+    if addr.startswith("ltc1"):
+        return 14 <= len(addr) <= 90
+    if addr[:1] in ("L", "M"):
+        return 26 <= len(addr) <= 35
+    return False
+
+
+def prefisso_indirizzo_plausibile(mainnet, address):
+    """Evita falsi positivi (es. firme Solana vs prefissi BTC/DOGE/LTC di 1 carattere)."""
+    if mainnet == "STELLAR_MAINNET":
+        return is_probably_stellar_address(address)
+    if mainnet == "BITCOIN_MAINNET":
+        return is_probably_bitcoin_address(address)
+    if mainnet == "DOGECOIN_MAINNET":
+        return is_probably_dogecoin_address(address)
+    if mainnet == "LITECOIN_MAINNET":
+        return is_probably_litecoin_address(address)
+    if mainnet == "DASH_MAINNET":
+        return address.startswith("X") and 25 <= len(address) <= 36
+    if mainnet == "TRON_MAINNET":
+        return address.startswith("T") and len(address) == 34
+    if mainnet == "XRP_MAINNET":
+        return address.startswith("r") and 25 <= len(address) <= 35
+    return True
+
+
+def resolve_solana_by_signature(signature):
+    """Se la firma esiste su Solana mainnet, restituisce SOLANA_MAINNET."""
+    sig = str(signature or "").strip()
+    if not is_probably_solana_signature(sig):
+        return None
+    urls = [u for u in RPC_API.get("SOLANA_MAINNET", []) if "chainalysis.com" not in u]
+    if not urls:
+        urls = ["https://api.mainnet-beta.solana.com"]
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getTransaction",
+        "params": [sig, {"encoding": "json", "maxSupportedTransactionVersion": 0}],
+    }
+    for url in urls:
+        try:
+            r = requests.post(url, json=payload, timeout=15)
+            if r.status_code == 200 and (r.json() or {}).get("result"):
+                print(f"[RPC] SOLANA_MAINNET sig={sig[:14]}...")
+                return "SOLANA_MAINNET"
+        except Exception:
+            continue
+    return None
 
 
 def is_probably_monero_address(value):
@@ -481,10 +557,8 @@ def asset_output_finale(asset, address=None, network=None):
             if network == tupla[1] or network == tupla[2].lower():
                 return tupla[2]
 
-    # 3. Prova mapping tramite prefisso address
-    # Gli hash di transazione a 64 caratteri hex non sono indirizzi wallet: escludili.
-    _is_raw_tx_hash = len(address) == 64 and all(c in '0123456789abcdefABCDEF' for c in address)
-    if address and not _is_raw_tx_hash:
+    # 3. Prova mapping tramite prefisso address (non su hash/firme di transazione).
+    if address and not _e_hash_grezzo(address):
         for tupla in MAPPATURA_ASSET_CLUSTER:
             if len(tupla) > 3:
                 prefissi = tupla[3]
@@ -492,7 +566,7 @@ def asset_output_finale(asset, address=None, network=None):
                     prefissi = [prefissi]
                 for pref in prefissi:
                     if address.startswith(pref):
-                        if tupla[2] == "STELLAR_MAINNET" and not is_probably_stellar_address(address):
+                        if not prefisso_indirizzo_plausibile(tupla[2], address):
                             continue
                         return tupla[2]
 
@@ -1099,9 +1173,10 @@ def _salva_trm(df, file_output):
 
 def elimina_duplicati_depositi(df):
     """
-    Rimuove duplicati depositi (Type=deposit) per stesso 'deposit address or hash'.
+    Rimuove duplicati depositi (Type=deposit) per stesso indirizzo (una riga per address).
     Tra i duplicati preferisce la riga il cui asset è presente in MAPPATURA_ASSET_CLUSTER
     (asset mainnet valido); in caso di parità mantiene la prima occorrenza.
+    Gli indirizzi EVM si confrontano e si emettono in minuscolo.
     Le righe 'sent' vengono restituite invariate.
     """
     if df is None or df.empty:
@@ -1122,7 +1197,7 @@ def elimina_duplicati_depositi(df):
 
     # Separa depositi e sent
     if 'type' in cols_lower:
-        mask_dep = df_work['type'].str.strip().str.lower() == 'deposit'
+        mask_dep = df_work['type'].astype(str).str.strip().str.lower() == 'deposit'
         df_dep = df_work[mask_dep].copy()
         df_other = df_work[~mask_dep].copy()
     else:
@@ -1138,15 +1213,79 @@ def elimina_duplicati_depositi(df):
     def _priorita(asset):
         return 0 if str(asset).strip().upper() in mainnet_validi else 1
 
+    df_dep['_addr_key'] = df_dep['deposit address or hash'].map(chiave_deposit_address)
     if 'asset' in cols_lower:
         df_dep['_prio'] = df_dep['asset'].apply(_priorita)
         df_dep = df_dep.sort_values('_prio', kind='stable')
-        df_dep = df_dep.drop_duplicates(subset=['deposit address or hash'], keep='first')
-        df_dep = df_dep.drop(columns=['_prio'])
-    else:
-        df_dep = df_dep.drop_duplicates(subset=['deposit address or hash'], keep='first')
+    df_dep = df_dep.drop_duplicates(subset=['_addr_key'], keep='first')
+    df_dep['deposit address or hash'] = df_dep['_addr_key'].where(
+        df_dep['_addr_key'] != '', df_dep['deposit address or hash']
+    )
+    df_dep = df_dep.drop(columns=[c for c in ('_addr_key', '_prio') if c in df_dep.columns])
 
     result = pd.concat([df_dep, df_other], ignore_index=True)
+    result.columns = orig_cols
+    return result
+
+
+def elimina_duplicati_sent(df):
+    """
+    Rimuove duplicati sent per la stessa coppia (tx hash, destinatario/output).
+    Chainalysis rifiuta due righe che puntano allo stesso output.
+    Tra i duplicati preferisce l'asset mainnet valido; gli hash/indirizzi EVM
+    si confrontano e si emettono in minuscolo. I depositi restano invariati.
+    """
+    if df is None or df.empty:
+        return df
+
+    if os.environ.get('OUTPUT_SERVICE', '').lower() == 'trm':
+        return df
+
+    orig_cols = df.columns.tolist()
+    cols_lower = [str(c).strip().lower() for c in orig_cols]
+
+    if 'deposit address or hash' not in cols_lower:
+        return df
+
+    df_work = df.copy()
+    df_work.columns = cols_lower
+
+    if 'type' in cols_lower:
+        mask_sent = df_work['type'].astype(str).str.strip().str.lower() == 'sent'
+        df_sent = df_work[mask_sent].copy()
+        df_other = df_work[~mask_sent].copy()
+    else:
+        return df
+
+    if df_sent.empty:
+        df_work.columns = orig_cols
+        return df_work
+
+    mainnet_validi = {str(t[2]).strip().upper() for t in MAPPATURA_ASSET_CLUSTER}
+
+    def _priorita(asset):
+        return 0 if str(asset).strip().upper() in mainnet_validi else 1
+
+    dest_col = 'output index or counterparty address'
+    df_sent['_hash_key'] = df_sent['deposit address or hash'].map(chiave_tx_hash)
+    if dest_col in cols_lower:
+        df_sent['_dest_key'] = df_sent[dest_col].map(chiave_deposit_address)
+    else:
+        df_sent['_dest_key'] = ''
+    if 'asset' in cols_lower:
+        df_sent['_prio'] = df_sent['asset'].apply(_priorita)
+        df_sent = df_sent.sort_values('_prio', kind='stable')
+    df_sent = df_sent.drop_duplicates(subset=['_hash_key', '_dest_key'], keep='first')
+    df_sent['deposit address or hash'] = df_sent['_hash_key'].where(
+        df_sent['_hash_key'] != '', df_sent['deposit address or hash']
+    )
+    if dest_col in cols_lower:
+        df_sent[dest_col] = df_sent['_dest_key'].where(
+            df_sent['_dest_key'] != '', df_sent[dest_col]
+        )
+    df_sent = df_sent.drop(columns=[c for c in ('_hash_key', '_dest_key', '_prio') if c in df_sent.columns])
+
+    result = pd.concat([df_other, df_sent], ignore_index=True)
     result.columns = orig_cols
     return result
 
@@ -1220,54 +1359,206 @@ def resolve_chain_with_chainalysis_by_address(address, preferred_chain=None):
     return None
 
 
+# Host Alchemy (g.alchemy.com/v2/KEY) per le EVM di EVM_CHAIN_KEYS.
+# Kaia e X Layer non sono su Alchemy: restano gli RPC pubblici.
+ALCHEMY_EVM_HOSTS = {
+    "ARBITRUM_ONE_MAINNET": "arb-mainnet",
+    "AVALANCHE_C_CHAIN_MAINNET": "avax-mainnet",
+    "BASE_MAINNET": "base-mainnet",
+    "BNB_SMART_CHAIN_MAINNET": "bnb-mainnet",
+    "ETHEREUM_MAINNET": "eth-mainnet",
+    "INK_MAINNET": "ink-mainnet",
+    "LINEA_MAINNET": "linea-mainnet",
+    "OPTIMISM_MAINNET": "opt-mainnet",
+    "PLASMA_MAINNET": "plasma-mainnet",
+    "POLYGON_POS_MAINNET": "polygon-mainnet",
+    "SONEIUM_MAINNET": "soneium-mainnet",
+    "TEMPO_MAINNET": "tempo-mainnet",
+    "UNICHAIN_MAINNET": "unichain-mainnet",
+    "WORLD_MAINNET": "worldchain-mainnet",
+    "ZK_SYNC_MAINNET": "zksync-mainnet",
+}
+
+_TX_CHAIN_CACHE = {}
+_ALCHEMY_SKIP = False
+
+
+def alchemy_api_key():
+    if _ALCHEMY_SKIP:
+        return ""
+    return (os.environ.get("ALCHEMY_API_KEY") or "").strip()
+
+
+def _is_alchemy_keyed_url(url):
+    return ".g.alchemy.com/v2/" in str(url or "")
+
+
+def _alchemy_quota_error(status, body):
+    if status in (402, 429):
+        return True
+    err = body.get("error") if isinstance(body, dict) else None
+    msg = ""
+    code = None
+    if isinstance(err, dict):
+        code = err.get("code")
+        msg = str(err.get("message") or "")
+    elif err:
+        msg = str(err)
+    if not msg and body is not None:
+        msg = str(body)
+    if code in (429, 402, -32005, -32029):
+        return True
+    low = msg.lower()
+    return any(
+        token in low
+        for token in (
+            "compute unit",
+            "compute units",
+            "capacity limit",
+            "monthly capacity",
+            "exceeded your",
+            "rate limit",
+            "too many requests",
+            "quota",
+        )
+    )
+
+
+def _mark_alchemy_exhausted(reason):
+    global _ALCHEMY_SKIP
+    if _ALCHEMY_SKIP:
+        return
+    _ALCHEMY_SKIP = True
+    print("[Alchemy] CU/quota esauriti (" + str(reason) + "): passo a RPC pubblici, KYT, TRM.")
+
+
+def alchemy_rpc_url(chain_key, key=None):
+    key = alchemy_api_key() if key is None else key
+    host = ALCHEMY_EVM_HOSTS.get(chain_key)
+    if not key or not host:
+        return None
+    return "https://" + host + ".g.alchemy.com/v2/" + key
+
+
+def _rpc_pubblici_evm():
+    """RPC per tutte le chain EVM in EVM_CHAIN_KEYS. Alchemy (se c'è la chiave) prima degli endpoint pubblici."""
+    extra = {
+        "ETHEREUM_MAINNET": [
+            "https://ethereum-rpc.publicnode.com",
+            "https://rpc.ankr.com/eth",
+            "https://cloudflare-eth.com",
+        ],
+        "BNB_SMART_CHAIN_MAINNET": [
+            "https://bsc-dataseed.binance.org/",
+            "https://bsc-dataseed1.defibit.io/",
+            "https://bsc-rpc.publicnode.com",
+        ],
+        "POLYGON_POS_MAINNET": [
+            "https://polygon-bor-rpc.publicnode.com",
+            "https://rpc.ankr.com/polygon",
+            "https://polygon-rpc.com",
+        ],
+        "INK_MAINNET": ["https://rpc-gel.inkonchain.com"],
+        "KAIA_MAINNET": ["https://public-en.node.kaia.io"],
+        "PLASMA_MAINNET": ["https://rpc.plasma.to"],
+        "SONEIUM_MAINNET": ["https://rpc.soneium.org"],
+        "UNICHAIN_MAINNET": ["https://mainnet.unichain.org"],
+        "WORLD_MAINNET": ["https://worldchain-mainnet.g.alchemy.com/public"],
+        "XLAYER_MAINNET": ["https://rpc.xlayer.tech"],
+        "TEMPO_MAINNET": ["https://rpc.tempo.xyz"],
+    }
+    urls = []
+    visti = set()
+    key = alchemy_api_key()
+    if key:
+        for chain in EVM_CHAIN_KEYS:
+            url = alchemy_rpc_url(chain, key)
+            if not url:
+                continue
+            coppia = (chain, url)
+            if coppia in visti:
+                continue
+            visti.add(coppia)
+            urls.append(coppia)
+    for chain in EVM_CHAIN_KEYS:
+        candidati = [u for u in RPC_API.get(chain, []) if "chainalysis.com" not in u]
+        candidati.extend(extra.get(chain, []))
+        for url in candidati:
+            chiave = (chain, url)
+            if chiave in visti:
+                continue
+            visti.add(chiave)
+            urls.append(chiave)
+    urls.sort(key=lambda item: item[0] == "ETHEREUM_MAINNET")
+    return urls
+
+
+def _rpc_tx_presente(rpc_url, tx):
+    """True se l'RPC vede la tx (receipt o getTransactionByHash)."""
+    keyed = _is_alchemy_keyed_url(rpc_url)
+    if keyed and _ALCHEMY_SKIP:
+        return False
+    for method in ("eth_getTransactionReceipt", "eth_getTransactionByHash"):
+        try:
+            r = requests.post(
+                rpc_url,
+                json={"jsonrpc": "2.0", "method": method, "params": [tx], "id": 1},
+                timeout=8,
+            )
+            data = r.json() if r.content else {}
+            if keyed and _alchemy_quota_error(r.status_code, data):
+                _mark_alchemy_exhausted("HTTP " + str(r.status_code))
+                return False
+            if r.status_code == 200 and data.get("result"):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def resolve_chain_with_chainalysis_by_tx_hash(tx_hash, preferred_chain=None, wallet_address=None, chain_filter=None):
-    """Identifica la chain EVM di un tx hash via RPC pubblici, poi KYT v2 come fallback.
-    chain_filter: set/list di mainnet Chainalysis da provare (None = tutte)."""
+    """Identifica la chain EVM di un tx hash via RPC pubblici (in parallelo), poi KYT/TRM.
+    Un hash 0x+66 è per forza EVM: non si usa Gemini. chain_filter: mainnet da provare prima."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     tx = str(tx_hash).strip()
     if not is_evm_tx_hash(tx):
         return None
+    cached = _TX_CHAIN_CACHE.get(tx.lower())
+    if cached:
+        return cached
 
-    # RPC pubblici EVM ordinati per probabilità (L2 comuni prima, poi L1/altri)
-    EVM_PUBLIC_RPCS = [
-        ("ARBITRUM_ONE_MAINNET",       "https://arb1.arbitrum.io/rpc"),
-        ("BNB_SMART_CHAIN_MAINNET",    "https://bsc-dataseed.binance.org/"),
-        ("ETHEREUM_MAINNET",           "https://cloudflare-eth.com"),
-        ("BASE_MAINNET",               "https://mainnet.base.org"),
-        ("OPTIMISM_MAINNET",           "https://mainnet.optimism.io"),
-        ("POLYGON_POS_MAINNET",        "https://polygon-rpc.com"),
-        ("AVALANCHE_C_CHAIN_MAINNET",  "https://api.avax.network/ext/bc/C/rpc"),
-        ("LINEA_MAINNET",              "https://rpc.linea.build"),
-        ("ZK_SYNC_MAINNET",            "https://mainnet.era.zksync.io"),
-    ]
+    EVM_PUBLIC_RPCS = _rpc_pubblici_evm()
 
-    # Filtra per chain_filter se specificato (basato sui dati CSV dell'asset):
-    # le chain nel filtro vengono provate per prime, poi le restanti come fallback
     if chain_filter:
         prioritized = [(k, u) for k, u in EVM_PUBLIC_RPCS if k in chain_filter]
-        remaining   = [(k, u) for k, u in EVM_PUBLIC_RPCS if k not in chain_filter]
-        base_list = prioritized + remaining  # CSV-matching prima, poi tutte le altre
+        remaining = [(k, u) for k, u in EVM_PUBLIC_RPCS if k not in chain_filter]
+        base_list = prioritized + remaining
     else:
         base_list = EVM_PUBLIC_RPCS
 
-    # Metti preferred_chain in testa se specificato
-    ordered = []
     if preferred_chain:
         ordered = [(k, u) for k, u in base_list if k == preferred_chain]
         ordered += [(k, u) for k, u in base_list if k != preferred_chain]
     else:
         ordered = base_list
 
-    payload = {"jsonrpc": "2.0", "method": "eth_getTransactionReceipt", "params": [tx], "id": 1}
-    for chain_key, rpc_url in ordered:
-        try:
-            r = requests.post(rpc_url, json=payload, timeout=8)
-            if r.status_code == 200:
-                data = r.json()
-                if data.get("result"):
-                    print(f"[RPC] Trovata chain: {chain_key} per tx={tx[:14]}...")
+    # RPC in parallelo (Alchemy prima, poi pubblici): un hash 0x esiste su una sola chain EVM.
+    with ThreadPoolExecutor(max_workers=min(16, max(4, len(ordered)))) as pool:
+        futuri = {
+            pool.submit(_rpc_tx_presente, rpc_url, tx): (chain_key, rpc_url)
+            for chain_key, rpc_url in ordered
+        }
+        for fut in as_completed(futuri):
+            try:
+                if fut.result():
+                    chain_key, rpc_url = futuri[fut]
+                    tag = "Alchemy" if _is_alchemy_keyed_url(rpc_url) else "RPC"
+                    print(f"[{tag}] {chain_key} tx={tx[:14]}...")
+                    _TX_CHAIN_CACHE[tx.lower()] = chain_key
                     return chain_key
-        except Exception:
-            continue
+            except Exception:
+                continue
 
     # Fallback: KYT v2 (potrebbe non essere accessibile con questo token)
     chain_keys = []
@@ -1288,6 +1579,7 @@ def resolve_chain_with_chainalysis_by_tx_hash(tx_hash, preferred_chain=None, wal
         try:
             r = requests.get(tx_url, headers=headers, params={"network": network}, timeout=10)
             if r.status_code == 200 and _chainalysis_data_contains_hash(r.json(), tx):
+                _TX_CHAIN_CACHE[tx.lower()] = chain_key
                 return chain_key
         except Exception:
             pass
@@ -1297,6 +1589,7 @@ def resolve_chain_with_chainalysis_by_tx_hash(tx_hash, preferred_chain=None, wal
                 r = requests.get(wallet_url, headers=headers,
                                  params={"network": network, "filter[hash]": tx, "page[size]": 100}, timeout=10)
                 if r.status_code == 200 and _chainalysis_data_contains_hash(r.json(), tx):
+                    _TX_CHAIN_CACHE[tx.lower()] = chain_key
                     return chain_key
             except Exception:
                 continue
@@ -1304,11 +1597,46 @@ def resolve_chain_with_chainalysis_by_tx_hash(tx_hash, preferred_chain=None, wal
     # Fallback finale: TRM Labs
     result = resolve_chain_with_trm_tx(tx)
     if result:
+        _TX_CHAIN_CACHE[tx.lower()] = result
         return result
+    print(f"[RPC] Hash EVM non trovato su nessuna chain nota: tx={tx[:18]}...")
     return None
 
 def inferisci_asset_per_avviso(riga):
     return str(riga.get('Asset', '')).strip()
+
+def asset_senza_api(asset, address=None, network=None):
+    """Mapping locale (ticker, network, prefisso indirizzo). Nessuna chiamata esterna."""
+    asset = str(asset).strip().upper() if asset else ""
+    address = str(address).strip() if address else ""
+    network = str(network).strip().lower() if network else None
+
+    for tupla in MAPPATURA_ASSET_CLUSTER:
+        if asset == tupla[0] or asset == tupla[2]:
+            return tupla[2]
+
+    if network:
+        for tupla in MAPPATURA_ASSET_CLUSTER:
+            if network == tupla[1] or network == tupla[2].lower():
+                return tupla[2]
+
+    _is_raw_tx_hash = len(address) == 64 and all(c in '0123456789abcdefABCDEF' for c in address)
+    if address and not _is_raw_tx_hash:
+        for tupla in MAPPATURA_ASSET_CLUSTER:
+            if len(tupla) > 3:
+                prefissi = tupla[3]
+                if isinstance(prefissi, str):
+                    prefissi = [prefissi]
+                for pref in prefissi:
+                    if address.startswith(pref):
+                        if tupla[2] == "STELLAR_MAINNET" and not is_probably_stellar_address(address):
+                            continue
+                        return tupla[2]
+
+    if asset in ASSET_OUTPUT_VALIDI:
+        return asset
+    return asset
+
 
 def normalizza_asset(asset, address=None, network=None):
     asset = str(asset).strip().upper() if asset else ""
@@ -1384,6 +1712,20 @@ def filtra_righe_asset_non_supportato(df):
             deposit_address_or_hash = str(riga.get('Deposit Address or Hash', '')).strip()
             counterparty = str(riga.get('Output index or Counterparty Address', '')).strip()
             if not asset_norm or asset_norm in ASSET_OUTPUT_VALIDI:
+                continue
+
+            tipo_riga = str(riga.get('Type', '')).strip().lower()
+            if tipo_riga in ('sent', 'deposit'):
+                asset_gemini = asset_da_tx_hash_gemini(deposit_address_or_hash)
+                if asset_gemini and str(asset_gemini).strip().upper() in ASSET_OUTPUT_VALIDI:
+                    righe_da_correggere[idx] = asset_gemini
+                    continue
+            if tipo_riga == 'sent':
+                dettaglio = riga.to_dict()
+                dettaglio['Asset'] = inferisci_asset_per_avviso(riga)
+                dettaglio['Motivo esclusione'] = 'Mainnet non supportata da reactor.chainalysis'
+                avvisi.append(dettaglio)
+                righe_da_escludere.append(idx)
                 continue
 
             preferred_chain = None
@@ -1473,38 +1815,27 @@ def filtra_righe_sent(df):
             if not campi_vuoti:
                 continue
 
-            # Ultimo controllo richiesto: tenta risoluzione via Chainalysis prima di escludere.
-            counterparty = str(riga.get('Output index or Counterparty Address', '')).strip()
+            # Ultimo tentativo: Gemini (cache) oppure RPC se è un hash EVM 0x.
             tx_hash = str(riga.get('Deposit Address or Hash', '')).strip()
-            asset_attuale = str(riga.get('Asset', '')).strip().upper()
-
-            preferred_chain = None
-            for tupla in MAPPATURA_ASSET_CLUSTER:
-                if asset_attuale in (tupla[0], tupla[2]):
-                    preferred_chain = tupla[2]
-                    break
-
-            if counterparty:
-                # Prima prova locale veloce (prefissi/euristiche), poi verifica Chainalysis reale.
-                asset_norm = normalizza_asset(asset_attuale, counterparty)
-                if asset_norm in ASSET_OUTPUT_VALIDI:
-                    df.at[idx, 'Asset'] = asset_norm
+            controparte = str(riga.get('Output index or Counterparty Address', '')).strip()
+            if tx_hash and tx_hash.lower() not in ('nan', 'none'):
+                if is_evm_tx_hash(tx_hash):
+                    chain_rpc = resolve_chain_with_chainalysis_by_tx_hash(
+                        tx_hash,
+                        wallet_address=controparte if is_evm_address(controparte) else None,
+                    )
+                    if chain_rpc:
+                        df.at[idx, 'Asset'] = chain_rpc
+                elif is_probably_solana_signature(tx_hash):
+                    chain_sol = resolve_solana_by_signature(tx_hash)
+                    if chain_sol:
+                        df.at[idx, 'Asset'] = chain_sol
                 else:
-                    chain_chainalysis = resolve_chain_with_chainalysis_by_address(counterparty, preferred_chain)
-                    if chain_chainalysis:
-                        df.at[idx, 'Asset'] = chain_chainalysis
+                    asset_gemini = asset_da_tx_hash_gemini(tx_hash)
+                    if asset_gemini:
+                        df.at[idx, 'Asset'] = asset_gemini
 
-            # Se il campo hash è un 0x tx hash, prova lookup Chainalysis per capire la chain EVM.
-            if is_evm_tx_hash(tx_hash):
-                chain_by_hash = resolve_chain_with_chainalysis_by_tx_hash(
-                    tx_hash,
-                    preferred_chain=preferred_chain,
-                    wallet_address=counterparty if is_evm_address(counterparty) else None,
-                )
-                if chain_by_hash:
-                    df.at[idx, 'Asset'] = chain_by_hash
-
-            # Ricontrolla la riga aggiornata dopo tentativo Chainalysis.
+            # Ricontrolla la riga aggiornata.
             riga_aggiornata = df.loc[idx]
             ancora_vuota = False
             for campo in df.columns:
@@ -1516,15 +1847,487 @@ def filtra_righe_sent(df):
             if ancora_vuota:
                 righe_escluse.append(riga_aggiornata)
         if righe_escluse:
-            avvisi.append("Sono state escluse le seguenti righe dal file di output perché di tipo 'sent' e con almeno un campo vuoto dopo l'ultimo controllo API:")
+            avvisi.append("Sono state escluse le seguenti righe dal file di output perché di tipo 'sent' e con almeno un campo vuoto dopo il controllo sulla chain dell'hash di transazione:")
             for riga in righe_escluse:
                 avvisi.append(str(riga.to_dict()))
             df = df.drop([r.name for r in righe_escluse])
     return df, avvisi
 
 
+_GEMINI_CHAIN_CACHE = {}
+_PROMPT_CHAIN_HASH = "rispondimi solo con la chain di appartenenza di questi hash di transazione:"
+
+# Nomi che Gemini restituisce spesso e che non coincidono lettera per lettera
+# con i campi di MAPPATURA_ASSET_CLUSTER. Il valore è il ticker (primo elemento).
+_ALIAS_CHAIN_GEMINI = {
+    "ethereum": "ETH",
+    "ether": "ETH",
+    "bitcoin": "BTC",
+    "binance": "BSC",
+    "binance smart": "BSC",
+    "bnb": "BSC",
+    "bnb smart": "BSC",
+    "polygon": "POL",
+    "matic": "POL",
+    "arbitrum": "ARB",
+    "arbitrum one": "ARB",
+    "avalanche": "AVAX",
+    "avalanche c": "AVAX",
+    "optimism": "OP",
+    "base": "BASE",
+    "tron": "TRX",
+    "solana": "SOL",
+    "litecoin": "LTC",
+    "dogecoin": "DOGE",
+    "ripple": "XRP",
+    "xrp ledger": "XRP",
+    "stellar": "XLM",
+    "bitcoin cash": "BCH",
+    "zksync": "ZK",
+    "zk sync": "ZK",
+    "zksync era": "ZK",
+    "linea": "LINEA",
+    "ton": "TON",
+    "open network": "TON",
+    "sui": "SUI",
+    "unichain": "UNI",
+    "world": "WLD",
+    "worldchain": "WLD",
+    "x layer": "OKB",
+    "xlayer": "OKB",
+    "kaia": "KAIA",
+    "klaytn": "KAIA",
+    "ink": "INK",
+    "plasma": "PLASM",
+    "soneium": "SNE",
+    "tempo": "TEMPO",
+    "dash": "DASH",
+    "zcash": "ZEC",
+}
+
+
+def _etichetta_chain(valore):
+    """Normalizza un nome chain per il confronto con MAPPATURA_ASSET_CLUSTER."""
+    testo = str(valore or "").strip().lower().replace("_", " ").replace("-", " ")
+    testo = re.sub(r"[^a-z0-9\s]", " ", testo)
+    testo = re.sub(r"\s+", " ", testo).strip()
+    stop = {"mainnet", "network", "chain", "the"}
+    parti = [p for p in testo.split() if p not in stop]
+    return " ".join(parti)
+
+
+def _contiene_frase(testo, frase):
+    if not testo or not frase:
+        return False
+    return re.search(rf"(?<![a-z0-9]){re.escape(frase)}(?![a-z0-9])", testo) is not None
+
+
+def _risolvi_a_mainnet_cluster(valore):
+    """Porta un nome qualsiasi al terzo elemento della tupla di MAPPATURA_ASSET_CLUSTER."""
+    et = _etichetta_chain(valore)
+    if not et:
+        return None
+
+    for tupla in MAPPATURA_ASSET_CLUSTER:
+        if len(tupla) < 3:
+            continue
+        for campo in tupla[:3]:
+            if _etichetta_chain(campo) == et:
+                return tupla[2]
+
+    upper = str(valore).strip().upper()
+    mapped = MAPPATURA_ASSET.get(upper)
+    if mapped:
+        return mapped
+
+    ankr = ANKR_BLOCKCHAIN_TO_MAINNET.get(str(valore).strip().lower())
+    if ankr:
+        return ankr
+
+    for mainnet, code in _MAINNET_TO_CSV_BLOCKCHAIN.items():
+        if _etichetta_chain(code) == et or _etichetta_chain(mainnet) == et:
+            return mainnet
+
+    for trm_id, mainnet in TRM_CHAIN_ID_TO_MAINNET.items():
+        if _etichetta_chain(trm_id) == et or _etichetta_chain(mainnet) == et:
+            return mainnet
+
+    for chain_id, mainnet in REACTOR_EIP155_TO_MAINNET.items():
+        if str(chain_id) == str(valore).strip() or _etichetta_chain(mainnet) == et:
+            return mainnet
+
+    currency = _TRM_CURRENCY_NORMALIZE.get(upper)
+    if currency and currency != upper:
+        return _risolvi_a_mainnet_cluster(currency)
+
+    for alias, ticker in _ALIAS_CHAIN_GEMINI.items():
+        if et == alias:
+            return _risolvi_a_mainnet_cluster(ticker)
+
+    for tupla in MAPPATURA_ASSET_CLUSTER:
+        if len(tupla) < 3:
+            continue
+        for campo in tupla[:3]:
+            primo = _etichetta_chain(campo).split()
+            if primo and primo[0] == et and len(et) >= 3:
+                return tupla[2]
+    return None
+
+
+def _coppie_label_mainnet():
+    """Tutte le etichette delle liste di cluster_utils.py, collegate al mainnet del cluster."""
+    coppie = []
+    visti = set()
+
+    def aggiungi(etichetta, destinazione):
+        mainnet = _risolvi_a_mainnet_cluster(destinazione) or _risolvi_a_mainnet_cluster(etichetta)
+        et = _etichetta_chain(etichetta)
+        if not mainnet or not et or len(et) < 2:
+            return
+        chiave = (et, mainnet)
+        if chiave in visti:
+            return
+        visti.add(chiave)
+        coppie.append(chiave)
+
+    for tupla in MAPPATURA_ASSET_CLUSTER:
+        if len(tupla) >= 3:
+            for campo in tupla[:3]:
+                aggiungi(campo, tupla[2])
+
+    for chiave, valore in MAPPATURA_ASSET.items():
+        aggiungi(chiave, valore)
+        aggiungi(valore, valore)
+
+    for chiave, valore in ANKR_BLOCKCHAIN_TO_MAINNET.items():
+        aggiungi(chiave, valore)
+        aggiungi(valore, valore)
+
+    for _chain_id, valore in REACTOR_EIP155_TO_MAINNET.items():
+        aggiungi(valore, valore)
+
+    for nome in REACTOR_SEARCH_ASSETS:
+        aggiungi(nome, nome)
+
+    for nome in EVM_CHAIN_KEYS:
+        aggiungi(nome, nome)
+
+    for nome in RPC_API:
+        aggiungi(nome, nome)
+
+    for nome in ASSET_OUTPUT_VALIDI:
+        aggiungi(nome, nome)
+
+    for mainnet, code in _MAINNET_TO_CSV_BLOCKCHAIN.items():
+        aggiungi(mainnet, mainnet)
+        aggiungi(code, mainnet)
+
+    for chiave, _trm_id in MAINNET_TO_TRM_CHAIN_ID.items():
+        aggiungi(chiave, chiave)
+        aggiungi(_trm_id, chiave)
+
+    for trm_id, mainnet in TRM_CHAIN_ID_TO_MAINNET.items():
+        aggiungi(trm_id, mainnet)
+        aggiungi(mainnet, mainnet)
+
+    for nome, ticker in _TRM_CURRENCY_NORMALIZE.items():
+        aggiungi(nome, ticker)
+        aggiungi(ticker, ticker)
+
+    for alias, ticker in _ALIAS_CHAIN_GEMINI.items():
+        aggiungi(alias, ticker)
+
+    for code in _CSV_BLOCKCHAIN_TO_TRM_ID:
+        aggiungi(code, code)
+
+    for nome, mainnet in (
+        ("ERC20", "ETHEREUM_MAINNET"),
+        ("BEP20", "BNB_SMART_CHAIN_MAINNET"),
+        ("TRC20", "TRON_MAINNET"),
+        ("SPL", "SOLANA_MAINNET"),
+    ):
+        aggiungi(nome, mainnet)
+
+    return coppie
+
+
+def asset_da_risposta_gemini(risposta):
+    """
+    Confronta la risposta di Gemini con le liste di cluster_utils.py
+    e restituisce il terzo elemento della tupla di MAPPATURA_ASSET_CLUSTER.
+    """
+    resp = _etichetta_chain(risposta)
+    if not resp:
+        return None
+
+    migliore = None
+    migliore_pos = None
+    migliore_len = -1
+    for etichetta, mainnet in _coppie_label_mainnet():
+        if resp == etichetta:
+            return mainnet
+        if len(etichetta) < 3 or not _contiene_frase(resp, etichetta):
+            continue
+        pos = resp.find(etichetta)
+        if migliore is None or pos < migliore_pos or (pos == migliore_pos and len(etichetta) > migliore_len):
+            migliore = mainnet
+            migliore_pos = pos
+            migliore_len = len(etichetta)
+    return migliore
+
+
+def _e_hash_grezzo(valore):
+    """True se il valore è un hash/firma di transazione, non un indirizzo wallet."""
+    v = str(valore or "").strip()
+    if is_evm_tx_hash(v):
+        return True
+    if is_probably_solana_signature(v):
+        return True
+    return len(v) == 64 and all(c in "0123456789abcdefABCDEF" for c in v)
+
+
+def asset_da_pattern_liste(valore):
+    """
+    Se l'indirizzo inizia con un prefisso di MAPPATURA_ASSET_CLUSTER,
+    restituisce il terzo elemento della tupla. Gli hash grezzi non hanno prefisso.
+    """
+    address = str(valore or "").strip()
+    if not address or address.lower() in ("nan", "none") or _e_hash_grezzo(address):
+        return None
+
+    trovati = []
+    for tupla in MAPPATURA_ASSET_CLUSTER:
+        if len(tupla) <= 3:
+            continue
+        prefissi = tupla[3]
+        if isinstance(prefissi, str):
+            prefissi = [prefissi]
+        for pref in prefissi:
+            if address.startswith(pref):
+                if not prefisso_indirizzo_plausibile(tupla[2], address):
+                    continue
+                trovati.append((len(str(pref)), tupla[2]))
+    if not trovati:
+        return None
+    trovati.sort(key=lambda item: item[0], reverse=True)
+    return trovati[0][1]
+
+
+def _righe_risposta_gemini(testo):
+    righe = []
+    for riga in str(testo or "").splitlines():
+        riga = riga.strip().strip("*").strip()
+        riga = re.sub(r"^\d+[\.\)\:\-]\s*", "", riga).strip()
+        if riga:
+            righe.append(riga)
+    return righe
+
+
+def _chain_dopo_hash(riga, tx):
+    """Estrae il nome chain scritto sulla stessa riga, dopo l'hash."""
+    riga_low = riga.lower()
+    i = riga_low.find(tx.lower())
+    if i < 0:
+        return ""
+    dopo = riga[i + len(tx):].strip(" \t`*:.-")
+    dopo = re.sub(r"^[\*`:\-\.\s]+", "", dopo).strip()
+    dopo = dopo.strip("*").strip()
+    return dopo.splitlines()[0].strip(" *-:.") if dopo else ""
+
+
+def _associa_chain_agli_hash(testo, hashes):
+    """Collega ogni hash alla chain indicata da Gemini, riga per riga."""
+    if not testo:
+        return {}
+    risultato = {}
+    for riga in str(testo).splitlines():
+        if not riga.strip():
+            continue
+        for tx in hashes:
+            if tx in risultato:
+                continue
+            chain = _chain_dopo_hash(riga, tx)
+            if chain:
+                risultato[tx] = chain
+                break
+
+    if len(risultato) == len(hashes):
+        return risultato
+
+    pulite = _righe_risposta_gemini(testo)
+    senza_hash = [riga for riga in pulite if not any(tx.lower() in riga.lower() for tx in hashes)]
+    mancanti = [tx for tx in hashes if tx not in risultato]
+    if mancanti and len(senza_hash) == len(mancanti):
+        for tx, riga in zip(mancanti, senza_hash):
+            risultato[tx] = riga
+    elif not risultato and len(pulite) == len(hashes):
+        return dict(zip(hashes, pulite))
+    return risultato
+
+
+def _hashes_unici(tx_hashes):
+    hashes = []
+    for tx in tx_hashes:
+        tx = str(tx).strip()
+        if not tx or tx.lower() in ("nan", "none") or tx in hashes:
+            continue
+        hashes.append(tx)
+    return hashes
+
+
+def _prompt_chain_hash(hashes):
+    return _PROMPT_CHAIN_HASH + "\n" + "\n".join(hashes)
+
+
+def _popola_cache_da_testo(cache, testo, hashes, etichetta):
+    associati = _associa_chain_agli_hash(testo, hashes)
+    for tx in hashes:
+        risposta = associati.get(tx) or None
+        cache[tx] = risposta
+        print(f"[{etichetta}] tx={tx[:18]}... → {risposta or '(vuoto)'}")
+
+
+def chiedi_chain_gemini_batch(tx_hashes):
+    """
+    Una sola chiamata Gemini per tutti gli hash non riconosciuti dai pattern.
+    Prompt: rispondimi solo con la chain di appartenenza di questi hash di transazione:
+    """
+    hashes = _hashes_unici(tx_hashes)
+    if not hashes:
+        return {}
+
+    da_chiedere = [tx for tx in hashes if tx not in _GEMINI_CHAIN_CACHE]
+    if da_chiedere:
+        api_key = (GEMINI_API_KEY or "").strip() or os.environ.get("GEMINI_API_KEY", "").strip() or os.environ.get("GOOGLE_API_KEY", "").strip()
+        if not api_key:
+            print("[Gemini] Imposta GEMINI_API_KEY in cluster.env")
+            for tx in da_chiedere:
+                _GEMINI_CHAIN_CACHE[tx] = None
+        else:
+            modello = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash").strip() or "gemini-3.6-flash"
+            prompt = _prompt_chain_hash(da_chiedere)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modello}:generateContent?key={api_key}"
+            body = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": 0,
+                    "maxOutputTokens": min(8192, 80 * len(da_chiedere) + 64),
+                    "thinkingConfig": {"thinkingBudget": 0},
+                },
+            }
+            try:
+                r = requests.post(url, json=body, timeout=120)
+                if r.status_code == 400 and "thinkingConfig" in r.text:
+                    body["generationConfig"].pop("thinkingConfig", None)
+                    r = requests.post(url, json=body, timeout=120)
+                if r.status_code == 429:
+                    print("[Gemini] Quota esaurita (HTTP 429): continuo senza Gemini per questi hash")
+                    for tx in da_chiedere:
+                        _GEMINI_CHAIN_CACHE[tx] = None
+                elif r.status_code != 200:
+                    print(f"[Gemini] HTTP {r.status_code}: {r.text[:120]}")
+                    for tx in da_chiedere:
+                        _GEMINI_CHAIN_CACHE[tx] = None
+                else:
+                    data = r.json()
+                    parti = (
+                        data.get("candidates", [{}])[0]
+                        .get("content", {})
+                        .get("parts", [])
+                    )
+                    testo = "\n".join(str(p.get("text", "")).strip() for p in parti if isinstance(p, dict)).strip()
+                    print(f"[Gemini] {len(da_chiedere)} hash in una richiesta")
+                    _popola_cache_da_testo(_GEMINI_CHAIN_CACHE, testo, da_chiedere, "Gemini")
+            except Exception as e:
+                print(f"[Gemini] Errore batch: {e}")
+                for tx in da_chiedere:
+                    _GEMINI_CHAIN_CACHE[tx] = None
+
+    return {tx: _GEMINI_CHAIN_CACHE.get(tx) for tx in hashes}
+
+
+def asset_da_tx_hash_gemini(tx_hash):
+    """Legge la chain già chiesta a Gemini e la traduce nel terzo elemento della tupla."""
+    tx = str(tx_hash).strip()
+    risposta = _GEMINI_CHAIN_CACHE.get(tx)
+    if not risposta:
+        return None
+    asset = asset_da_risposta_gemini(risposta)
+    if asset:
+        print(f"[Gemini] asset={asset} per tx={tx[:18]}...")
+    else:
+        print(f"[Gemini] nessuna corrispondenza nelle liste per '{risposta}'")
+    return asset
+
+
+def risolvi_asset_sent_con_gemini(df):
+    """
+    Prefisso delle liste quando basta.
+    Hash sent e indirizzi di deposito non riconosciuti vanno a Gemini in una sola richiesta.
+    In Asset finisce il terzo elemento della tupla di MAPPATURA_ASSET_CLUSTER.
+    """
+    if df is None or df.empty:
+        return df
+
+    df.columns = [str(c).strip() for c in df.columns]
+    if "Type" not in df.columns or "Deposit Address or Hash" not in df.columns or "Asset" not in df.columns:
+        return df
+
+    mainnet_noti = {str(tupla[2]).strip().upper() for tupla in MAPPATURA_ASSET_CLUSTER if len(tupla) >= 3}
+    ha_controparte = "Output index or Counterparty Address" in df.columns
+    da_chiedere = []
+    for idx, riga in df.iterrows():
+        tipo = str(riga.get("Type", "")).strip().lower()
+        valore = str(riga.get("Deposit Address or Hash", "")).strip()
+        if not valore or valore.lower() in ("nan", "none"):
+            continue
+        if tipo == "sent":
+            controparte = str(riga.get("Output index or Counterparty Address", "")).strip() if ha_controparte else ""
+            asset_pattern = asset_da_pattern_liste(controparte) or asset_da_pattern_liste(valore)
+            if asset_pattern:
+                df.at[idx, "Asset"] = asset_pattern
+                continue
+            # Un hash 0x+66 è per forza EVM: solo RPC/KYT/TRM, mai Gemini (inventa Aptos ecc.).
+            if is_evm_tx_hash(valore):
+                chain_rpc = resolve_chain_with_chainalysis_by_tx_hash(
+                    valore,
+                    wallet_address=controparte if is_evm_address(controparte) else None,
+                )
+                if chain_rpc:
+                    df.at[idx, "Asset"] = chain_rpc
+                continue
+            # Firme Solana (~88 base58): RPC Solana, non Gemini (può dire Dogecoin/Bitcoin).
+            if is_probably_solana_signature(valore):
+                chain_sol = resolve_solana_by_signature(valore)
+                if chain_sol:
+                    df.at[idx, "Asset"] = chain_sol
+                continue
+            da_chiedere.append((idx, valore))
+        elif tipo == "deposit":
+            asset_attuale = str(riga.get("Asset", "")).strip().upper()
+            if asset_attuale in mainnet_noti:
+                continue
+            asset_pattern = asset_da_pattern_liste(valore)
+            if asset_pattern:
+                df.at[idx, "Asset"] = asset_pattern
+                continue
+            da_chiedere.append((idx, valore))
+
+    if not da_chiedere:
+        return df
+
+    print(f"[Gemini] {len(da_chiedere)} hash o indirizzi senza pattern, una sola richiesta")
+    chiedi_chain_gemini_batch([valore for _, valore in da_chiedere])
+    for idx, valore in da_chiedere:
+        asset = asset_da_tx_hash_gemini(valore)
+        if asset:
+            df.at[idx, "Asset"] = asset
+    return df
+
+
 def risolvi_asset_da_tx_hash_sempre(df):
-    """Per ogni riga con tx hash EVM (0x + 66), verifica sempre Chainalysis e aggiorna Asset se risolto."""
+    """Per ogni riga non-sent con tx hash EVM (0x + 66), verifica Chainalysis e aggiorna Asset se risolto.
+    Le righe sent usano Gemini e non passano da qui."""
     if df is None or df.empty:
         return df
 
@@ -1535,8 +2338,11 @@ def risolvi_asset_da_tx_hash_sempre(df):
         return df
 
     has_counterparty_col = 'Output index or Counterparty Address' in df.columns
+    has_type_col = 'Type' in df.columns
 
     for idx, riga in df.iterrows():
+        if has_type_col and str(riga.get('Type', '')).strip().lower() == 'sent':
+            continue
         tx_hash = str(riga.get('Deposit Address or Hash', '')).strip()
         if not is_evm_tx_hash(tx_hash):
             continue
@@ -1577,11 +2383,15 @@ def salva_e_avvisa(df_finale, file_output, avvisi_extra=None):
     trm_cols = [c for c in df_finale.columns if str(c).strip().lower().startswith('_trm')]
     if trm_cols:
         df_finale = df_finale.drop(columns=trm_cols)
-    # Controllo globale: ogni tx hash 0x viene verificato su Chainalysis prima dei filtri.
+    # Sent e depositi non riconosciuti dai pattern: una richiesta Gemini.
+    df_finale = risolvi_asset_sent_con_gemini(df_finale)
+    # Le altre righe con tx hash 0x restano sul controllo Chainalysis.
     df_finale = risolvi_asset_da_tx_hash_sempre(df_finale)
     df_finale, avvisi_ton = filtra_righe_ton(df_finale)
-    df_finale, avvisi_asset = filtra_righe_asset_non_supportato(df_finale)
+    # Unicità per deposit address e per output sent dopo la risoluzione chain.
     df_finale = elimina_duplicati_depositi(df_finale)
+    df_finale = elimina_duplicati_sent(df_finale)
+    df_finale, avvisi_asset = filtra_righe_asset_non_supportato(df_finale)
     df_finale, avvisi = filtra_righe_sent(df_finale)
     import json
     all_avvisi = avvisi_ton + avvisi_asset + avvisi.copy()
@@ -1613,9 +2423,7 @@ def normalizzatore_asset_coinbase(asset, indirizzo=None, network=None, deposito=
     if deposito:
         asset = str(asset).strip().split()[-1]
         indirizzo = str(indirizzo) if indirizzo is not None else ""
-        # Regola custom: se address inizia con 0x e asset type diverso da ETH, ritorna ETHEREUM_MAINNET
-        if indirizzo.startswith("0x") and asset != "ETH":
-            return "ETHEREUM_MAINNET"
+        # Un indirizzo 0x può appartenere a qualunque chain EVM, non solo a Ethereum.
         # Comportamento standard
         if network is not None:
             network = str(network).strip().split('-')[-2:]

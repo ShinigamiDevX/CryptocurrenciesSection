@@ -66,5 +66,20 @@ module.exports = {
         MEDIA_DIRECTORY: path.join(process.env.USERPROFILE || 'C:\\Users\\Admin', 'gelato', 'media'),
       },
     },
+    {
+      name: 'monitoring',
+      script: 'app.js',
+      interpreter: process.execPath,
+      cwd: path.join(__dirname, '..', 'monitor_node1'),
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      windowsHide: true,
+      env: {
+        PORT: '5002',
+        PORTAL_SSO_CONSUME_URL: 'https://cryptosection.chainholder.dev/api/auth/sso/consume',
+        PORTAL_URL: 'https://cryptosection.chainholder.dev',
+      },
+    },
   ],
 };
