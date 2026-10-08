@@ -30,6 +30,8 @@ services:
     restart: unless-stopped
     env_file:
       - cluster.env
+      - path: cluster.env.local
+        required: false
     # Dashboard HTTPS (cert firmato dalla Portale LAN CA) raggiunta direttamente dalla scheda Cluster
     ports:
       - "3444:3444"

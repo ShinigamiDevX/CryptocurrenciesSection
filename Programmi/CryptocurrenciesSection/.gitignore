@@ -27,3 +27,4 @@ auth/fonts/*.ttc
 
 # Environment
 .env
+cluster.env.local
